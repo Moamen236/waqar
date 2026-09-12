@@ -1,0 +1,134 @@
+import { Head, Link, router } from '@inertiajs/react';
+import Pagination from '../../../Components/Pagination';
+import RowActions from '../../../Components/RowActions';
+import StatusBadge from '../../../Components/StatusBadge';
+import AdminLayout from '../../../Layouts/AdminLayout';
+import { confirmAction } from '../../../lib/confirm';
+import type { PaginatedData } from '../../../types';
+
+interface ShippingRateRow {
+    id: number;
+    geo_type: string;
+    geo_id: number;
+    geo_label: string;
+    price: string;
+    free_shipping_threshold: string | null;
+    is_active: boolean;
+}
+
+export default function ShippingRatesIndex({
+    rates,
+    uncoveredGovernorates,
+}: {
+    rates: PaginatedData<ShippingRateRow>;
+    uncoveredGovernorates: string[];
+}) {
+    const remove = async (id: number) => {
+        const confirmed = await confirmAction({
+            title: 'Remove this shipping rate?',
+            text: 'Addresses at this level fall back to the next-broadest rate, or checkout refuses them if there is none.',
+            confirmText: 'Remove',
+            danger: true,
+        });
+
+        if (confirmed) {
+            router.delete(route('admin.delivery.shipping-rates.destroy', id));
+        }
+    };
+
+    return (
+        <AdminLayout title="Shipping Rates">
+            <Head title="Shipping Rates" />
+
+            {uncoveredGovernorates.length > 0 && (
+                <div className="alert alert-warning d-flex align-items-center gap-2" role="alert">
+                    <i className="bx bx-error-circle fs-20" />
+                    <div>
+                        No rate is configured for <strong>{uncoveredGovernorates.join(', ')}</strong> — checkout will
+                        refuse every order delivered there until one is added at some level.
+                    </div>
+                </div>
+            )}
+
+            <div className="row">
+                <div className="col-xl-12">
+                    <div className="card">
+                        <div className="card-header d-flex justify-content-between align-items-center gap-1">
+                            <h4 className="card-title flex-grow-1">All Shipping Rates</h4>
+                            <Link
+                                href={route('admin.delivery.shipping-rates.create')}
+                                className="btn btn-sm btn-primary"
+                            >
+                                Add Shipping Rate
+                            </Link>
+                        </div>
+                        <div className="table-responsive">
+                            <table className="table align-middle mb-0 table-hover table-centered">
+                                <thead className="bg-light-subtle">
+                                    <tr>
+                                        <th>Level</th>
+                                        <th>Location</th>
+                                        <th>Price</th>
+                                        <th>Free Over</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {rates.data.map((rate) => (
+                                        <tr key={rate.id}>
+                                            <td className="text-capitalize">{rate.geo_type}</td>
+                                            <td className="fw-medium">{rate.geo_label}</td>
+                                            <td>{rate.price}</td>
+                                            <td>{rate.free_shipping_threshold ?? '—'}</td>
+                                            <td>
+                                                <StatusBadge status={rate.is_active ? 'active' : 'inactive'} />
+                                            </td>
+                                            <td>
+                                                <RowActions
+                                                    editHref={route('admin.delivery.shipping-rates.edit', rate.id)}
+                                                    onDelete={() => remove(rate.id)}
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {rates.data.length === 0 && (
+                                        <tr>
+                                            <td colSpan={6} className="text-center text-muted py-4">
+                                                No shipping rates yet — the storefront cannot take an order until at
+                                                least one exists.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        {rates.data.length > 0 && (
+                            <div className="card-footer border-top">
+                                <Pagination data={rates} />
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <div className="row">
+                <div className="col-xl-12">
+                    <div className="card">
+                        <div className="card-header">
+                            <h4 className="card-title">How a rate is chosen</h4>
+                        </div>
+                        <div className="card-body">
+                            <p className="text-muted mb-0">
+                                At checkout the most specific configured rate wins —{' '}
+                                <strong>Area → District → City → Governorate</strong>. Set a governorate rate as the
+                                baseline, then override individual cities, districts or areas that cost more or less to
+                                reach. A customer never sees or edits a shipping price; it is always resolved here.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </AdminLayout>
+    );
+}

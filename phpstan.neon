@@ -1,0 +1,13 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app
+
+    # Start conservative; raise as the Actions/Services layer (Section 01)
+    # fills in — this is what Phase 7's "Larastan clean" gate checks against.
+    level: 5
+
+    ignoreErrors:
+        # add findings worth suppressing here, with a reason each time

@@ -1,0 +1,135 @@
+/* Admin — the real Larkon theme (Section 23), not a generic Bootstrap
+ * substitute. The theme's own compiled CSS (vendor.min.css, icons.min.css,
+ * app.min.css — a full Bootstrap 5 build with Larkon's customization
+ * already baked in) is linked directly in admin.blade.php's <head>, ahead
+ * of this file, so react-bootstrap's standard Bootstrap classnames pick up
+ * Larkon's visual treatment automatically without a separate plain-
+ * Bootstrap import. Never imported alongside storefront.css on the same
+ * page (Section 23's "two CSS frameworks, one per area" decision).
+ * RTL for v1 (Arabic-only staff UI, Q2) will use Larkon's own
+ * app-rtl.min.css build once Phase 6 lands — not wired yet.
+ *
+ * Brand palette override below: Main #012c4e (navy), Secondary #efddb7
+ * (cream). Bootstrap 5.3's compiled CSS bakes each color variant's
+ * resolved hex directly into every component's own scoped custom
+ * properties at SASS-build time (e.g. .btn-primary{--bs-btn-bg:#ff6c2f})
+ * rather than chaining var(--bs-primary) through every component — so a
+ * single :root override isn't enough on its own; the component-level
+ * variables below are copied from app.min.css's own .btn-primary/
+ * .btn-secondary/.btn-soft-primary/[data-menu-color=dark] blocks with
+ * just the color values swapped, not reinvented. This file loads after
+ * app.min.css (admin.blade.php), so equal-specificity selectors here win
+ * by source order — no !important needed. */
+
+:root {
+    --bs-primary: #012c4e;
+    --bs-primary-rgb: 1, 44, 78;
+    --bs-primary-text-emphasis: #012c4e;
+    --bs-primary-bg-subtle: #d4dfe6;
+    --bs-primary-border-subtle: #7e97a7;
+
+    --bs-secondary: #efddb7;
+    --bs-secondary-rgb: 239, 221, 183;
+    --bs-secondary-text-emphasis: #6b5a30;
+    --bs-secondary-bg-subtle: #faf4e6;
+    --bs-secondary-border-subtle: #e3cd97;
+
+    --bs-link-color: #012c4e;
+    --bs-link-color-rgb: 1, 44, 78;
+    --bs-link-hover-color: #023a63;
+    --bs-link-hover-color-rgb: 2, 58, 99;
+}
+
+/* Sidebar (Larkon's own custom --bs-main-nav-* variables, scoped to the
+ * data-menu-color=dark attribute set on <html> above) — navy background,
+ * cream highlight on the active/hovered item, matching the brand pair. */
+[data-menu-color='dark'] {
+    --bs-main-nav-bg: #012c4e;
+    --bs-main-nav-item-hover-color: #efddb7;
+    --bs-main-nav-border-color: #073a5f;
+}
+
+.btn-primary {
+    --bs-btn-color: #ffffff;
+    --bs-btn-bg: #012c4e;
+    --bs-btn-border-color: #012c4e;
+    --bs-btn-hover-color: #ffffff;
+    --bs-btn-hover-bg: #023a63;
+    --bs-btn-hover-border-color: #023a63;
+    --bs-btn-active-color: #ffffff;
+    --bs-btn-active-bg: #011f38;
+    --bs-btn-active-border-color: #011f38;
+    --bs-btn-disabled-color: #ffffff;
+    --bs-btn-disabled-bg: #012c4e;
+    --bs-btn-disabled-border-color: #012c4e;
+    --bs-btn-focus-shadow-rgb: 1, 44, 78;
+}
+
+/* Secondary is a light cream — swap the button's text color dark too, or
+ * cream-on-cream/near-white text would be unreadable (Larkon's own
+ * .btn-secondary bakes in white text because its default secondary was a
+ * dark slate; that assumption doesn't hold for a light brand color). */
+.btn-secondary {
+    --bs-btn-color: #012c4e;
+    --bs-btn-bg: #efddb7;
+    --bs-btn-border-color: #efddb7;
+    --bs-btn-hover-color: #012c4e;
+    --bs-btn-hover-bg: #e6cf9c;
+    --bs-btn-hover-border-color: #e6cf9c;
+    --bs-btn-active-color: #012c4e;
+    --bs-btn-active-bg: #ddc389;
+    --bs-btn-active-border-color: #ddc389;
+    --bs-btn-disabled-color: #012c4e;
+    --bs-btn-disabled-bg: #efddb7;
+    --bs-btn-disabled-border-color: #efddb7;
+    --bs-btn-focus-shadow-rgb: 239, 221, 183;
+}
+
+/* Larkon's own "soft" button variant (RowActions.tsx's edit action, used
+ * throughout every list page). */
+.btn-soft-primary {
+    --bs-btn-color: #012c4e;
+    --bs-btn-bg: rgba(1, 44, 78, 0.1);
+    --bs-btn-border-color: transparent;
+    --bs-btn-hover-color: #ffffff;
+    --bs-btn-hover-bg: #012c4e;
+    --bs-btn-hover-border-color: #012c4e;
+    --bs-btn-active-color: #ffffff;
+    --bs-btn-active-bg: #012c4e;
+    --bs-btn-active-border-color: #012c4e;
+    --bs-btn-disabled-color: #ffffff;
+    --bs-btn-disabled-bg: #012c4e;
+    --bs-btn-disabled-border-color: #012c4e;
+}
+
+.nav-pills {
+    --bs-nav-pills-link-active-bg: #012c4e;
+}
+
+.list-group {
+    --bs-list-group-active-bg: #012c4e;
+    --bs-list-group-active-border-color: #012c4e;
+}
+
+.pagination {
+    --bs-pagination-active-bg: #012c4e;
+    --bs-pagination-active-border-color: #012c4e;
+}
+
+.progress-bar {
+    background-color: #012c4e;
+}
+
+.form-check-input:checked {
+    background-color: #012c4e;
+    border-color: #012c4e;
+}
+
+/* .nav-link.active's border-left/icon accent (Products/Form.tsx's tabs,
+ * Accounting's delivery-result tabs). */
+.nav-link.active {
+    border-left-color: #012c4e;
+}
+.nav-link.active .nav-icon {
+    color: #012c4e;
+}

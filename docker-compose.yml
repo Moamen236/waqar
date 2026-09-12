@@ -1,0 +1,93 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: waqar_app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-waqar}
+      DB_USERNAME: ${DB_USERNAME:-waqar}
+      DB_PASSWORD: ${DB_PASSWORD:-secret}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - waqar
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: waqar_nginx
+    restart: unless-stopped
+    ports:
+      - "26991:80"
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - waqar
+
+  mysql:
+    image: mysql:8.0
+    container_name: waqar_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-waqar}
+      MYSQL_USER: ${DB_USERNAME:-waqar}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+    volumes:
+      - waqar_mysql_data:/var/lib/mysql
+      # Creates the separate `waqar_testing` database the Pest suite uses
+      # (tests/TestCase.php), on first boot of a fresh volume only.
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - waqar
+    # Not exposed to the host on purpose — only reachable by app/phpMyAdmin
+    # on the internal "waqar" network. Use phpMyAdmin (port 32231) or
+    # `docker compose exec mysql mysql -u root -p` to reach it directly.
+
+  redis:
+    image: redis:7-alpine
+    container_name: waqar_redis
+    restart: unless-stopped
+    volumes:
+      - waqar_redis_data:/data
+    networks:
+      - waqar
+    # Cache, queue, and session driver (Section 23) — internal only, same
+    # "not exposed to the host" rule as mysql.
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: waqar_phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+    ports:
+      - "32231:80"
+    depends_on:
+      - mysql
+    networks:
+      - waqar
+
+networks:
+  waqar:
+    driver: bridge
+
+volumes:
+  waqar_mysql_data:
+    driver: local
+  waqar_redis_data:
+    driver: local

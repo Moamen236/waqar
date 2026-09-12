@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 670 805" width="670" height="805" role="img" aria-label="Fashion for every occasion">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#F6EFDD"/><stop offset="1" stop-color="#F7F7F7"/>
+  </linearGradient></defs>
+  <rect width="670" height="805" fill="url(#g)"/>
+  <circle cx="335" cy="330" r="210" fill="#D2EF9A" opacity="0.55"/>
+  <g fill="#1F1F1F">
+    <path d="M232 250 q103 78 206 0 l54 34 -40 96 -44 -22 v320 h-146 V358 l-44 22 -40 -96 Z"/>
+  </g>
+  <path d="M290 250 q45 46 90 0" fill="none" stroke="#F6EFDD" stroke-width="16" stroke-linecap="round"/>
+  <text x="335" y="745" text-anchor="middle" font-family="Instrument Sans, system-ui, sans-serif" font-size="26" letter-spacing="6" fill="#696C70">DEMO ARTWORK</text>
+</svg>

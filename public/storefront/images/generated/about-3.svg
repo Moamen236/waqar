@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 620" width="500" height="620" role="img" aria-label="About WAQAR">
+  <rect width="500" height="620" fill="#1F1F1F"/>
+  <circle cx="250" cy="250" r="140" fill="#F6EFDD" opacity="0.12"/>
+  <path d="M178 198 q72 52 144 0 l38 24 -28 68 -30 -16 v222 h-104 V274 l-30 16 -28 -68 Z" fill="#F6EFDD" opacity="0.8"/>
+  <text x="250" y="580" text-anchor="middle" font-family="Instrument Sans, system-ui, sans-serif" font-size="16" letter-spacing="4" fill="#F6EFDD" opacity="0.6">DEMO ARTWORK</text>
+</svg>

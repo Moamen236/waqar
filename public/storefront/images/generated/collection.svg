@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 750" width="600" height="750" role="img" aria-label="Collection">
+  <rect width="600" height="750" fill="#F7F7F7"/>
+  <circle cx="300" cy="300" r="170" fill="#D2EF9A" opacity="0.5"/>
+  <path d="M215 235 q85 62 170 0 l44 28 -33 80 -36 -18 v262 h-120 V325 l-36 18 -33 -80 Z" fill="#1F1F1F" opacity="0.85"/>
+  <text x="300" y="700" text-anchor="middle" font-family="Instrument Sans, system-ui, sans-serif" font-size="18" letter-spacing="4" fill="#696C70">DEMO ARTWORK</text>
+</svg>

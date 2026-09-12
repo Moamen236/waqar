@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1200" width="900" height="1200" role="img" aria-label="Classic T-Shirt">
+  <rect width="900" height="1200" fill="#F7F7F7"/>
+  <rect x="250" y="260" width="400" height="520" rx="36" fill="#1F1F1F" opacity="0.92"/>
+  <path d="M250 300 L160 360 L215 470 L250 445 Z" fill="#1F1F1F" opacity="0.92"/>
+  <path d="M650 300 L740 360 L685 470 L650 445 Z" fill="#1F1F1F" opacity="0.92"/>
+  <path d="M380 260 q70 70 140 0" fill="none" stroke="#F7F7F7" stroke-width="18" stroke-linecap="round"/>
+  <text x="450" y="905" text-anchor="middle" font-family="Instrument Sans, system-ui, sans-serif" font-size="46" font-weight="600" fill="#1F1F1F">Classic T-Shirt</text>
+  <text x="450" y="960" text-anchor="middle" font-family="Instrument Sans, system-ui, sans-serif" font-size="32" fill="#1F1F1F" opacity="0.65">Black</text>
+  <text x="450" y="1120" text-anchor="middle" font-family="Instrument Sans, system-ui, sans-serif" font-size="24" fill="#1F1F1F" opacity="0.45">demo image — replace in /admin/products</text>
+</svg>

@@ -1,0 +1,166 @@
+import { Head, router } from '@inertiajs/react';
+import { useState } from 'react';
+import AdminLayout from '../../Layouts/AdminLayout';
+import { confirmAction } from '../../lib/confirm';
+
+interface AttributeValue {
+    id: number;
+    value: string;
+    color_hex: string | null;
+}
+
+interface AttributeRecord {
+    id: number;
+    name: string;
+    sort_order: number;
+    values: AttributeValue[];
+}
+
+// Card grid, matching Larkon's general card conventions — no direct
+// Larkon page names an attribute-values screen, so this reuses the same
+// card-header/card-body/list markup every other module uses.
+export default function AttributesIndex({ attributes }: { attributes: AttributeRecord[] }) {
+    const [newAttributeName, setNewAttributeName] = useState('');
+    const [newValues, setNewValues] = useState<Record<number, { value: string; color_hex: string }>>({});
+
+    function createAttribute() {
+        if (!newAttributeName) return;
+        router.post(
+            route('admin.attributes.store'),
+            { name: { en: newAttributeName }, sort_order: attributes.length },
+            { onSuccess: () => setNewAttributeName('') },
+        );
+    }
+
+    function addValue(attribute: AttributeRecord) {
+        const draft = newValues[attribute.id];
+        if (!draft?.value) return;
+        router.post(
+            route('admin.attributes.values.store', attribute.id),
+            {
+                value: { en: draft.value },
+                color_hex: draft.color_hex || undefined,
+                sort_order: attribute.values.length,
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => setNewValues({ ...newValues, [attribute.id]: { value: '', color_hex: '' } }),
+            },
+        );
+    }
+
+    async function removeValue(attribute: AttributeRecord, value: AttributeValue) {
+        if (!(await confirmAction({ title: `Remove "${value.value}"?`, danger: true }))) return;
+        router.delete(route('admin.attributes.values.destroy', [attribute.id, value.id]), { preserveScroll: true });
+    }
+
+    return (
+        <AdminLayout title="Attributes">
+            <Head title="Attributes" />
+
+            <div className="row">
+                <div className="col-lg-4">
+                    <div className="card">
+                        <div className="card-header">
+                            <h4 className="card-title">New Attribute</h4>
+                        </div>
+                        <div className="card-body d-flex gap-2">
+                            <input
+                                className="form-control"
+                                placeholder="e.g. Color, Size"
+                                value={newAttributeName}
+                                onChange={(e) => setNewAttributeName(e.target.value)}
+                            />
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                onClick={createAttribute}
+                                disabled={!newAttributeName}
+                            >
+                                Add
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="row">
+                {attributes.map((attribute) => (
+                    <div className="col-lg-6" key={attribute.id}>
+                        <div className="card">
+                            <div className="card-header">
+                                <h4 className="card-title">{attribute.name}</h4>
+                            </div>
+                            <ul className="list-group list-group-flush">
+                                {attribute.values.map((value) => (
+                                    <li
+                                        key={value.id}
+                                        className="list-group-item d-flex justify-content-between align-items-center"
+                                    >
+                                        <span>
+                                            {value.color_hex && (
+                                                <span
+                                                    className="d-inline-block me-2 rounded-circle border"
+                                                    style={{ width: 14, height: 14, backgroundColor: value.color_hex }}
+                                                />
+                                            )}
+                                            {value.value}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            className="btn btn-soft-danger btn-sm"
+                                            onClick={() => removeValue(attribute, value)}
+                                        >
+                                            <i className="bx bx-trash align-middle" />
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                            <div className="card-body d-flex gap-2">
+                                <input
+                                    className="form-control form-control-sm"
+                                    placeholder="Value"
+                                    value={newValues[attribute.id]?.value ?? ''}
+                                    onChange={(e) =>
+                                        setNewValues({
+                                            ...newValues,
+                                            [attribute.id]: {
+                                                ...newValues[attribute.id],
+                                                value: e.target.value,
+                                                color_hex: newValues[attribute.id]?.color_hex ?? '',
+                                            },
+                                        })
+                                    }
+                                />
+                                <input
+                                    type="color"
+                                    className="form-control form-control-sm"
+                                    style={{ width: 48 }}
+                                    title="Optional color swatch"
+                                    value={newValues[attribute.id]?.color_hex || '#ffffff'}
+                                    onChange={(e) =>
+                                        setNewValues({
+                                            ...newValues,
+                                            [attribute.id]: {
+                                                ...newValues[attribute.id],
+                                                color_hex: e.target.value,
+                                                value: newValues[attribute.id]?.value ?? '',
+                                            },
+                                        })
+                                    }
+                                />
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-primary"
+                                    onClick={() => addValue(attribute)}
+                                >
+                                    Add
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </AdminLayout>
+    );
+}
