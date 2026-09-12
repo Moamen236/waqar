@@ -2,8 +2,10 @@
 
 namespace Tests;
 
+use App\Http\Middleware\SetLocale;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\URL;
 
 abstract class TestCase extends BaseTestCase
 {
@@ -35,5 +37,39 @@ abstract class TestCase extends BaseTestCase
         $app['config']->set('database.connections.mysql.database', env('DB_TEST_DATABASE', 'waqar_testing'));
 
         return $app;
+    }
+
+    /**
+     * Give route() a {locale} to fill in.
+     *
+     * Every route lives under /{locale}/… (Q20) and SetLocale registers the
+     * segment as a default route parameter — but that only happens *during*
+     * a request, and a test calls route() before making one. Without this,
+     * every `route('login')` in the suite throws UrlGenerationException.
+     *
+     * English, not the app's Arabic default: the suite asserts on
+     * English copy, and pinning it here keeps those assertions meaningful
+     * rather than dependent on APP_LOCALE.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        URL::defaults(['locale' => 'en']);
+    }
+
+    /**
+     * Render the same page under a given locale.
+     *
+     * @return $this
+     */
+    protected function withLocale(string $locale): static
+    {
+        abort_unless(in_array($locale, SetLocale::SUPPORTED, true), 500);
+
+        app()->setLocale($locale);
+        URL::defaults(['locale' => $locale]);
+
+        return $this;
     }
 }

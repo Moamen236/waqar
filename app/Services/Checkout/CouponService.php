@@ -25,26 +25,26 @@ class CouponService
         $coupon = Coupon::where('code', $code)->where('is_active', true)->first();
 
         if ($coupon === null) {
-            throw new InvalidArgumentException('Invalid or inactive coupon code.');
+            throw new InvalidArgumentException(__('Invalid or inactive coupon code.'));
         }
 
         $now = now();
         if (($coupon->starts_at && $now->lt($coupon->starts_at)) || ($coupon->ends_at && $now->gt($coupon->ends_at))) {
-            throw new InvalidArgumentException('This coupon is not currently valid.');
+            throw new InvalidArgumentException(__('This coupon is not currently valid.'));
         }
 
         if ($coupon->minimum_order_amount !== null && $subtotal < (float) $coupon->minimum_order_amount) {
-            throw new InvalidArgumentException('Order subtotal does not meet this coupon\'s minimum.');
+            throw new InvalidArgumentException(__('Order subtotal does not meet this coupon\'s minimum.'));
         }
 
         if ($coupon->usage_limit !== null && $coupon->times_used >= $coupon->usage_limit) {
-            throw new InvalidArgumentException('This coupon has reached its usage limit.');
+            throw new InvalidArgumentException(__('This coupon has reached its usage limit.'));
         }
 
         if ($coupon->usage_limit_per_user !== null) {
             $usedByCustomer = Order::where('coupon_id', $coupon->id)->where('customer_id', $customer->id)->count();
             if ($usedByCustomer >= $coupon->usage_limit_per_user) {
-                throw new InvalidArgumentException('You have already used this coupon the maximum number of times.');
+                throw new InvalidArgumentException(__('You have already used this coupon the maximum number of times.'));
             }
         }
 

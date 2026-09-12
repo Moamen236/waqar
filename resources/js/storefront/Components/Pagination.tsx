@@ -1,8 +1,11 @@
 import { router } from '@inertiajs/react';
 import type { Pagination as PaginationData } from '../types';
+import { useTranslation } from '../lib/useTranslation';
 
 /** Anvogue's `list-pagination` row, driven by Laravel's paginator. */
 export default function Pagination({ pagination }: { pagination: PaginationData }) {
+    const { t } = useTranslation();
+
     if (pagination.last_page <= 1) {
         return null;
     }
@@ -22,7 +25,7 @@ export default function Pagination({ pagination }: { pagination: PaginationData 
                     type="button"
                     className="w-10 h-10 flex items-center justify-center border border-line rounded-full"
                     onClick={() => go(pagination.current_page - 1)}
-                    aria-label="Previous page"
+                    aria-label={t('common.previousPage')}
                 >
                     <i className="ph ph-caret-left"></i>
                 </button>
@@ -44,7 +47,7 @@ export default function Pagination({ pagination }: { pagination: PaginationData 
                     type="button"
                     className="w-10 h-10 flex items-center justify-center border border-line rounded-full"
                     onClick={() => go(pagination.current_page + 1)}
-                    aria-label="Next page"
+                    aria-label={t('common.nextPage')}
                 >
                     <i className="ph ph-caret-right"></i>
                 </button>

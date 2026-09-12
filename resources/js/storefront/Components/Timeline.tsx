@@ -1,3 +1,4 @@
+import { useTranslation } from '../lib/useTranslation';
 import type { OrderTimelineData } from '../types';
 
 /**
@@ -8,11 +9,13 @@ import type { OrderTimelineData } from '../types';
  * note on this page).
  */
 export default function Timeline({ timeline }: { timeline: OrderTimelineData }) {
+    const { t } = useTranslation();
+
     return (
         <div className="order-timeline">
             {timeline.off_track && (
                 <div className="caption1 bg-surface border border-line rounded-lg px-5 py-3 mb-6">
-                    This order is <strong className="text-black">{timeline.state}</strong>.
+                    {t('tracking.offTrack')} <strong className="text-black">{t(`status.${timeline.state}`)}</strong>.
                 </div>
             )}
             <div className="flex items-start justify-between gap-2">
@@ -44,7 +47,7 @@ export default function Timeline({ timeline }: { timeline: OrderTimelineData }) 
                         <div
                             className={`caption1 mt-2 ${stage.current ? 'text-black font-semibold' : 'text-secondary'}`}
                         >
-                            {stage.label}
+                            {t(`status.${stage.label}`)}
                         </div>
                     </div>
                 ))}
@@ -52,10 +55,10 @@ export default function Timeline({ timeline }: { timeline: OrderTimelineData }) 
 
             {timeline.history.length > 0 && (
                 <div className="history mt-8">
-                    <div className="heading6">History</div>
+                    <div className="heading6">{t('tracking.history')}</div>
                     {timeline.history.map((entry, index) => (
                         <div key={index} className="flex items-center justify-between py-3 border-b border-line">
-                            <div className="text-title">{entry.status}</div>
+                            <div className="text-title">{t(`status.${entry.status}`)}</div>
                             <div className="caption1 text-secondary">{entry.at}</div>
                         </div>
                     ))}

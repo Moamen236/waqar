@@ -1,6 +1,6 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import { price } from '../lib/format';
 import Rate from './Rate';
+import { useTranslation } from '../lib/useTranslation';
 import type { ProductCardData, SharedProps } from '../types';
 
 /**
@@ -18,6 +18,7 @@ import type { ProductCardData, SharedProps } from '../types';
  */
 export default function ProductCard({ product }: { product: ProductCardData }) {
     const { auth } = usePage<SharedProps>().props;
+    const { t, price } = useTranslation();
     const image = product.images[0] ?? '/storefront/images/generated/collection.svg';
     const hoverImage = product.images[1] ?? image;
 
@@ -40,17 +41,17 @@ export default function ProductCard({ product }: { product: ProductCardData }) {
                 <div className="product-thumb bg-white relative overflow-hidden rounded-2xl">
                     {product.is_new && (
                         <div className="product-tag text-button-uppercase bg-green px-3 py-0.5 inline-block rounded-full absolute top-3 start-3 z-[1]">
-                            New
+                            {t('product.tagNew')}
                         </div>
                     )}
                     {!product.is_new && product.sale_percent > 0 && (
                         <div className="product-tag text-button-uppercase text-white bg-red px-3 py-0.5 inline-block rounded-full absolute top-3 start-3 z-[1]">
-                            Sale
+                            {t('product.tagSale')}
                         </div>
                     )}
                     {!product.in_stock && (
                         <div className="product-tag text-button-uppercase bg-surface px-3 py-0.5 inline-block rounded-full absolute top-3 start-3 z-[1]">
-                            Out of stock
+                            {t('product.outOfStock')}
                         </div>
                     )}
                     <div className="list-action-right absolute top-3 end-3 max-lg:hidden">
@@ -59,7 +60,7 @@ export default function ProductCard({ product }: { product: ProductCardData }) {
                             onClick={toggleWishlist}
                         >
                             <div className="tag-action bg-black text-white caption2 px-1.5 py-0.5 rounded-sm">
-                                Add To Wishlist
+                                {t('product.addToWishlist')}
                             </div>
                             <i className="ph ph-heart text-lg"></i>
                         </div>
@@ -70,7 +71,7 @@ export default function ProductCard({ product }: { product: ProductCardData }) {
                     </div>
                     <div className="list-action grid grid-cols-1 gap-3 px-5 absolute w-full bottom-5 max-lg:hidden">
                         <div className="quick-view-btn w-full text-button-uppercase py-2 text-center rounded-full duration-300 bg-white hover:bg-black hover:text-white">
-                            View product
+                            {t('product.viewProduct')}
                         </div>
                     </div>
                 </div>

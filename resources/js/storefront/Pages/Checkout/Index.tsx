@@ -2,8 +2,8 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import GeoCascade from '../../Components/GeoCascade';
 import StorefrontLayout from '../../Layouts/StorefrontLayout';
-import { price } from '../../lib/format';
 import type { CartSummary, GeoCountry, GeoSelection } from '../../types';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface SavedAddress {
     id: number;
@@ -48,6 +48,7 @@ export default function CheckoutIndex({
     // stops matching (falling back to the un-shipped cart) instead of
     // needing a setState() inside the effect to reset it.
     const [quote, setQuote] = useState<{ key: string; summary: CartSummary } | null>(null);
+    const { t, price } = useTranslation();
 
     const form = useForm({
         name: customer?.name ?? '',
@@ -113,7 +114,7 @@ export default function CheckoutIndex({
 
     return (
         <StorefrontLayout>
-            <Head title="Checkout" />
+            <Head title={t('checkout.title')} />
 
             <div className="checkout-block relative md:pt-10 pt-6">
                 <div className="content-main flex max-lg:flex-col-reverse justify-between">
@@ -126,10 +127,10 @@ export default function CheckoutIndex({
                                 }}
                             >
                                 <div className="login flex justify-between gap-4">
-                                    <h4 className="heading4">Contact</h4>
+                                    <h4 className="heading4">{t('checkout.contact')}</h4>
                                     {!customer && (
                                         <Link href={route('login')} className="text-button underline">
-                                            Login here
+                                            {t('checkout.loginHere')}
                                         </Link>
                                     )}
                                 </div>
@@ -138,7 +139,7 @@ export default function CheckoutIndex({
                                         <input
                                             type="email"
                                             className="border-line px-4 py-3 w-full rounded-lg"
-                                            placeholder="Email address"
+                                            placeholder={t('checkout.emailPlaceholder')}
                                             value={form.data.email}
                                             onChange={(event) => form.setData('email', event.target.value)}
                                             required
@@ -151,7 +152,7 @@ export default function CheckoutIndex({
                                         <input
                                             type="text"
                                             className="border-line px-4 py-3 w-full rounded-lg"
-                                            placeholder="Full name"
+                                            placeholder={t('checkout.namePlaceholder')}
                                             value={form.data.name}
                                             onChange={(event) => form.setData('name', event.target.value)}
                                             required
@@ -164,7 +165,7 @@ export default function CheckoutIndex({
                                         <input
                                             type="text"
                                             className="border-line px-4 py-3 w-full rounded-lg"
-                                            placeholder="Phone number"
+                                            placeholder={t('checkout.phonePlaceholder')}
                                             value={form.data.phone}
                                             onChange={(event) => form.setData('phone', event.target.value)}
                                             required
@@ -176,7 +177,7 @@ export default function CheckoutIndex({
                                 </div>
 
                                 <div className="information md:mt-10 mt-6">
-                                    <div className="heading5">Delivery</div>
+                                    <div className="heading5">{t('checkout.delivery')}</div>
 
                                     {addresses.length > 0 && (
                                         <div className="saved-addresses grid gap-3 mt-5">
@@ -193,7 +194,7 @@ export default function CheckoutIndex({
                                                             {address.address_line}
                                                         </span>
                                                     </span>
-                                                    <span className="text-button-uppercase">Use</span>
+                                                    <span className="text-button-uppercase">{t('checkout.use')}</span>
                                                 </button>
                                             ))}
                                         </div>
@@ -209,13 +210,13 @@ export default function CheckoutIndex({
                                             />
                                             <div className="col-span-full">
                                                 <label htmlFor="address_line" className="caption1 capitalize">
-                                                    Street address <span className="text-red">*</span>
+                                                    {t('address.street')} <span className="text-red">*</span>
                                                 </label>
                                                 <input
                                                     id="address_line"
                                                     className="border-line px-4 py-3 w-full rounded-lg mt-2"
                                                     type="text"
-                                                    placeholder="Building, street, apartment"
+                                                    placeholder={t('checkout.addressPlaceholder')}
                                                     value={form.data.address_line}
                                                     onChange={(event) =>
                                                         form.setData('address_line', event.target.value)
@@ -240,29 +241,28 @@ export default function CheckoutIndex({
                                                         htmlFor="save_address"
                                                         className="text-title ps-2 cursor-pointer"
                                                     >
-                                                        Save this address to my account
+                                                        {t('checkout.saveAddress')}
                                                     </label>
                                                 </div>
                                             )}
                                         </div>
 
-                                        <h4 className="heading4 md:mt-10 mt-6">Shipping method</h4>
+                                        <h4 className="heading4 md:mt-10 mt-6">{t('checkout.shippingMethod')}</h4>
                                         <div className="body1 text-secondary2 py-6 px-5 border border-line rounded-lg bg-surface mt-5">
                                             {view.shipping === null
-                                                ? 'Choose your area to see the shipping rate for it.'
-                                                : `Standard delivery — ${price(view.shipping)}`}
+                                                ? t('checkout.chooseArea')
+                                                : t('checkout.standardDelivery', {
+                                                      amount: price(view.shipping),
+                                                  })}
                                         </div>
 
                                         <div className="payment-block md:mt-10 mt-6">
-                                            <h4 className="heading4">Payment</h4>
-                                            <p className="body1 text-secondary2 mt-3">
-                                                Cash on Delivery is the only payment method — we never collect card
-                                                details.
-                                            </p>
+                                            <h4 className="heading4">{t('checkout.payment')}</h4>
+                                            <p className="body1 text-secondary2 mt-3">{t('checkout.codNote')}</p>
                                             <div className="list-payment mt-5">
                                                 <div className="item">
                                                     <div className="type flex items-center justify-between bg-linear p-5 border border-black rounded-lg">
-                                                        <strong className="text-title">Cash on Delivery</strong>
+                                                        <strong className="text-title">{t('checkout.cod')}</strong>
                                                         <span className="ph ph-money text-2xl"></span>
                                                     </div>
                                                 </div>
@@ -275,11 +275,11 @@ export default function CheckoutIndex({
                                                 className="button-main w-full tracking-widest disabled:opacity-50"
                                                 disabled={form.processing || view.shipping === null}
                                             >
-                                                {form.processing ? 'Placing order…' : 'Place order'}
+                                                {form.processing ? t('checkout.placing') : t('checkout.placeOrder')}
                                             </button>
                                             {view.shipping === null && (
                                                 <div className="caption1 text-secondary mt-3 text-center">
-                                                    Pick your delivery area first.
+                                                    {t('checkout.pickAreaFirst')}
                                                 </div>
                                             )}
                                         </div>
@@ -320,23 +320,23 @@ export default function CheckoutIndex({
                                 ))}
                             </div>
                             <div className="subtotal flex items-center justify-between mt-8">
-                                <strong className="heading6">Subtotal</strong>
+                                <strong className="heading6">{t('cart.subtotal')}</strong>
                                 <strong className="heading6">{price(view.subtotal)}</strong>
                             </div>
                             {view.discount > 0 && (
                                 <div className="ship-block flex items-center justify-between mt-4">
-                                    <strong className="heading6">Discount</strong>
+                                    <strong className="heading6">{t('cart.discounts')}</strong>
                                     <span className="body1 text-secondary">-{price(view.discount)}</span>
                                 </div>
                             )}
                             <div className="ship-block flex items-center justify-between mt-4">
-                                <strong className="heading6">Shipping</strong>
+                                <strong className="heading6">{t('cart.shipping')}</strong>
                                 <span className="body1 text-secondary">
-                                    {view.shipping === null ? 'Enter shipping address' : price(view.shipping)}
+                                    {view.shipping === null ? t('checkout.enterAddress') : price(view.shipping)}
                                 </span>
                             </div>
                             <div className="total-cart-block flex items-center justify-between mt-4">
-                                <strong className="heading4">Total</strong>
+                                <strong className="heading4">{t('cart.total')}</strong>
                                 <div className="flex items-end gap-2">
                                     <strong className="heading4">
                                         {view.total === null ? '—' : price(view.total)}

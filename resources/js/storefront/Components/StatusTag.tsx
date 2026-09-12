@@ -1,3 +1,5 @@
+import { useTranslation } from '../lib/useTranslation';
+
 /**
  * my-account.html's `tag px-4 py-1.5 rounded-full …` pill, mapped onto
  * the real customer-facing statuses (Section 03) rather than the
@@ -19,13 +21,19 @@ const colors: Record<string, string> = {
 };
 
 export default function StatusTag({ status }: { status: string }) {
+    const { t } = useTranslation();
+
     return (
         <span
             className={`tag px-4 py-1.5 rounded-full caption1 font-semibold ${
                 colors[status] ?? 'bg-secondary/10 text-secondary'
             }`}
         >
-            {status}
+            {/* The server sends the customer-facing status as its English
+                enum value (Section 03's mapping table); `status.*` keys are
+                keyed by that value so the enum stays the contract and only
+                the rendering is localised. */}
+            {t(`status.${status}`)}
         </span>
     );
 }

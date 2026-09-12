@@ -3,7 +3,7 @@ import AccountNav from '../../Components/AccountNav';
 import Breadcrumb from '../../Components/Breadcrumb';
 import StatusTag from '../../Components/StatusTag';
 import StorefrontLayout from '../../Layouts/StorefrontLayout';
-import { price } from '../../lib/format';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface OrderRow {
     order_number: number;
@@ -22,10 +22,11 @@ export default function AccountDashboard({
     stats: { awaiting: number; cancelled: number; total: number };
     recentOrders: OrderRow[];
 }) {
+    const { t, price } = useTranslation();
     return (
         <StorefrontLayout>
-            <Head title="My Account" />
-            <Breadcrumb title="My Account" />
+            <Head title={t('account.title')} />
+            <Breadcrumb title={t('account.title')} />
 
             <div className="my-account-block md:py-20 py-10">
                 <div className="container">
@@ -35,21 +36,21 @@ export default function AccountDashboard({
                             <div className="overview grid sm:grid-cols-3 gap-5">
                                 <div className="overview-item flex items-center justify-between p-5 border border-line rounded-lg box-shadow-xs">
                                     <div className="counter">
-                                        <span className="text-secondary">In progress</span>
+                                        <span className="text-secondary">{t('account.inProgress')}</span>
                                         <h5 className="heading5 mt-1">{stats.awaiting}</h5>
                                     </div>
                                     <span className="ph ph-hourglass-medium text-4xl"></span>
                                 </div>
                                 <div className="overview-item flex items-center justify-between p-5 border border-line rounded-lg box-shadow-xs">
                                     <div className="counter">
-                                        <span className="text-secondary">Cancelled Orders</span>
+                                        <span className="text-secondary">{t('account.cancelledOrders')}</span>
                                         <h5 className="heading5 mt-1">{stats.cancelled}</h5>
                                     </div>
                                     <span className="ph ph-receipt-x text-4xl"></span>
                                 </div>
                                 <div className="overview-item flex items-center justify-between p-5 border border-line rounded-lg box-shadow-xs">
                                     <div className="counter">
-                                        <span className="text-secondary">Total Orders</span>
+                                        <span className="text-secondary">{t('account.totalOrders')}</span>
                                         <h5 className="heading5 mt-1">{stats.total}</h5>
                                     </div>
                                     <span className="ph ph-package text-4xl"></span>
@@ -57,22 +58,22 @@ export default function AccountDashboard({
                             </div>
 
                             <div className="recent_order pt-5 px-5 pb-2 mt-7 border border-line rounded-xl">
-                                <h6 className="heading6">Recent Orders</h6>
+                                <h6 className="heading6">{t('account.recentOrders')}</h6>
                                 <div className="list overflow-x-auto w-full mt-5">
                                     <table className="w-full max-[1400px]:w-[700px] max-md:w-[700px]">
                                         <thead className="border-b border-line">
                                             <tr>
                                                 <th className="pb-3 text-start text-sm font-bold uppercase text-secondary whitespace-nowrap">
-                                                    Order
+                                                    {t('account.colOrder')}
                                                 </th>
                                                 <th className="pb-3 text-start text-sm font-bold uppercase text-secondary whitespace-nowrap">
-                                                    Products
+                                                    {t('account.colProducts')}
                                                 </th>
                                                 <th className="pb-3 text-start text-sm font-bold uppercase text-secondary whitespace-nowrap">
-                                                    Pricing
+                                                    {t('account.colPricing')}
                                                 </th>
                                                 <th className="pb-3 text-end text-sm font-bold uppercase text-secondary whitespace-nowrap">
-                                                    Status
+                                                    {t('account.colStatus')}
                                                 </th>
                                             </tr>
                                         </thead>
@@ -80,7 +81,7 @@ export default function AccountDashboard({
                                             {recentOrders.length === 0 && (
                                                 <tr>
                                                     <td colSpan={4} className="py-6 caption1 text-secondary">
-                                                        No orders yet.
+                                                        {t('account.noOrders')}
                                                     </td>
                                                 </tr>
                                             )}
@@ -103,7 +104,8 @@ export default function AccountDashboard({
                                                                 {order.product_name ?? '—'}
                                                             </strong>
                                                             <span className="product_tag caption1 text-secondary">
-                                                                {order.item_count} item(s) · {order.placed_at}
+                                                                {t('account.itemCount', { count: order.item_count })} ·{' '}
+                                                                {order.placed_at}
                                                             </span>
                                                         </div>
                                                     </td>

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import ProductCard from '../Components/ProductCard';
 import StorefrontLayout from '../Layouts/StorefrontLayout';
 import type { ProductCardData } from '../types';
+import { useTranslation } from '../lib/useTranslation';
 
 /**
  * Homepage — Anvogue's index.html, section for section: the hero slider,
@@ -25,27 +26,28 @@ export default function Home({
     onSale: ProductCardData[];
     collections: { slug: string; name: string; image: string | null }[];
 }) {
+    const { t } = useTranslation();
     const tabs = [
-        { key: 'best sellers', products: bestSellers },
-        { key: 'on sale', products: onSale },
-        { key: 'new arrivals', products: newArrivals },
+        { key: 'best sellers', label: t('home.tabBestSellers'), products: bestSellers },
+        { key: 'on sale', label: t('home.tabOnSale'), products: onSale },
+        { key: 'new arrivals', label: t('home.tabNewArrivals'), products: newArrivals },
     ];
     const [activeTab, setActiveTab] = useState(tabs[0].key);
     const activeProducts = tabs.find((tab) => tab.key === activeTab)?.products ?? [];
 
     return (
         <StorefrontLayout headerStyle="transparent">
-            <Head title="Home" />
+            <Head title={t('nav.home')} />
 
             <div className="slider-block style-one bg-linear xl:h-[860px] lg:h-[800px] md:h-[580px] sm:h-[500px] h-[350px] max-[420px]:h-[320px] w-full">
                 <div className="slider-main h-full w-full">
                     <div className="slider-item h-full w-full relative">
                         <div className="container w-full h-full flex items-center relative">
                             <div className="text-content basis-1/2">
-                                <div className="text-sub-display">Cash on delivery, everywhere we ship</div>
-                                <div className="text-display md:mt-5 mt-2">Fashion for every occasion</div>
+                                <div className="text-sub-display">{t('home.heroKicker')}</div>
+                                <div className="text-display md:mt-5 mt-2">{t('home.heroTitle')}</div>
                                 <Link href={route('shop.index')} className="button-main md:mt-8 mt-3">
-                                    Shop Now
+                                    {t('home.shopNow')}
                                 </Link>
                             </div>
                             <div className="sub-img absolute sm:w-1/2 w-3/5 2xl:-end-[60px] -end-[16px] bottom-0">
@@ -60,7 +62,7 @@ export default function Home({
                 <div className="what-new-block filter-product-block md:pt-20 pt-10">
                     <div className="container">
                         <div className="heading flex flex-col items-center text-center">
-                            <div className="heading3">What&apos;s new</div>
+                            <div className="heading3">{t('home.whatsNew')}</div>
                         </div>
                         <div className="list-product four-product hide-product-sold grid xl:grid-cols-4 sm:grid-cols-3 grid-cols-2 md:gap-[30px] gap-4 md:mt-10 mt-6">
                             {newArrivals.map((product) => (
@@ -74,7 +76,7 @@ export default function Home({
             {collections.length > 0 && (
                 <div className="collection-block md:pt-20 pt-10">
                     <div className="container">
-                        <div className="heading3 text-center">Explore Collections</div>
+                        <div className="heading3 text-center">{t('home.exploreCollections')}</div>
                     </div>
                     <div className="list-collection relative md:mt-10 mt-6 sm:px-5 px-4">
                         <div className="grid xl:grid-cols-4 sm:grid-cols-3 grid-cols-2 gap-5">
@@ -115,7 +117,7 @@ export default function Home({
                                         }`}
                                         onClick={() => setActiveTab(tab.key)}
                                     >
-                                        {tab.key}
+                                        {tab.label}
                                     </div>
                                 ))}
                             </div>
@@ -127,7 +129,7 @@ export default function Home({
                         ))}
                         {activeProducts.length === 0 && (
                             <div className="col-span-full caption1 text-secondary text-center py-10">
-                                Nothing here yet.
+                                {t('home.nothingYet')}
                             </div>
                         )}
                     </div>
@@ -147,9 +149,9 @@ export default function Home({
                         />
                     </div>
                     <div className="banner-content absolute top-0 start-0 w-full h-full flex flex-col items-center justify-center">
-                        <div className="heading2 text-white">Best Sellers</div>
+                        <div className="heading2 text-white">{t('home.bannerBestSellers')}</div>
                         <div className="text-button text-white relative inline-block pb-1 border-b-2 border-white duration-500 mt-2">
-                            Shop Now
+                            {t('home.shopNow')}
                         </div>
                     </div>
                 </Link>
@@ -165,9 +167,9 @@ export default function Home({
                         />
                     </div>
                     <div className="banner-content absolute top-0 start-0 w-full h-full flex flex-col items-center justify-center">
-                        <div className="heading2 text-white">On Sale</div>
+                        <div className="heading2 text-white">{t('home.bannerOnSale')}</div>
                         <div className="text-button text-white relative inline-block pb-1 border-b-2 border-white duration-500 mt-2">
-                            Shop Now
+                            {t('home.shopNow')}
                         </div>
                     </div>
                 </Link>
@@ -178,30 +180,28 @@ export default function Home({
                     <div className="list-benefit grid items-start lg:grid-cols-4 grid-cols-2 gap-[30px]">
                         <div className="benefit-item flex flex-col items-center justify-center">
                             <i className="icon-phone-call lg:text-7xl text-5xl"></i>
-                            <div className="heading6 text-center mt-5">Customer service</div>
+                            <div className="heading6 text-center mt-5">{t('home.benefitServiceTitle')}</div>
                             <div className="caption1 text-secondary text-center mt-3">
-                                Our team is on hand to help with anything about your order.
+                                {t('home.benefitServiceBody')}
                             </div>
                         </div>
                         <div className="benefit-item flex flex-col items-center justify-center">
                             <i className="icon-return lg:text-7xl text-5xl"></i>
-                            <div className="heading6 text-center mt-5">Easy returns</div>
+                            <div className="heading6 text-center mt-5">{t('home.benefitReturnsTitle')}</div>
                             <div className="caption1 text-secondary text-center mt-3">
-                                Not right? Start a return from your account after delivery.
+                                {t('home.benefitReturnsBody')}
                             </div>
                         </div>
                         <div className="benefit-item flex flex-col items-center justify-center">
                             <i className="icon-guarantee lg:text-7xl text-5xl"></i>
-                            <div className="heading6 text-center mt-5">Pay on delivery</div>
-                            <div className="caption1 text-secondary text-center mt-3">
-                                Cash on delivery only — no card details are ever collected.
-                            </div>
+                            <div className="heading6 text-center mt-5">{t('home.benefitCodTitle')}</div>
+                            <div className="caption1 text-secondary text-center mt-3">{t('home.benefitCodBody')}</div>
                         </div>
                         <div className="benefit-item flex flex-col items-center justify-center">
                             <i className="icon-delivery-truck lg:text-7xl text-5xl"></i>
-                            <div className="heading6 text-center mt-5">Nationwide delivery</div>
+                            <div className="heading6 text-center mt-5">{t('home.benefitDeliveryTitle')}</div>
                             <div className="caption1 text-secondary text-center mt-3">
-                                Shipping rates resolved for your exact area at checkout.
+                                {t('home.benefitDeliveryBody')}
                             </div>
                         </div>
                     </div>

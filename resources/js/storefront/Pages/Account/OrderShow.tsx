@@ -4,8 +4,8 @@ import Breadcrumb from '../../Components/Breadcrumb';
 import StatusTag from '../../Components/StatusTag';
 import Timeline from '../../Components/Timeline';
 import StorefrontLayout from '../../Layouts/StorefrontLayout';
-import { price } from '../../lib/format';
 import type { OrderTimelineData } from '../../types';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface OrderDetail {
     order_number: number;
@@ -34,6 +34,7 @@ interface OrderDetail {
  * the confirmation email when those land.
  */
 export default function AccountOrderShow({ order, timeline }: { order: OrderDetail; timeline: OrderTimelineData }) {
+    const { t, price } = useTranslation();
     const address = [
         order.address.line,
         order.address.area,
@@ -60,8 +61,12 @@ export default function AccountOrderShow({ order, timeline }: { order: OrderDeta
                             <div className="text-content w-full p-7 border border-line rounded-xl">
                                 <div className="flex flex-wrap items-center justify-between gap-3">
                                     <div>
-                                        <h6 className="heading6">Order #{order.order_number}</h6>
-                                        <div className="caption1 text-secondary mt-1">Placed {order.placed_at}</div>
+                                        <h6 className="heading6">
+                                            {t('order.numbered', { number: order.order_number })}
+                                        </h6>
+                                        <div className="caption1 text-secondary mt-1">
+                                            {t('order.placedOn', { date: order.placed_at ?? '' })}
+                                        </div>
                                     </div>
                                     <StatusTag status={order.status} />
                                 </div>
@@ -70,7 +75,7 @@ export default function AccountOrderShow({ order, timeline }: { order: OrderDeta
                                     <Timeline timeline={timeline} />
                                 </div>
 
-                                <div className="heading6 mt-10">Items</div>
+                                <div className="heading6 mt-10">{t('order.items')}</div>
                                 {order.items.map((item) => (
                                     <div
                                         key={item.sku}
@@ -88,26 +93,26 @@ export default function AccountOrderShow({ order, timeline }: { order: OrderDeta
 
                                 <div className="totals mt-6">
                                     <div className="flex items-center justify-between py-2">
-                                        <div className="text-secondary">Subtotal</div>
+                                        <div className="text-secondary">{t('cart.subtotal')}</div>
                                         <div className="text-title">{price(order.subtotal)}</div>
                                     </div>
                                     {order.discount_amount > 0 && (
                                         <div className="flex items-center justify-between py-2">
-                                            <div className="text-secondary">Discount</div>
+                                            <div className="text-secondary">{t('cart.discounts')}</div>
                                             <div className="text-title">-{price(order.discount_amount)}</div>
                                         </div>
                                     )}
                                     <div className="flex items-center justify-between py-2">
-                                        <div className="text-secondary">Shipping</div>
+                                        <div className="text-secondary">{t('cart.shipping')}</div>
                                         <div className="text-title">{price(order.shipping_amount)}</div>
                                     </div>
                                     <div className="flex items-center justify-between py-3 border-t border-line mt-2">
-                                        <strong className="heading6">Total (cash on delivery)</strong>
+                                        <strong className="heading6">{t('order.totalCod')}</strong>
                                         <strong className="heading6">{price(order.total)}</strong>
                                     </div>
                                 </div>
 
-                                <div className="heading6 mt-10">Delivery address</div>
+                                <div className="heading6 mt-10">{t('order.deliveryAddress')}</div>
                                 <div className="caption1 text-secondary mt-2">
                                     {order.address.recipient_name} · {order.address.phone}
                                     <br />
@@ -126,7 +131,7 @@ export default function AccountOrderShow({ order, timeline }: { order: OrderDeta
                                             )
                                         }
                                     >
-                                        Cancel Order
+                                        {t('account.cancelOrder')}
                                     </button>
                                 )}
                             </div>

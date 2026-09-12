@@ -36,7 +36,7 @@ class LoginController extends Controller
 
         if (! Auth::guard('customer')->attempt($credentials, $request->boolean('remember'))) {
             throw ValidationException::withMessages([
-                'email' => 'These credentials do not match our records.',
+                'email' => __('These credentials do not match our records.'),
             ]);
         }
 
@@ -46,7 +46,7 @@ class LoginController extends Controller
             Auth::guard('customer')->logout();
 
             throw ValidationException::withMessages([
-                'email' => 'This account has been deactivated.',
+                'email' => __('This account has been deactivated.'),
             ]);
         }
 

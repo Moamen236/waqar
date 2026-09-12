@@ -51,7 +51,7 @@ class CheckoutController extends Controller
         $summary = $this->carts->summary($cart, customer: $customer, couponCode: $request->session()->get(CartService::COUPON_KEY));
 
         if ($summary['items'] === []) {
-            return redirect()->route('cart.index')->with('error', 'Your cart is empty.');
+            return redirect()->route('cart.index')->with('error', __('Your cart is empty.'));
         }
 
         return Inertia::render('Checkout/Index', [
@@ -86,12 +86,12 @@ class CheckoutController extends Controller
         $summary = $this->carts->summary($cart, customer: $request->user('customer'));
 
         if ($summary['items'] === []) {
-            return redirect()->route('cart.index')->with('error', 'Your cart is empty.');
+            return redirect()->route('cart.index')->with('error', __('Your cart is empty.'));
         }
 
         $warehouse = Warehouse::where('is_active', true)->orderBy('id')->first();
         if ($warehouse === null) {
-            return back()->with('error', 'Ordering is temporarily unavailable. Please try again shortly.');
+            return back()->with('error', __('Ordering is temporarily unavailable. Please try again shortly.'));
         }
 
         $customer = $request->user('customer') ?? $this->guestCustomer($data);
@@ -115,7 +115,7 @@ class CheckoutController extends Controller
                 couponCode: $request->session()->get(CartService::COUPON_KEY),
             );
         } catch (InsufficientStockException $e) {
-            return back()->with('error', 'One of your items sold out while you were checking out. Please review your cart.');
+            return back()->with('error', __('One of your items sold out while you were checking out. Please review your cart.'));
         } catch (InvalidArgumentException|RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
@@ -194,13 +194,13 @@ class CheckoutController extends Controller
         if ($existing !== null) {
             if (! $existing->is_active) {
                 throw ValidationException::withMessages([
-                    'email' => 'This account is not active. Please contact support.',
+                    'email' => __('This account is not active. Please contact support.'),
                 ]);
             }
 
             if (! $existing->is_guest) {
                 throw ValidationException::withMessages([
-                    'email' => 'That email already has an account — please sign in to place this order.',
+                    'email' => __('That email already has an account — please sign in to place this order.'),
                 ]);
             }
 

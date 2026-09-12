@@ -4,6 +4,7 @@ import Breadcrumb from '../../Components/Breadcrumb';
 import ProductCard from '../../Components/ProductCard';
 import StorefrontLayout from '../../Layouts/StorefrontLayout';
 import type { ProductCardData } from '../../types';
+import { useTranslation } from '../../lib/useTranslation';
 
 /**
  * Wishlist — Anvogue's wishlist.html, rendered inside the account shell
@@ -11,10 +12,12 @@ import type { ProductCardData } from '../../types';
  * Account (Section 13) rather than as an orphan page.
  */
 export default function WishlistIndex({ products }: { products: ProductCardData[] }) {
+    const { t } = useTranslation();
+
     return (
         <StorefrontLayout>
-            <Head title="Wishlist" />
-            <Breadcrumb title="Wishlist" />
+            <Head title={t('account.navWishlist')} />
+            <Breadcrumb title={t('account.navWishlist')} />
 
             <div className="my-account-block md:py-20 py-10">
                 <div className="container">
@@ -22,12 +25,12 @@ export default function WishlistIndex({ products }: { products: ProductCardData[
                         <AccountNav active="wishlist" />
                         <div className="right list-filter md:w-2/3 w-full ps-2.5">
                             <div className="text-content w-full p-7 border border-line rounded-xl">
-                                <h6 className="heading6">Your wishlist</h6>
+                                <h6 className="heading6">{t('wishlist.title')}</h6>
                                 {products.length === 0 && (
                                     <div className="caption1 text-secondary mt-4">
                                         Nothing saved yet.{' '}
                                         <Link href={route('shop.index')} className="text-black underline">
-                                            Browse the shop
+                                            {t('wishlist.browse')}
                                         </Link>
                                     </div>
                                 )}

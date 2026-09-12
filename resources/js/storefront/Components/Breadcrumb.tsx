@@ -1,10 +1,13 @@
 import { Link } from '@inertiajs/react';
+import { useTranslation } from '../lib/useTranslation';
 
 /**
  * Anvogue's `breadcrumb-block style-shared` header strip, shared by every
  * inner page (cart, login, my-account, order-tracking, …).
  */
 export default function Breadcrumb({ title, parent }: { title: string; parent?: { label: string; href: string } }) {
+    const { t } = useTranslation();
+
     return (
         <div className="breadcrumb-block style-shared">
             <div className="breadcrumb-main bg-linear overflow-hidden">
@@ -13,7 +16,7 @@ export default function Breadcrumb({ title, parent }: { title: string; parent?: 
                         <div className="text-content">
                             <div className="heading2 text-center">{title}</div>
                             <div className="link flex items-center justify-center gap-1 caption1 mt-3">
-                                <Link href={route('home')}>Homepage</Link>
+                                <Link href={route('home')}>{t('common.homepage')}</Link>
                                 <i className="ph ph-caret-right text-sm text-secondary2"></i>
                                 {parent && (
                                     <>

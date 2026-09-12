@@ -2,18 +2,19 @@
 
 namespace Tests\Feature;
 
-// use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ExampleTest extends TestCase
 {
     /**
-     * A basic test example.
+     * The scaffold's "/ returns 200" no longer holds, by design: every page
+     * lives under /{locale}/… since Phase 6, and a bare URL redirects into
+     * the visitor's language rather than rendering one (Q20).
+     * Phase6LocalizationTest covers that behaviour properly; this keeps the
+     * smoke test honest rather than deleting it.
      */
-    public function test_the_application_returns_a_successful_response(): void
+    public function test_the_application_redirects_the_bare_root_into_a_locale(): void
     {
-        $response = $this->get('/');
-
-        $response->assertStatus(200);
+        $this->get('/')->assertRedirect('/ar');
     }
 }

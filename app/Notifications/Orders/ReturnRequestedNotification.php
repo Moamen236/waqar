@@ -26,9 +26,9 @@ class ReturnRequestedNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject("Return requested for order #{$this->return->order->order_number}")
-            ->line("We've logged your return request for order #{$this->return->order->order_number}.")
-            ->line('We will review it and be in touch about collection and any return-shipping fee before anything is collected.');
+            ->subject(__('Return requested for order #:number', ['number' => $this->return->order->order_number]))
+            ->line(__("We've logged your return request for order #:number.", ['number' => $this->return->order->order_number]))
+            ->line(__('We will review it and be in touch about collection and any return-shipping fee before anything is collected.'));
     }
 
     /**
@@ -40,8 +40,8 @@ class ReturnRequestedNotification extends Notification
             'type' => 'return_requested',
             'order_number' => $this->return->order->order_number,
             'return_id' => $this->return->id,
-            'title' => "Return requested for order #{$this->return->order->order_number}",
-            'message' => 'We have logged your return request and will review it shortly.',
+            'title' => __('Return requested for order #:number', ['number' => $this->return->order->order_number]),
+            'message' => __('We have logged your return request and will review it shortly.'),
             'url' => route('account.orders.show', $this->return->order->order_number),
         ];
     }

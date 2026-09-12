@@ -45,7 +45,7 @@ class SettingsController extends Controller
 
         $customer->update($data);
 
-        return back()->with('success', 'Profile updated.');
+        return back()->with('success', __('Profile updated.'));
     }
 
     public function updatePassword(Request $request): RedirectResponse
@@ -59,12 +59,12 @@ class SettingsController extends Controller
 
         if (! Hash::check($data['current_password'], $customer->password)) {
             throw ValidationException::withMessages([
-                'current_password' => 'That is not your current password.',
+                'current_password' => __('That is not your current password.'),
             ]);
         }
 
         $customer->update(['password' => $data['password']]);
 
-        return back()->with('success', 'Password changed.');
+        return back()->with('success', __('Password changed.'));
     }
 }

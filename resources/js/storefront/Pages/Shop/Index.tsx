@@ -4,6 +4,7 @@ import Pagination from '../../Components/Pagination';
 import ProductCard from '../../Components/ProductCard';
 import StorefrontLayout from '../../Layouts/StorefrontLayout';
 import type { Pagination as PaginationData, ProductCardData } from '../../types';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface Facets {
     categories: { slug: string; name: string; count: number }[];
@@ -57,6 +58,7 @@ export default function ShopIndex({
 }) {
     const [priceMin, setPriceMin] = useState(String(filters.price_min ?? facets.price.min));
     const [priceMax, setPriceMax] = useState(String(filters.price_max ?? facets.price.max));
+    const { t } = useTranslation();
 
     const selected = (key: 'color' | 'size', id: number) => (filters[key] ?? []).map(Number).includes(id);
 
@@ -99,7 +101,7 @@ export default function ShopIndex({
         apply({ [key]: next } as Partial<Filters>);
     };
 
-    const title = heading?.name ?? 'Shop';
+    const title = heading?.name ?? t('nav.shop');
 
     return (
         <StorefrontLayout>
@@ -112,7 +114,7 @@ export default function ShopIndex({
                             <div className="text-content">
                                 <div className="heading2 text-center">{title}</div>
                                 <div className="link flex items-center justify-center gap-1 caption1 mt-3">
-                                    <Link href={route('home')}>Homepage</Link>
+                                    <Link href={route('home')}>{t('common.homepage')}</Link>
                                     <i className="ph ph-caret-right text-sm text-secondary2"></i>
                                     <div className="text-secondary2 capitalize">{title}</div>
                                 </div>
@@ -140,7 +142,7 @@ export default function ShopIndex({
                     <div className="flex max-md:flex-wrap max-md:flex-col-reverse gap-y-8">
                         <div className="sidebar lg:w-1/4 md:w-1/3 w-full md:pe-12">
                             <div className="filter-type-block pb-8 border-b border-line">
-                                <div className="heading6">Products Type</div>
+                                <div className="heading6">{t('shop.productsType')}</div>
                                 <div className="list-type filter-type menu-tab mt-4">
                                     {facets.categories.map((category) => (
                                         <Link
@@ -159,7 +161,7 @@ export default function ShopIndex({
 
                             {facets.sizes.length > 0 && (
                                 <div className="filter-size pb-8 border-b border-line mt-8">
-                                    <div className="heading6">Size</div>
+                                    <div className="heading6">{t('geo.size')}</div>
                                     <div className="list-size flex items-center flex-wrap gap-3 gap-y-4 mt-4">
                                         {facets.sizes.map((size) => (
                                             <div
@@ -177,7 +179,7 @@ export default function ShopIndex({
                             )}
 
                             <div className="filter-price pb-8 border-b border-line mt-8">
-                                <div className="heading6">Price Range</div>
+                                <div className="heading6">{t('shop.priceRange')}</div>
                                 <div className="price-block flex items-center justify-between flex-wrap gap-2 mt-4">
                                     <input
                                         type="number"
@@ -186,7 +188,7 @@ export default function ShopIndex({
                                         min={facets.price.min}
                                         max={facets.price.max}
                                         onChange={(event) => setPriceMin(event.target.value)}
-                                        aria-label="Minimum price"
+                                        aria-label={t('shop.minPrice')}
                                     />
                                     <input
                                         type="number"
@@ -195,7 +197,7 @@ export default function ShopIndex({
                                         min={facets.price.min}
                                         max={facets.price.max}
                                         onChange={(event) => setPriceMax(event.target.value)}
-                                        aria-label="Maximum price"
+                                        aria-label={t('shop.maxPrice')}
                                     />
                                 </div>
                                 <button
@@ -203,13 +205,13 @@ export default function ShopIndex({
                                     className="button-main w-full text-center mt-4 py-2"
                                     onClick={() => apply({ price_min: priceMin, price_max: priceMax })}
                                 >
-                                    Apply
+                                    {t('common.apply')}
                                 </button>
                             </div>
 
                             {facets.colors.length > 0 && (
                                 <div className="filter-color pb-8 border-b border-line mt-8">
-                                    <div className="heading6">Colors</div>
+                                    <div className="heading6">{t('shop.colors')}</div>
                                     <div className="list-color flex items-center flex-wrap gap-3 gap-y-4 mt-4">
                                         {facets.colors.map((color) => (
                                             <div
@@ -232,7 +234,7 @@ export default function ShopIndex({
 
                             {/* Section 20 #15 — required by the spec, absent from the template. */}
                             <div className="filter-rating pb-8 border-b border-line mt-8">
-                                <div className="heading6">Rating</div>
+                                <div className="heading6">{t('shop.rating')}</div>
                                 <div className="list-rating mt-4">
                                     {[5, 4, 3, 2, 1].map((stars) => (
                                         <div
@@ -254,18 +256,18 @@ export default function ShopIndex({
                                                     ></i>
                                                 ))}
                                             </div>
-                                            <div className="caption1 text-secondary">&amp; up</div>
+                                            <div className="caption1 text-secondary">{t('shop.andUp')}</div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
 
                             <div className="filter-availability pb-8 mt-8">
-                                <div className="heading6">Availability</div>
+                                <div className="heading6">{t('shop.availability')}</div>
                                 <div className="list-availability mt-4">
                                     {[
-                                        { value: 'in_stock', label: 'In stock' },
-                                        { value: 'out_of_stock', label: 'Out of stock' },
+                                        { value: 'in_stock', label: t('shop.inStock') },
+                                        { value: 'out_of_stock', label: t('shop.outOfStock') },
                                     ].map((option) => (
                                         <div key={option.value} className="flex items-center py-1">
                                             <div className="block-input">
@@ -308,14 +310,16 @@ export default function ShopIndex({
                                             onChange={(event) => apply({ sale: event.target.checked })}
                                         />
                                         <label htmlFor="filter-sale" className="caption1 cursor-pointer">
-                                            Show only products on sale
+                                            {t('shop.onSaleOnly')}
                                         </label>
                                     </div>
-                                    <div className="caption1 text-secondary">{pagination.total} products</div>
+                                    <div className="caption1 text-secondary">
+                                        {t('shop.productCount', { count: pagination.total })}
+                                    </div>
                                 </div>
                                 <div className="sort-product right flex items-center gap-3">
                                     <label htmlFor="select-filter" className="caption1 capitalize">
-                                        Sort by
+                                        {t('shop.sortBy')}
                                     </label>
                                     <div className="select-block relative">
                                         <select
@@ -325,11 +329,11 @@ export default function ShopIndex({
                                             value={filters.sort ?? ''}
                                             onChange={(event) => apply({ sort: event.target.value || null })}
                                         >
-                                            <option value="">Newest</option>
-                                            <option value="soldQuantityHighToLow">Best Selling</option>
-                                            <option value="discountHighToLow">Best Discount</option>
-                                            <option value="priceHighToLow">Price High To Low</option>
-                                            <option value="priceLowToHigh">Price Low To High</option>
+                                            <option value="">{t('shop.sortNewest')}</option>
+                                            <option value="soldQuantityHighToLow">{t('shop.sortBestSelling')}</option>
+                                            <option value="discountHighToLow">{t('shop.sortBestDiscount')}</option>
+                                            <option value="priceHighToLow">{t('shop.sortPriceDesc')}</option>
+                                            <option value="priceLowToHigh">{t('shop.sortPriceAsc')}</option>
                                         </select>
                                         <i className="ph ph-caret-down absolute top-1/2 -translate-y-1/2 md:end-4 end-2"></i>
                                     </div>
@@ -343,9 +347,7 @@ export default function ShopIndex({
                             </div>
 
                             {products.length === 0 && (
-                                <div className="caption1 text-secondary text-center py-16">
-                                    No products match these filters.
-                                </div>
+                                <div className="caption1 text-secondary text-center py-16">{t('shop.noMatches')}</div>
                             )}
 
                             <Pagination pagination={pagination} />

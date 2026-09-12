@@ -58,10 +58,13 @@ class OrderStatusUpdatedNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject("Order #{$this->order->order_number} — {$this->status->value}")
-            ->greeting("Hi {$this->order->shipping_recipient_name},")
+            ->subject(__('Order #:number — :status', [
+                'number' => $this->order->order_number,
+                'status' => __($this->status->value),
+            ]))
+            ->greeting(__('Hi :name,', ['name' => $this->order->shipping_recipient_name]))
             ->line($this->message())
-            ->action('Track your order', route('order-tracking.index'));
+            ->action(__('Track your order'), route('order-tracking.index'));
     }
 
     /**
@@ -73,7 +76,10 @@ class OrderStatusUpdatedNotification extends Notification
             'type' => 'order_status_updated',
             'order_number' => $this->order->order_number,
             'status' => $this->status->value,
-            'title' => "Order #{$this->order->order_number} — {$this->status->value}",
+            'title' => __('Order #:number — :status', [
+                'number' => $this->order->order_number,
+                'status' => __($this->status->value),
+            ]),
             'message' => $this->message(),
             'url' => route('order-tracking.index'),
         ];
@@ -82,15 +88,15 @@ class OrderStatusUpdatedNotification extends Notification
     private function message(): string
     {
         return match ($this->status) {
-            CustomerOrderStatus::Shipping => 'Your order is on its way to the courier.',
-            CustomerOrderStatus::OutForDelivery => 'Your order is out for delivery today. Please have the cash payment ready.',
-            CustomerOrderStatus::Delivered => 'Your order has been delivered. Thank you for shopping with us.',
-            CustomerOrderStatus::Cancelled => 'Your order has been cancelled. Nothing has been charged.',
-            CustomerOrderStatus::Postponed => 'Your delivery has been postponed. We will contact you to rearrange it.',
-            CustomerOrderStatus::Backordered => 'One of your items is being restocked. Your order is paused until it arrives.',
-            CustomerOrderStatus::Returned => 'Your order was returned and nothing has been charged.',
-            CustomerOrderStatus::PartiallyReturned => 'Part of your order was returned — you were only charged for what you kept.',
-            default => "Your order is now: {$this->status->value}.",
+            CustomerOrderStatus::Shipping => __('Your order is on its way to the courier.'),
+            CustomerOrderStatus::OutForDelivery => __('Your order is out for delivery today. Please have the cash payment ready.'),
+            CustomerOrderStatus::Delivered => __('Your order has been delivered. Thank you for shopping with us.'),
+            CustomerOrderStatus::Cancelled => __('Your order has been cancelled. Nothing has been charged.'),
+            CustomerOrderStatus::Postponed => __('Your delivery has been postponed. We will contact you to rearrange it.'),
+            CustomerOrderStatus::Backordered => __('One of your items is being restocked. Your order is paused until it arrives.'),
+            CustomerOrderStatus::Returned => __('Your order was returned and nothing has been charged.'),
+            CustomerOrderStatus::PartiallyReturned => __('Part of your order was returned — you were only charged for what you kept.'),
+            default => __('Your order is now: :status.', ['status' => __($this->status->value)]),
         };
     }
 }

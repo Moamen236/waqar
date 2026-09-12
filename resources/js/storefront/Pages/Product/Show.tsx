@@ -3,8 +3,8 @@ import { useMemo, useState } from 'react';
 import ProductCard from '../../Components/ProductCard';
 import Rate from '../../Components/Rate';
 import StorefrontLayout from '../../Layouts/StorefrontLayout';
-import { price } from '../../lib/format';
 import type { ProductDetailData, ProductVariantData, SharedProps } from '../../types';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface ReviewRow {
     id: number;
@@ -46,6 +46,7 @@ export default function ProductShow({
     const [tab, setTab] = useState<'description' | 'reviews'>('description');
     const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
     const [activeImage, setActiveImage] = useState(0);
+    const { t, price } = useTranslation();
 
     const optionOf = (variant: ProductVariantData, attribute: string) =>
         variant.options.find((option) => option.attribute === attribute)?.value ?? null;
@@ -155,7 +156,9 @@ export default function ProductShow({
                             </div>
                             <div className="flex items-center gap-1 mt-3">
                                 <Rate value={product.rating} />
-                                <span className="caption1 text-secondary">({product.review_count} reviews)</span>
+                                <span className="caption1 text-secondary">
+                                    ({t('product.reviewCount', { count: product.review_count })})
+                                </span>
                             </div>
                             <div className="flex items-center gap-3 flex-wrap mt-5 pb-6 border-b border-line">
                                 <div className="product-price heading5">{price(variant?.price ?? product.price)}</div>
@@ -181,7 +184,8 @@ export default function ProductShow({
                                 {hasColours && (
                                     <div className="choose-color">
                                         <div className="text-title">
-                                            Colors: <span className="text-title color">{colour ?? ''}</span>
+                                            {t('product.colors')}:{' '}
+                                            <span className="text-title color">{colour ?? ''}</span>
                                         </div>
                                         <div className="list-color flex items-center gap-2 flex-wrap mt-3">
                                             {product.colors.map((option) => (
@@ -206,14 +210,15 @@ export default function ProductShow({
                                     <div className="choose-size mt-5">
                                         <div className="heading flex items-center justify-between">
                                             <div className="text-title">
-                                                Size: <span className="text-title size">{size ?? ''}</span>
+                                                {t('product.size')}:{' '}
+                                                <span className="text-title size">{size ?? ''}</span>
                                             </div>
                                             <button
                                                 type="button"
                                                 className="caption1 size-guide text-red underline"
                                                 onClick={() => setSizeGuideOpen(true)}
                                             >
-                                                Size Guide
+                                                {t('product.sizeGuide')}
                                             </button>
                                         </div>
                                         <div className="list-size flex items-center gap-2 flex-wrap mt-3">
@@ -232,7 +237,7 @@ export default function ProductShow({
                                     </div>
                                 )}
 
-                                <div className="text-title mt-5">Quantity:</div>
+                                <div className="text-title mt-5">{t('product.quantityLabel')}</div>
                                 <div className="choose-quantity flex items-center max-xl:flex-wrap lg:justify-between gap-5 mt-3">
                                     <div className="quantity-block md:p-3 max-md:py-1.5 max-md:px-3 flex items-center justify-between rounded-lg border border-line sm:w-[140px] w-[120px] flex-shrink-0">
                                         <i
@@ -251,7 +256,7 @@ export default function ProductShow({
                                         disabled={variant === null || outOfStock}
                                         onClick={() => addToCart(false)}
                                     >
-                                        {outOfStock ? 'Out of stock' : 'Add To Cart'}
+                                        {outOfStock ? t('product.outOfStock') : t('product.addToCart')}
                                     </button>
                                 </div>
                                 {variant === null && (
@@ -270,32 +275,32 @@ export default function ProductShow({
                                         disabled={variant === null || outOfStock}
                                         onClick={() => addToCart(true)}
                                     >
-                                        Buy It Now
+                                        {t('product.buyNow')}
                                     </button>
                                 </div>
 
                                 <div className="more-infor mt-6">
                                     <div className="flex items-center gap-1 mt-3">
                                         <i className="ph ph-money body1"></i>
-                                        <div className="text-title">Payment:</div>
-                                        <div className="text-secondary">Cash on delivery</div>
+                                        <div className="text-title">{t('product.paymentLabel')}</div>
+                                        <div className="text-secondary">{t('footer.codTitle')}</div>
                                     </div>
                                     <div className="flex items-center gap-1 mt-3">
-                                        <div className="text-title">SKU:</div>
+                                        <div className="text-title">{t('product.skuLabel')}</div>
                                         <div className="text-secondary">{variant?.sku ?? product.sku}</div>
                                     </div>
                                     <div className="flex items-center gap-1 mt-3">
-                                        <div className="text-title">Categories:</div>
+                                        <div className="text-title">{t('product.categoriesLabel')}</div>
                                         <div className="list-category text-secondary">
                                             {product.categories.join(', ')}
                                         </div>
                                     </div>
                                     {variant?.available !== null && variant !== null && (
                                         <div className="flex items-center gap-1 mt-3">
-                                            <div className="text-title">Availability:</div>
+                                            <div className="text-title">{t('product.availabilityLabel')}</div>
                                             <div className="text-secondary">
                                                 {variant.available > 0
-                                                    ? `${variant.available} in stock`
+                                                    ? t('product.inStock', { count: variant.available })
                                                     : 'Out of stock'}
                                             </div>
                                         </div>
@@ -316,7 +321,7 @@ export default function ProductShow({
                                     }`}
                                     onClick={() => setTab('description')}
                                 >
-                                    Description
+                                    {t('product.tabDescription')}
                                 </div>
                                 <div
                                     className={`tab-item heading5 has-line-before text-secondary2 hover:text-black duration-300 cursor-pointer ${
@@ -324,7 +329,7 @@ export default function ProductShow({
                                     }`}
                                     onClick={() => setTab('reviews')}
                                 >
-                                    Reviews ({reviews.length})
+                                    {t('product.tabReviews', { count: reviews.length })}
                                 </div>
                             </div>
                         </div>
@@ -342,7 +347,7 @@ export default function ProductShow({
                             <div className="review-block md:pt-8 pt-6">
                                 <div className="list-review">
                                     {reviews.length === 0 && (
-                                        <div className="caption1 text-secondary">No reviews yet.</div>
+                                        <div className="caption1 text-secondary">{t('product.noReviews')}</div>
                                     )}
                                     {reviews.map((review) => (
                                         <div key={review.id} className="item flex gap-4 py-6 border-b border-line">
@@ -354,7 +359,7 @@ export default function ProductShow({
                                                     <div className="text-title">{review.author}</div>
                                                     {review.verified && (
                                                         <span className="caption2 bg-green px-2 py-0.5 rounded-full">
-                                                            Verified purchase
+                                                            {t('product.verified')}
                                                         </span>
                                                     )}
                                                 </div>
@@ -382,7 +387,7 @@ export default function ProductShow({
                                             });
                                         }}
                                     >
-                                        <div className="heading5">Leave a review</div>
+                                        <div className="heading5">{t('product.leaveReview')}</div>
                                         <div className="flex items-center gap-1 mt-3">
                                             {[1, 2, 3, 4, 5].map((star) => (
                                                 <i
@@ -399,14 +404,14 @@ export default function ProductShow({
                                         <input
                                             className="border-line px-4 py-3 w-full rounded-lg mt-4"
                                             type="text"
-                                            placeholder="Title (optional)"
+                                            placeholder={t('product.reviewTitlePlaceholder')}
                                             value={reviewForm.data.title}
                                             onChange={(event) => reviewForm.setData('title', event.target.value)}
                                         />
                                         <textarea
                                             className="border-line px-4 py-3 w-full rounded-lg mt-4"
                                             rows={4}
-                                            placeholder="Your review (optional)"
+                                            placeholder={t('product.reviewBodyPlaceholder')}
                                             value={reviewForm.data.comment}
                                             onChange={(event) => reviewForm.setData('comment', event.target.value)}
                                         />
@@ -415,19 +420,17 @@ export default function ProductShow({
                                             className="button-main mt-4"
                                             disabled={reviewForm.processing}
                                         >
-                                            Submit review
+                                            {t('product.submitReview')}
                                         </button>
-                                        <div className="caption1 text-secondary mt-2">
-                                            Reviews appear once they have been approved.
-                                        </div>
+                                        <div className="caption1 text-secondary mt-2">{t('product.reviewPending')}</div>
                                     </form>
                                 )}
                                 {!auth.customer && (
                                     <div className="caption1 text-secondary md:mt-10 mt-6">
                                         <Link href={route('login')} className="text-black underline">
-                                            Sign in
+                                            {t('product.signIn')}
                                         </Link>{' '}
-                                        to leave a review.
+                                        {t('product.toLeaveReview')}
                                     </div>
                                 )}
                             </div>
@@ -438,7 +441,7 @@ export default function ProductShow({
                 {related.length > 0 && (
                     <div className="related-product md:pb-20 pb-10">
                         <div className="container">
-                            <div className="heading3 text-center">Related Products</div>
+                            <div className="heading3 text-center">{t('product.related')}</div>
                             <div className="list-product hide-product-sold grid xl:grid-cols-4 sm:grid-cols-3 grid-cols-2 md:gap-[30px] gap-4 md:mt-10 mt-6">
                                 {related.map((item) => (
                                     <ProductCard key={item.id} product={item} />
@@ -456,14 +459,16 @@ export default function ProductShow({
                     className={`modal-sizeguide-main p-10 rounded-[32px] ${sizeGuideOpen ? 'open' : ''}`}
                     onClick={(event) => event.stopPropagation()}
                 >
-                    <div className="heading5">Size Guide</div>
-                    <div className="caption1 text-secondary mt-2">Pick the size that matches your weight range.</div>
+                    <div className="heading5">{t('product.sizeGuide')}</div>
+                    <div className="caption1 text-secondary mt-2">{t('product.sizeGuideBody')}</div>
                     <table className="w-full mt-5">
                         <thead className="border-b border-line">
                             <tr>
-                                <th className="pb-3 text-start text-sm font-bold uppercase text-secondary">Size</th>
                                 <th className="pb-3 text-start text-sm font-bold uppercase text-secondary">
-                                    Weight range
+                                    {t('geo.size')}
+                                </th>
+                                <th className="pb-3 text-start text-sm font-bold uppercase text-secondary">
+                                    {t('product.weightRange')}
                                 </th>
                             </tr>
                         </thead>
@@ -474,7 +479,7 @@ export default function ProductShow({
                                     <td className="py-3 text-secondary">
                                         {item.size_guide_weight_min !== null && item.size_guide_weight_max !== null
                                             ? `${item.size_guide_weight_min} – ${item.size_guide_weight_max} kg`
-                                            : 'Not specified'}
+                                            : t('common.notSpecified')}
                                     </td>
                                 </tr>
                             ))}

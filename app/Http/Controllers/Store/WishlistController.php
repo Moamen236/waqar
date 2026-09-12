@@ -49,11 +49,11 @@ class WishlistController extends Controller
         if ($existing !== null) {
             $existing->delete();
 
-            return back()->with('success', 'Removed from your wishlist.');
+            return back()->with('success', __('Removed from your wishlist.'));
         }
 
         $wishlist->items()->create(['product_id' => $data['product_id']]);
 
-        return back()->with('success', 'Added to your wishlist.');
+        return back()->with('success', __('Added to your wishlist.'));
     }
 }

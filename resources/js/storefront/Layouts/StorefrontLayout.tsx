@@ -218,7 +218,9 @@ export default function StorefrontLayout({
                                             <div className="login-popup absolute top-[42px] end-0 w-[320px] p-7 rounded-xl bg-white box-shadow-sm z-10 block opacity-100 visible">
                                                 {auth.customer ? (
                                                     <>
-                                                        <div className="text-button pb-3">{t('nav.greeting', { name: auth.customer.name })}</div>
+                                                        <div className="text-button pb-3">
+                                                            {t('nav.greeting', { name: auth.customer.name })}
+                                                        </div>
                                                         <Link
                                                             href={route('account.dashboard')}
                                                             className="button-main w-full text-center"
@@ -554,9 +556,7 @@ export default function StorefrontLayout({
                                 </div>
                                 <div className="newsletter basis-1/3 ps-7 max-md:basis-full max-md:ps-0">
                                     <div className="text-button-uppercase">{t('footer.codTitle')}</div>
-                                    <div className="caption1 mt-3">
-                                        {t('footer.codBody')}
-                                    </div>
+                                    <div className="caption1 mt-3">{t('footer.codBody')}</div>
                                     <div className="list-social flex items-center gap-6 mt-4">
                                         <a href="https://www.facebook.com/" target="_blank" rel="noreferrer">
                                             <div className="icon-facebook text-2xl text-black"></div>

@@ -5,6 +5,7 @@ import Pagination from '../../Components/Pagination';
 import ProductCard from '../../Components/ProductCard';
 import StorefrontLayout from '../../Layouts/StorefrontLayout';
 import type { Pagination as PaginationData, ProductCardData } from '../../types';
+import { useTranslation } from '../../lib/useTranslation';
 
 /** Search results — Anvogue's search-result.html. */
 export default function SearchIndex({
@@ -17,11 +18,12 @@ export default function SearchIndex({
     pagination: PaginationData;
 }) {
     const [value, setValue] = useState(term);
+    const { t } = useTranslation();
 
     return (
         <StorefrontLayout>
-            <Head title="Search" />
-            <Breadcrumb title="Search Result" />
+            <Head title={t('nav.search')} />
+            <Breadcrumb title={t('search.resultTitle')} />
 
             <div className="shop-product search-result-block lg:py-20 md:py-14 py-10">
                 <div className="container">
@@ -42,14 +44,14 @@ export default function SearchIndex({
                                     type="text"
                                     value={value}
                                     onChange={(event) => setValue(event.target.value)}
-                                    placeholder="Search..."
+                                    placeholder={t('search.placeholder')}
                                     className="caption1 w-full h-full ps-4 md:pe-[150px] pe-32 rounded-xl border border-line"
                                 />
                                 <button
                                     type="submit"
                                     className="button-main absolute top-1 bottom-1 end-1 flex items-center justify-center"
                                 >
-                                    search
+                                    {t('nav.search')}
                                 </button>
                             </form>
                         </div>
@@ -62,9 +64,7 @@ export default function SearchIndex({
                             ))}
                         </div>
                         {products.length === 0 && (
-                            <div className="caption1 text-secondary text-center py-16">
-                                Nothing matched that search.
-                            </div>
+                            <div className="caption1 text-secondary text-center py-16">{t('search.noResults')}</div>
                         )}
                         <Pagination pagination={pagination} />
                     </div>

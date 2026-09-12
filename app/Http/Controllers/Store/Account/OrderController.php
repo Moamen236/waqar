@@ -83,7 +83,7 @@ class OrderController extends Controller
         $model = $this->ownedOrder($request, $order);
 
         if (! $this->cancellable($model)) {
-            return back()->with('error', 'This order can no longer be cancelled online — please contact customer service.');
+            return back()->with('error', __('This order can no longer be cancelled online — please contact customer service.'));
         }
 
         try {
@@ -92,7 +92,7 @@ class OrderController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        return back()->with('success', 'Your order has been cancelled.');
+        return back()->with('success', __('Your order has been cancelled.'));
     }
 
     /**

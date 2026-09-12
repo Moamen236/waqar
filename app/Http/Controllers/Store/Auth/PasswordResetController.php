@@ -36,8 +36,8 @@ class PasswordResetController extends Controller
         // an address has an account here would be an account-enumeration
         // oracle on a public page.
         return back()->with('success', $status === Password::RESET_LINK_SENT
-            ? 'If that address has an account, a reset link is on its way.'
-            : 'If that address has an account, a reset link is on its way.');
+            ? __('If that address has an account, a reset link is on its way.')
+            : __('If that address has an account, a reset link is on its way.'));
     }
 
     public function reset(Request $request, string $token): Response
@@ -72,6 +72,6 @@ class PasswordResetController extends Controller
             return back()->withErrors(['email' => __($status)]);
         }
 
-        return redirect()->route('login')->with('success', 'Your password has been reset. Please sign in.');
+        return redirect()->route('login')->with('success', __('Your password has been reset. Please sign in.'));
     }
 }

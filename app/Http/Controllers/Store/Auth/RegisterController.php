@@ -49,7 +49,7 @@ class RegisterController extends Controller
         $this->carts->mergeGuestCart($request, $customer);
         $request->session()->regenerate();
 
-        return redirect()->route('account.dashboard')->with('success', 'Welcome to WAQAR.');
+        return redirect()->route('account.dashboard')->with('success', __('Welcome to WAQAR.'));
     }
 
     /**

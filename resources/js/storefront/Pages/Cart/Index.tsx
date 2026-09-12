@@ -3,8 +3,8 @@ import { useState } from 'react';
 import Breadcrumb from '../../Components/Breadcrumb';
 import GeoCascade from '../../Components/GeoCascade';
 import StorefrontLayout from '../../Layouts/StorefrontLayout';
-import { price } from '../../lib/format';
 import type { CartSummary, GeoCountry, GeoSelection } from '../../types';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface Voucher {
     code: string;
@@ -32,6 +32,7 @@ export default function CartIndex({
     vouchers: Voucher[];
 }) {
     const [code, setCode] = useState('');
+    const { t, price } = useTranslation();
     const [geo, setGeo] = useState<GeoSelection>({
         country_id: null,
         governorate_id: null,
@@ -78,8 +79,8 @@ export default function CartIndex({
 
     return (
         <StorefrontLayout>
-            <Head title="Shopping Cart" />
-            <Breadcrumb title="Shopping Cart" />
+            <Head title={t('cart.title')} />
+            <Breadcrumb title={t('cart.title')} />
 
             <div className="cart-block md:py-20 py-10">
                 <div className="container">
@@ -90,25 +91,25 @@ export default function CartIndex({
                                     <div className="heading bg-surface bora-4 pt-4 pb-4">
                                         <div className="flex">
                                             <div className="w-1/2">
-                                                <div className="text-button text-center">Products</div>
+                                                <div className="text-button text-center">{t('cart.colProducts')}</div>
                                             </div>
                                             <div className="w-1/12">
-                                                <div className="text-button text-center">Price</div>
+                                                <div className="text-button text-center">{t('cart.colPrice')}</div>
                                             </div>
                                             <div className="w-1/6">
-                                                <div className="text-button text-center">Quantity</div>
+                                                <div className="text-button text-center">{t('cart.colQuantity')}</div>
                                             </div>
                                             <div className="w-1/6">
-                                                <div className="text-button text-center">Total Price</div>
+                                                <div className="text-button text-center">{t('cart.colTotal')}</div>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="list-product-main w-full mt-3">
                                         {cart.items.length === 0 && (
                                             <div className="caption1 text-secondary text-center py-10">
-                                                Your cart is empty.{' '}
+                                                {t('cart.empty')}{' '}
                                                 <Link href={route('shop.index')} className="text-black underline">
-                                                    Start shopping
+                                                    {t('cart.startShopping')}
                                                 </Link>
                                             </div>
                                         )}
@@ -142,7 +143,7 @@ export default function CartIndex({
                                                             {item.available !== null &&
                                                                 item.available < item.quantity && (
                                                                     <div className="caption1 text-red mt-1">
-                                                                        Only {item.available} left in stock
+                                                                        {t('cart.onlyLeft', { count: item.available })}
                                                                     </div>
                                                                 )}
                                                         </div>
@@ -209,7 +210,7 @@ export default function CartIndex({
                                         type="text"
                                         value={code}
                                         onChange={(event) => setCode(event.target.value)}
-                                        placeholder="Add voucher discount"
+                                        placeholder={t('cart.voucherPlaceholder')}
                                         className="w-full h-full bg-surface ps-4 pe-14 rounded-lg border border-line"
                                         required
                                     />
@@ -217,7 +218,7 @@ export default function CartIndex({
                                         type="submit"
                                         className="button-main absolute top-1 bottom-1 end-1 px-5 rounded-lg flex items-center justify-center"
                                     >
-                                        Apply Code
+                                        {t('cart.applyCode')}
                                     </button>
                                 </form>
                             </div>
@@ -228,7 +229,7 @@ export default function CartIndex({
                                         <div key={voucher.code} className="item border border-line rounded-lg py-2">
                                             <div className="top flex gap-10 justify-between px-3 pb-2 border-b border-dashed border-line">
                                                 <div className="left">
-                                                    <div className="caption1">Discount</div>
+                                                    <div className="caption1">{t('cart.discounts')}</div>
                                                     <div className="caption1 font-bold">
                                                         {voucher.type === 'percentage'
                                                             ? `${Number(voucher.value)}% OFF`
@@ -258,7 +259,7 @@ export default function CartIndex({
                                                         )
                                                     }
                                                 >
-                                                    Apply Code
+                                                    {t('cart.applyCode')}
                                                 </button>
                                             </div>
                                         </div>
@@ -269,9 +270,9 @@ export default function CartIndex({
 
                         <div className="xl:w-1/3 xl:ps-12 w-full">
                             <div className="checkout-block bg-surface p-6 rounded-2xl">
-                                <div className="heading5">Order Summary</div>
+                                <div className="heading5">{t('cart.orderSummary')}</div>
                                 <div className="total-block py-5 flex justify-between border-b border-line">
-                                    <div className="text-title">Subtotal</div>
+                                    <div className="text-title">{t('cart.subtotal')}</div>
                                     <div className="text-title">{price(view.subtotal)}</div>
                                 </div>
                                 <div className="discount-block py-5 flex justify-between border-b border-line">
@@ -285,7 +286,7 @@ export default function CartIndex({
                                                     router.delete(route('cart.coupon.remove'), { preserveScroll: true })
                                                 }
                                             >
-                                                remove
+                                                {t('common.remove')}
                                             </button>
                                         )}
                                     </div>
@@ -294,14 +295,12 @@ export default function CartIndex({
 
                                 <div className="ship-block py-5 border-b border-line">
                                     <div className="flex justify-between">
-                                        <div className="text-title">Shipping</div>
+                                        <div className="text-title">{t('cart.shipping')}</div>
                                         <div className="text-title">
-                                            {view.shipping === null ? 'Enter address' : price(view.shipping)}
+                                            {view.shipping === null ? t('cart.enterAddress') : price(view.shipping)}
                                         </div>
                                     </div>
-                                    <div className="caption1 text-secondary mt-2">
-                                        Shipping is calculated by the store for your exact area.
-                                    </div>
+                                    <div className="caption1 text-secondary mt-2">{t('cart.shippingNote')}</div>
                                     <div className="grid gap-3 mt-4">
                                         <GeoCascade
                                             countries={countries}
@@ -321,17 +320,15 @@ export default function CartIndex({
                                         }
                                         onClick={requestQuote}
                                     >
-                                        {quoting ? 'Calculating…' : 'Calculate shipping'}
+                                        {quoting ? t('cart.calculating') : t('cart.calculateShipping')}
                                     </button>
                                     {quote !== null && quote.shipping === null && (
-                                        <div className="caption1 text-red mt-3">
-                                            We don&apos;t have a shipping rate for that area yet.
-                                        </div>
+                                        <div className="caption1 text-red mt-3">{t('cart.noRate')}</div>
                                     )}
                                 </div>
 
                                 <div className="total-cart-block pt-4 pb-4 flex justify-between">
-                                    <div className="heading5">Total</div>
+                                    <div className="heading5">{t('cart.total')}</div>
                                     <div className="heading5">
                                         {view.total === null ? price(view.subtotal - view.discount) : price(view.total)}
                                     </div>
@@ -341,10 +338,10 @@ export default function CartIndex({
                                         href={route('checkout.index')}
                                         className="checkout-btn button-main text-center w-full"
                                     >
-                                        Proceed To Checkout
+                                        {t('cart.proceedToCheckout')}
                                     </Link>
                                     <Link className="text-button hover-underline" href={route('shop.index')}>
-                                        Continue shopping
+                                        {t('cart.continueShopping')}
                                     </Link>
                                 </div>
                             </div>

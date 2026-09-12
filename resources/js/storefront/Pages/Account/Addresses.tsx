@@ -5,6 +5,7 @@ import Breadcrumb from '../../Components/Breadcrumb';
 import GeoCascade from '../../Components/GeoCascade';
 import StorefrontLayout from '../../Layouts/StorefrontLayout';
 import type { GeoCountry, GeoSelection } from '../../types';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface AddressRow extends GeoSelection {
     id: number;
@@ -32,6 +33,7 @@ export default function AccountAddresses({
     countries: GeoCountry[];
 }) {
     const [editing, setEditing] = useState<AddressRow | null>(null);
+    const { t } = useTranslation();
 
     const form = useForm({
         label: '',
@@ -83,8 +85,8 @@ export default function AccountAddresses({
 
     return (
         <StorefrontLayout>
-            <Head title="My Address" />
-            <Breadcrumb title="My Address" />
+            <Head title={t('account.navAddresses')} />
+            <Breadcrumb title={t('account.navAddresses')} />
 
             <div className="my-account-block md:py-20 py-10">
                 <div className="container">
@@ -92,10 +94,10 @@ export default function AccountAddresses({
                         <AccountNav active="addresses" />
                         <div className="right list-filter md:w-2/3 w-full ps-2.5">
                             <div className="tab_address text-content w-full p-7 border border-line rounded-xl">
-                                <strong className="heading6">Saved addresses</strong>
+                                <strong className="heading6">{t('address.saved')}</strong>
                                 <div className="grid gap-4 mt-4">
                                     {addresses.length === 0 && (
-                                        <div className="caption1 text-secondary">No addresses saved yet.</div>
+                                        <div className="caption1 text-secondary">{t('address.none')}</div>
                                     )}
                                     {addresses.map((address) => (
                                         <div
@@ -107,7 +109,7 @@ export default function AccountAddresses({
                                                     <strong className="text-title">{address.label}</strong>
                                                     {address.is_default && (
                                                         <span className="caption2 bg-green px-2 py-0.5 rounded-full">
-                                                            Default
+                                                            {t('address.default')}
                                                         </span>
                                                     )}
                                                 </div>
@@ -122,7 +124,7 @@ export default function AccountAddresses({
                                                     className="text-button underline"
                                                     onClick={() => startEdit(address)}
                                                 >
-                                                    Edit
+                                                    {t('common.edit')}
                                                 </button>
                                                 <button
                                                     type="button"
@@ -133,7 +135,7 @@ export default function AccountAddresses({
                                                         })
                                                     }
                                                 >
-                                                    Delete
+                                                    {t('common.delete')}
                                                 </button>
                                             </div>
                                         </div>
@@ -142,18 +144,20 @@ export default function AccountAddresses({
 
                                 <form onSubmit={submit} className="mt-10">
                                     <strong className="heading6">
-                                        {editing === null ? 'Add a new address' : `Edit “${editing.label}”`}
+                                        {editing === null
+                                            ? t('address.addNew')
+                                            : t('address.editing', { label: editing.label })}
                                     </strong>
                                     <div className="grid sm:grid-cols-2 gap-4 gap-y-5 mt-5">
                                         <div>
                                             <label htmlFor="label" className="caption1 capitalize">
-                                                Label <span className="text-red">*</span>
+                                                {t('address.label')} <span className="text-red">*</span>
                                             </label>
                                             <input
                                                 id="label"
                                                 className="border-line mt-2 px-4 py-3 w-full rounded-lg"
                                                 type="text"
-                                                placeholder="Home, Work…"
+                                                placeholder={t('address.labelPlaceholder')}
                                                 value={form.data.label}
                                                 onChange={(event) => form.setData('label', event.target.value)}
                                                 required
@@ -161,7 +165,7 @@ export default function AccountAddresses({
                                         </div>
                                         <div>
                                             <label htmlFor="recipient_name" className="caption1 capitalize">
-                                                Recipient name <span className="text-red">*</span>
+                                                {t('address.recipientName')} <span className="text-red">*</span>
                                             </label>
                                             <input
                                                 id="recipient_name"
@@ -174,7 +178,7 @@ export default function AccountAddresses({
                                         </div>
                                         <div>
                                             <label htmlFor="phone" className="caption1 capitalize">
-                                                Phone <span className="text-red">*</span>
+                                                {t('address.phone')} <span className="text-red">*</span>
                                             </label>
                                             <input
                                                 id="phone"
@@ -198,7 +202,7 @@ export default function AccountAddresses({
                                         />
                                         <div className="col-span-full">
                                             <label htmlFor="address_line" className="caption1 capitalize">
-                                                Street address <span className="text-red">*</span>
+                                                {t('address.street')} <span className="text-red">*</span>
                                             </label>
                                             <input
                                                 id="address_line"
@@ -222,7 +226,7 @@ export default function AccountAddresses({
                                                 <i className="ph-fill ph-check-square icon-checkbox text-2xl"></i>
                                             </div>
                                             <label htmlFor="is_default" className="text-title ps-2 cursor-pointer">
-                                                Make this my default address
+                                                {t('address.makeDefault')}
                                             </label>
                                         </div>
                                     </div>
@@ -232,7 +236,7 @@ export default function AccountAddresses({
                                             className="button-main bg-black"
                                             disabled={form.processing}
                                         >
-                                            {editing === null ? 'Save address' : 'Update address'}
+                                            {editing === null ? t('address.save') : t('address.update')}
                                         </button>
                                         {editing !== null && (
                                             <button
@@ -243,7 +247,7 @@ export default function AccountAddresses({
                                                     form.reset();
                                                 }}
                                             >
-                                                Cancel
+                                                {t('common.cancel')}
                                             </button>
                                         )}
                                     </div>

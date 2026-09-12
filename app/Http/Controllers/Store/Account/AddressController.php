@@ -42,7 +42,7 @@ class AddressController extends Controller
 
         $this->persist($customer->id, $data);
 
-        return back()->with('success', 'Address saved.');
+        return back()->with('success', __('Address saved.'));
     }
 
     public function update(Request $request, Address $address): RedirectResponse
@@ -52,7 +52,7 @@ class AddressController extends Controller
         $data = $this->validated($request);
         $this->persist($address->customer_id, $data, $address);
 
-        return back()->with('success', 'Address updated.');
+        return back()->with('success', __('Address updated.'));
     }
 
     public function destroy(Request $request, Address $address): RedirectResponse
@@ -61,7 +61,7 @@ class AddressController extends Controller
 
         $address->delete();
 
-        return back()->with('success', 'Address removed.');
+        return back()->with('success', __('Address removed.'));
     }
 
     /**

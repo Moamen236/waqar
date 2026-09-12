@@ -1,7 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
-import { price } from '../lib/format';
 import type { CartSummary, SharedProps } from '../types';
+import { useTranslation } from '../lib/useTranslation';
 
 /**
  * Anvogue's `modal-cart-block` mini-cart. The template's left-hand "You
@@ -16,6 +16,7 @@ import type { CartSummary, SharedProps } from '../types';
  */
 export default function MiniCart({ open, onClose }: { open: boolean; onClose: () => void }) {
     const { storefront } = usePage<SharedProps>().props;
+    const { t, price } = useTranslation();
     const [cart, setCart] = useState<CartSummary | null>(null);
     const count = storefront?.cartCount ?? 0;
 
@@ -42,7 +43,7 @@ export default function MiniCart({ open, onClose }: { open: boolean; onClose: ()
             <div className={`modal-cart-main flex ${open ? 'open' : ''}`} onClick={(event) => event.stopPropagation()}>
                 <div className="right cart-block w-full py-6 relative overflow-hidden">
                     <div className="heading px-6 pb-3 flex items-center justify-between relative">
-                        <div className="heading5">Shopping Cart</div>
+                        <div className="heading5">{t('cart.title')}</div>
                         <div
                             className="close-btn absolute end-6 top-0 w-6 h-6 rounded-full bg-surface flex items-center justify-center duration-300 cursor-pointer hover:bg-black hover:text-white"
                             onClick={onClose}
@@ -51,8 +52,8 @@ export default function MiniCart({ open, onClose }: { open: boolean; onClose: ()
                         </div>
                     </div>
                     <div className="list-product px-6">
-                        {cart === null && <p className="mt-1 caption1 text-secondary">Loading…</p>}
-                        {cart !== null && cart.items.length === 0 && <p className="mt-1">No product in cart</p>}
+                        {cart === null && <p className="mt-1 caption1 text-secondary">{t('common.loading')}</p>}
+                        {cart !== null && cart.items.length === 0 && <p className="mt-1">{t('cart.emptyShort')}</p>}
                         {cart?.items.map((item) => (
                             <div
                                 key={item.id}
@@ -79,7 +80,7 @@ export default function MiniCart({ open, onClose }: { open: boolean; onClose: ()
                                                     })
                                                 }
                                             >
-                                                Remove
+                                                {t('common.remove')}
                                             </button>
                                         </div>
                                         <div className="flex items-center justify-between gap-2 mt-3 w-full">
@@ -95,7 +96,7 @@ export default function MiniCart({ open, onClose }: { open: boolean; onClose: ()
                     </div>
                     <div className="footer-modal bg-white absolute bottom-0 start-0 w-full">
                         <div className="flex items-center justify-between pt-6 px-6">
-                            <div className="heading5">Subtotal</div>
+                            <div className="heading5">{t('cart.subtotal')}</div>
                             <div className="heading5 total-cart">{price(cart?.subtotal ?? 0)}</div>
                         </div>
                         <div className="block-button text-center p-6">
@@ -104,20 +105,20 @@ export default function MiniCart({ open, onClose }: { open: boolean; onClose: ()
                                     href={route('cart.index')}
                                     className="button-main basis-1/2 bg-white border border-black text-black text-center uppercase"
                                 >
-                                    View cart
+                                    {t('cart.viewCart')}
                                 </Link>
                                 <Link
                                     href={route('checkout.index')}
                                     className="button-main basis-1/2 text-center uppercase"
                                 >
-                                    Check Out
+                                    {t('cart.checkout')}
                                 </Link>
                             </div>
                             <div
                                 className="text-button-uppercase continue mt-4 text-center has-line-before cursor-pointer inline-block"
                                 onClick={onClose}
                             >
-                                Or continue shopping
+                                {t('cart.continueShopping')}
                             </div>
                         </div>
                     </div>

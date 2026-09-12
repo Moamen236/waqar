@@ -71,7 +71,7 @@ class CreateOrderAction
 
             $shippingRate = $this->shippingRates->resolve($governorateId, $cityId, $districtId, $areaId);
             if ($shippingRate === null) {
-                throw new RuntimeException('No shipping rate is configured for this address.');
+                throw new RuntimeException(__('No shipping rate is configured for this address.'));
             }
             $shippingAmount = (float) $shippingRate->price;
             if ($shippingRate->free_shipping_threshold !== null && $subtotal >= (float) $shippingRate->free_shipping_threshold) {
@@ -160,7 +160,7 @@ class CreateOrderAction
 
         foreach ($items as $item) {
             if ($item['quantity'] < 1) {
-                throw new InvalidArgumentException('Quantity must be at least 1.');
+                throw new InvalidArgumentException(__('Quantity must be at least 1.'));
             }
 
             $variant = ProductVariant::with('product')->findOrFail($item['product_variant_id']);

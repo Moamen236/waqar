@@ -66,7 +66,7 @@ class CartService
     public function add(Cart $cart, ProductVariant $variant, int $quantity): CartItem
     {
         if ($quantity < 1) {
-            throw new InvalidArgumentException('Quantity must be at least 1.');
+            throw new InvalidArgumentException(__('Quantity must be at least 1.'));
         }
 
         $item = $cart->items()->where('product_variant_id', $variant->id)->first();
@@ -242,8 +242,8 @@ class CartService
         if ($available < $quantity) {
             throw new InvalidArgumentException(
                 $available === 0
-                    ? 'This item is out of stock.'
-                    : "Only {$available} left in stock."
+                    ? __('This item is out of stock.')
+                    : __('Only :count left in stock.', ['count' => $available])
             );
         }
     }

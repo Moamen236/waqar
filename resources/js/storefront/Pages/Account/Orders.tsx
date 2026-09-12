@@ -4,7 +4,7 @@ import AccountNav from '../../Components/AccountNav';
 import Breadcrumb from '../../Components/Breadcrumb';
 import StatusTag from '../../Components/StatusTag';
 import StorefrontLayout from '../../Layouts/StorefrontLayout';
-import { price } from '../../lib/format';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface OrderCard {
     order_number: number;
@@ -22,22 +22,31 @@ interface OrderCard {
  * isn't a status in this system, "Delivered" is.
  */
 const filters = [
-    { key: 'all', label: 'all', match: () => true },
-    { key: 'processing', label: 'processing', match: (s: string) => ['Order Received', 'Processing'].includes(s) },
-    { key: 'shipping', label: 'shipping', match: (s: string) => ['Shipping', 'Out for Delivery'].includes(s) },
-    { key: 'delivered', label: 'delivered', match: (s: string) => s === 'Delivered' },
-    { key: 'cancelled', label: 'cancelled', match: (s: string) => ['Cancelled', 'Returned'].includes(s) },
+    { key: 'all', label: 'account.filterAll', match: () => true },
+    {
+        key: 'processing',
+        label: 'account.filterProcessing',
+        match: (s: string) => ['Order Received', 'Processing'].includes(s),
+    },
+    {
+        key: 'shipping',
+        label: 'account.filterShipping',
+        match: (s: string) => ['Shipping', 'Out for Delivery'].includes(s),
+    },
+    { key: 'delivered', label: 'account.filterDelivered', match: (s: string) => s === 'Delivered' },
+    { key: 'cancelled', label: 'account.filterCancelled', match: (s: string) => ['Cancelled', 'Returned'].includes(s) },
 ] as const;
 
 export default function AccountOrders({ orders }: { orders: OrderCard[] }) {
     const [active, setActive] = useState<string>('all');
+    const { t, price } = useTranslation();
     const matcher = filters.find((filter) => filter.key === active) ?? filters[0];
     const visible = orders.filter((order) => matcher.match(order.status));
 
     return (
         <StorefrontLayout>
-            <Head title="My Orders" />
-            <Breadcrumb title="My Orders" />
+            <Head title={t('account.navOrders')} />
+            <Breadcrumb title={t('account.navOrders')} />
 
             <div className="my-account-block md:py-20 py-10">
                 <div className="container">
@@ -45,7 +54,7 @@ export default function AccountOrders({ orders }: { orders: OrderCard[] }) {
                         <AccountNav active="orders" />
                         <div className="right list-filter md:w-2/3 w-full ps-2.5">
                             <div className="tab_order text-content overflow-hidden w-full p-7 border border-line rounded-xl">
-                                <h6 className="heading6">Your Orders</h6>
+                                <h6 className="heading6">{t('account.yourOrders')}</h6>
                                 <div className="w-full overflow-x-auto">
                                     <div className="menu-tab relative grid grid-cols-5 max-lg:w-[500px] max-md:max-w-max border-b border-line mt-3">
                                         {filters.map((filter) => (
@@ -59,14 +68,14 @@ export default function AccountOrders({ orders }: { orders: OrderCard[] }) {
                                                 }`}
                                                 onClick={() => setActive(filter.key)}
                                             >
-                                                {filter.label}
+                                                {t(filter.label)}
                                             </button>
                                         ))}
                                     </div>
                                 </div>
                                 <div className="list_order">
                                     {visible.length === 0 && (
-                                        <div className="caption1 text-secondary py-8">No orders here.</div>
+                                        <div className="caption1 text-secondary py-8">{t('account.noOrdersHere')}</div>
                                     )}
                                     {visible.map((order) => (
                                         <div
@@ -75,13 +84,13 @@ export default function AccountOrders({ orders }: { orders: OrderCard[] }) {
                                         >
                                             <div className="flex flex-wrap items-center justify-between gap-4 p-5 border-b border-line">
                                                 <div className="flex items-center gap-2">
-                                                    <strong className="text-title">Order Number:</strong>
+                                                    <strong className="text-title">{t('account.orderNumber')}</strong>
                                                     <strong className="order_number text-button uppercase">
                                                         #{order.order_number}
                                                     </strong>
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    <strong className="text-title">Order status:</strong>
+                                                    <strong className="text-title">{t('account.orderStatus')}</strong>
                                                     <StatusTag status={order.status} />
                                                 </div>
                                             </div>
@@ -112,7 +121,7 @@ export default function AccountOrders({ orders }: { orders: OrderCard[] }) {
                                                     href={route('account.orders.show', order.order_number)}
                                                     className="button-main btn_order_detail"
                                                 >
-                                                    Order Details
+                                                    {t('account.orderDetails')}
                                                 </Link>
                                                 {order.cancellable && (
                                                     <button
@@ -126,7 +135,7 @@ export default function AccountOrders({ orders }: { orders: OrderCard[] }) {
                                                             )
                                                         }
                                                     >
-                                                        Cancel Order
+                                                        {t('account.cancelOrder')}
                                                     </button>
                                                 )}
                                                 <div className="ms-auto text-title">{price(order.total)}</div>

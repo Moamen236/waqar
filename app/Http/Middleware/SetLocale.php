@@ -50,6 +50,19 @@ class SetLocale
         // what the locale switcher does to build the sibling URL.
         URL::defaults(['locale' => $locale]);
 
+        // Drop the segment from the route's parameter bag now that it has
+        // been consumed.
+        //
+        // This is load-bearing, not tidiness: Laravel passes route
+        // parameters to controller actions *positionally*, not by name, so
+        // leaving {locale} in place shifts every scalar argument by one —
+        // ProductController::show(Request, string $slug) would receive
+        // "en" as the slug and 404 on every product. Forgetting it here
+        // keeps every existing controller signature correct, and URL
+        // generation is unaffected because the default registered above is
+        // what fills {locale} back in.
+        $request->route()?->forgetParameter('locale');
+
         $response = $next($request);
 
         // Queued rather than set directly so it rides along with whatever
@@ -69,9 +82,17 @@ class SetLocale
     {
         $locale = $request->route('locale');
 
-        return is_string($locale) && in_array($locale, self::SUPPORTED, true)
-            ? $locale
-            : self::preferred($request);
+        if (is_string($locale) && in_array($locale, self::SUPPORTED, true)) {
+            return $locale;
+        }
+
+        // handle() forgets the route parameter once it has been applied
+        // (see there for why), so the app locale is the next best source —
+        // and the cookie only after that, for callers reached before any
+        // of this ran.
+        $applied = App::getLocale();
+
+        return in_array($applied, self::SUPPORTED, true) ? $applied : self::preferred($request);
     }
 
     /**

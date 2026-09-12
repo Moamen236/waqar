@@ -2,6 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import AccountNav from '../../Components/AccountNav';
 import Breadcrumb from '../../Components/Breadcrumb';
 import StorefrontLayout from '../../Layouts/StorefrontLayout';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface NotificationRow {
     id: string;
@@ -21,11 +22,12 @@ interface NotificationRow {
  */
 export default function AccountNotifications({ notifications }: { notifications: NotificationRow[] }) {
     const unread = notifications.filter((notification) => notification.read_at === null).length;
+    const { t } = useTranslation();
 
     return (
         <StorefrontLayout>
-            <Head title="Notifications" />
-            <Breadcrumb title="Notifications" />
+            <Head title={t('account.navNotifications')} />
+            <Breadcrumb title={t('account.navNotifications')} />
 
             <div className="my-account-block md:py-20 py-10">
                 <div className="container">
@@ -34,7 +36,7 @@ export default function AccountNotifications({ notifications }: { notifications:
                         <div className="right list-filter md:w-2/3 w-full ps-2.5">
                             <div className="text-content w-full p-7 border border-line rounded-xl">
                                 <div className="flex items-center justify-between gap-3">
-                                    <h6 className="heading6">Notifications</h6>
+                                    <h6 className="heading6">{t('account.navNotifications')}</h6>
                                     {unread > 0 && (
                                         <button
                                             type="button"
@@ -47,12 +49,12 @@ export default function AccountNotifications({ notifications }: { notifications:
                                                 )
                                             }
                                         >
-                                            Mark all as read
+                                            {t('account.markAllRead')}
                                         </button>
                                     )}
                                 </div>
                                 {notifications.length === 0 && (
-                                    <div className="caption1 text-secondary mt-4">Nothing here yet.</div>
+                                    <div className="caption1 text-secondary mt-4">{t('account.noNotifications')}</div>
                                 )}
                                 {notifications.map((notification) => (
                                     <div

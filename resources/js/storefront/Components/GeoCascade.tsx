@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import type { GeoCountry, GeoSelection } from '../types';
+import { useTranslation } from '../lib/useTranslation';
 
 /**
  * The Country → Governorate → City → District → Area cascade (Section
@@ -31,6 +32,7 @@ export default function GeoCascade({
     onChange: (next: GeoSelection) => void;
     idPrefix?: string;
 }) {
+    const { t } = useTranslation();
     const country = useMemo(
         () =>
             countries.find((item) => item.id === value.country_id) ??
@@ -78,7 +80,7 @@ export default function GeoCascade({
         <>
             <div className="select-block">
                 <label htmlFor={`${idPrefix}-country`} className="caption1 capitalize">
-                    Country <span className="text-red">*</span>
+                    {t('geo.country')} <span className="text-red">*</span>
                 </label>
                 <select
                     id={`${idPrefix}-country`}
@@ -94,7 +96,7 @@ export default function GeoCascade({
                         })
                     }
                 >
-                    <option value="">Choose country</option>
+                    <option value="">{t('geo.chooseCountry')}</option>
                     {countries.map((item) => (
                         <option key={item.id} value={item.id}>
                             {item.name}
@@ -104,7 +106,7 @@ export default function GeoCascade({
             </div>
             <div className="select-block">
                 <label htmlFor={`${idPrefix}-governorate`} className="caption1 capitalize">
-                    Governorate <span className="text-red">*</span>
+                    {t('geo.governorate')} <span className="text-red">*</span>
                 </label>
                 <select
                     id={`${idPrefix}-governorate`}
@@ -121,7 +123,7 @@ export default function GeoCascade({
                         })
                     }
                 >
-                    <option value="">Choose governorate</option>
+                    <option value="">{t('geo.chooseGovernorate')}</option>
                     {country?.governorates.map((item) => (
                         <option key={item.id} value={item.id}>
                             {item.name}
@@ -131,7 +133,7 @@ export default function GeoCascade({
             </div>
             <div className="select-block">
                 <label htmlFor={`${idPrefix}-city`} className="caption1 capitalize">
-                    City <span className="text-red">*</span>
+                    {t('geo.city')} <span className="text-red">*</span>
                 </label>
                 <select
                     id={`${idPrefix}-city`}
@@ -147,7 +149,7 @@ export default function GeoCascade({
                         })
                     }
                 >
-                    <option value="">Choose city</option>
+                    <option value="">{t('geo.chooseCity')}</option>
                     {governorate?.cities.map((item) => (
                         <option key={item.id} value={item.id}>
                             {item.name}
@@ -157,7 +159,7 @@ export default function GeoCascade({
             </div>
             <div className="select-block">
                 <label htmlFor={`${idPrefix}-district`} className="caption1 capitalize">
-                    District
+                    {t('geo.district')}
                 </label>
                 <select
                     id={`${idPrefix}-district`}
@@ -173,7 +175,7 @@ export default function GeoCascade({
                     }
                 >
                     <option value="">
-                        {city !== null && city.districts.length === 0 ? 'No districts in this city' : 'Choose district'}
+                        {city !== null && city.districts.length === 0 ? t('geo.noDistricts') : t('geo.chooseDistrict')}
                     </option>
                     {city?.districts.map((item) => (
                         <option key={item.id} value={item.id}>
@@ -184,7 +186,7 @@ export default function GeoCascade({
             </div>
             <div className="select-block">
                 <label htmlFor={`${idPrefix}-area`} className="caption1 capitalize">
-                    Area <span className="text-red">*</span>
+                    {t('geo.area')} <span className="text-red">*</span>
                 </label>
                 <select
                     id={`${idPrefix}-area`}
@@ -195,7 +197,7 @@ export default function GeoCascade({
                         onChange({ ...value, area_id: event.target.value ? Number(event.target.value) : null })
                     }
                 >
-                    <option value="">Choose area</option>
+                    <option value="">{t('geo.chooseArea')}</option>
                     {areas.map((item) => (
                         <option key={item.id} value={item.id}>
                             {item.name}

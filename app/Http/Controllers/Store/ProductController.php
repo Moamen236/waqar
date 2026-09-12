@@ -83,7 +83,7 @@ class ProductController extends Controller
         ]);
 
         if (Review::where('product_id', $product->id)->where('customer_id', $customer->id)->exists()) {
-            return back()->with('error', 'You have already reviewed this product.');
+            return back()->with('error', __('You have already reviewed this product.'));
         }
 
         Review::create([
@@ -96,7 +96,7 @@ class ProductController extends Controller
             'status' => ReviewStatus::Pending,
         ]);
 
-        return back()->with('success', 'Thanks — your review will appear once it has been approved.');
+        return back()->with('success', __('Thanks — your review will appear once it has been approved.'));
     }
 
     private function purchasedItemId(int $customerId, int $productId): ?int

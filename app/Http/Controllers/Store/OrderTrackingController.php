@@ -37,7 +37,7 @@ class OrderTrackingController extends Controller
         $key = 'order-tracking:'.$request->ip();
         if (RateLimiter::tooManyAttempts($key, 10)) {
             throw ValidationException::withMessages([
-                'order_number' => 'Too many lookups. Please try again in a minute.',
+                'order_number' => __('Too many lookups. Please try again in a minute.'),
             ]);
         }
         RateLimiter::hit($key, 60);
@@ -50,7 +50,7 @@ class OrderTrackingController extends Controller
 
         if ($order === null) {
             throw ValidationException::withMessages([
-                'order_number' => 'We couldn\'t find an order with that number and email address.',
+                'order_number' => __('We couldn\'t find an order with that number and email address.'),
             ]);
         }
 

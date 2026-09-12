@@ -53,7 +53,7 @@ class PageController extends Controller
         $key = 'contact-form:'.$request->ip();
         if (RateLimiter::tooManyAttempts($key, 3)) {
             throw ValidationException::withMessages([
-                'message' => 'You have sent several messages already. Please give us a little time to reply.',
+                'message' => __('You have sent several messages already. Please give us a little time to reply.'),
             ]);
         }
         RateLimiter::hit($key, 600);
@@ -65,7 +65,7 @@ class PageController extends Controller
             orderNumber: $data['order_number'] ?? null,
         ));
 
-        return back()->with('success', 'Thanks — your message is with our team, and we\'ll reply by email.');
+        return back()->with('success', __('Thanks — your message is with our team, and we\'ll reply by email.'));
     }
 
     public function faqs(): Response

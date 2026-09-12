@@ -71,7 +71,7 @@ class CartController extends Controller
         $variant = ProductVariant::with('product')->findOrFail($data['product_variant_id']);
 
         if (! $variant->status || ! $variant->product->status) {
-            return back()->with('error', 'That item is no longer available.');
+            return back()->with('error', __('That item is no longer available.'));
         }
 
         try {
@@ -80,7 +80,7 @@ class CartController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        return back()->with('success', 'Added to your cart.');
+        return back()->with('success', __('Added to your cart.'));
     }
 
     public function update(Request $request, CartItem $item): RedirectResponse
@@ -106,7 +106,7 @@ class CartController extends Controller
 
         $item->delete();
 
-        return back()->with('success', 'Item removed.');
+        return back()->with('success', __('Item removed.'));
     }
 
     /**
@@ -120,7 +120,7 @@ class CartController extends Controller
         $data = $request->validate(['code' => ['required', 'string', 'max:50']]);
 
         if ($request->user('customer') === null) {
-            return back()->with('error', 'Please sign in to use a discount code.');
+            return back()->with('error', __('Please sign in to use a discount code.'));
         }
 
         $request->session()->put(CartService::COUPON_KEY, $data['code']);
@@ -137,7 +137,7 @@ class CartController extends Controller
             return back()->with('error', $summary['coupon_error']);
         }
 
-        return back()->with('success', 'Discount code applied.');
+        return back()->with('success', __('Discount code applied.'));
     }
 
     public function removeCoupon(Request $request): RedirectResponse

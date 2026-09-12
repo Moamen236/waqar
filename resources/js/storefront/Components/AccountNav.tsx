@@ -1,5 +1,6 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import type { SharedProps } from '../types';
+import { useTranslation } from '../lib/useTranslation';
 
 /**
  * my-account.html's left `user-infor` card + `menu-tab list-category`
@@ -9,23 +10,24 @@ import type { SharedProps } from '../types';
  * no card data exists anywhere in this system (Q12).
  */
 const items = [
-    { key: 'dashboard', label: 'Dashboard', icon: 'ph-house-line', routeName: 'account.dashboard' },
-    { key: 'orders', label: 'History Orders', icon: 'ph-package', routeName: 'account.orders' },
-    { key: 'addresses', label: 'My Address', icon: 'ph-tag', routeName: 'account.addresses' },
-    { key: 'wishlist', label: 'Wishlist', icon: 'ph-heart', routeName: 'wishlist.index' },
-    { key: 'reviews', label: 'My Reviews', icon: 'ph-star', routeName: 'account.reviews' },
-    { key: 'notifications', label: 'Notifications', icon: 'ph-bell', routeName: 'account.notifications' },
+    { key: 'dashboard', label: 'account.navDashboard', icon: 'ph-house-line', routeName: 'account.dashboard' },
+    { key: 'orders', label: 'account.navOrders', icon: 'ph-package', routeName: 'account.orders' },
+    { key: 'addresses', label: 'account.navAddresses', icon: 'ph-tag', routeName: 'account.addresses' },
+    { key: 'wishlist', label: 'account.navWishlist', icon: 'ph-heart', routeName: 'wishlist.index' },
+    { key: 'reviews', label: 'account.navReviews', icon: 'ph-star', routeName: 'account.reviews' },
+    { key: 'notifications', label: 'account.navNotifications', icon: 'ph-bell', routeName: 'account.notifications' },
     {
         key: 'recently-viewed',
-        label: 'Recently Viewed',
+        label: 'account.navRecentlyViewed',
         icon: 'ph-clock-counter-clockwise',
         routeName: 'account.recently-viewed',
     },
-    { key: 'settings', label: 'Setting', icon: 'ph-gear-six', routeName: 'account.settings' },
+    { key: 'settings', label: 'account.navSettings', icon: 'ph-gear-six', routeName: 'account.settings' },
 ] as const;
 
 export default function AccountNav({ active }: { active: string }) {
     const { auth, storefront } = usePage<SharedProps>().props;
+    const { t } = useTranslation();
     const unread = storefront?.notificationCount ?? 0;
 
     return (
@@ -50,7 +52,7 @@ export default function AccountNav({ active }: { active: string }) {
                             } ${active === item.key ? 'active bg-white' : ''}`}
                         >
                             <span className={`ph ${item.icon} text-xl`}></span>
-                            <strong className="heading6">{item.label}</strong>
+                            <strong className="heading6">{t(item.label)}</strong>
                             {item.key === 'notifications' && unread > 0 && (
                                 <span className="caption2 ms-auto bg-red text-white rounded-full px-2 py-0.5">
                                     {unread}
@@ -64,7 +66,7 @@ export default function AccountNav({ active }: { active: string }) {
                         onClick={() => router.post(route('logout'))}
                     >
                         <span className="ph ph-sign-out text-xl"></span>
-                        <strong className="heading6">Logout</strong>
+                        <strong className="heading6">{t('common.logout')}</strong>
                     </button>
                 </div>
             </div>

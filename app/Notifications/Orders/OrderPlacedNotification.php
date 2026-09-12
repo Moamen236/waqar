@@ -32,12 +32,12 @@ class OrderPlacedNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject("We've got your order #{$this->order->order_number}")
-            ->greeting("Thanks, {$this->order->shipping_recipient_name}!")
-            ->line("Your order #{$this->order->order_number} has been received and is being processed.")
-            ->line('Payment is cash on delivery — you pay when it reaches you, nothing before.')
-            ->line('Total to pay on delivery: EGP '.number_format((float) $this->order->total, 2))
-            ->action('Track your order', route('order-tracking.index'));
+            ->subject(__("We've got your order #:number", ['number' => $this->order->order_number]))
+            ->greeting(__('Thanks, :name!', ['name' => $this->order->shipping_recipient_name]))
+            ->line(__('Your order #:number has been received and is being processed.', ['number' => $this->order->order_number]))
+            ->line(__('Payment is cash on delivery — you pay when it reaches you, nothing before.'))
+            ->line(__('Total to pay on delivery: :amount', ['amount' => 'EGP '.number_format((float) $this->order->total, 2)]))
+            ->action(__('Track your order'), route('order-tracking.index'));
     }
 
     /**
@@ -48,8 +48,8 @@ class OrderPlacedNotification extends Notification
         return [
             'type' => 'order_placed',
             'order_number' => $this->order->order_number,
-            'title' => "Order #{$this->order->order_number} received",
-            'message' => 'We have your order and will start processing it shortly.',
+            'title' => __('Order #:number received', ['number' => $this->order->order_number]),
+            'message' => __('We have your order and will start processing it shortly.'),
             'url' => route('order-tracking.index'),
         ];
     }

@@ -2,6 +2,7 @@ import { Head, useForm } from '@inertiajs/react';
 import AccountNav from '../../Components/AccountNav';
 import Breadcrumb from '../../Components/Breadcrumb';
 import StorefrontLayout from '../../Layouts/StorefrontLayout';
+import { useTranslation } from '../../lib/useTranslation';
 
 /**
  * my-account.html's Setting tab. The template's Gender, Day-of-Birth and
@@ -12,11 +13,12 @@ import StorefrontLayout from '../../Layouts/StorefrontLayout';
 export default function AccountSettings({ profile }: { profile: { name: string; email: string; phone: string } }) {
     const profileForm = useForm({ ...profile });
     const passwordForm = useForm({ current_password: '', password: '', password_confirmation: '' });
+    const { t } = useTranslation();
 
     return (
         <StorefrontLayout>
-            <Head title="Settings" />
-            <Breadcrumb title="Settings" />
+            <Head title={t('account.navSettings')} />
+            <Breadcrumb title={t('account.navSettings')} />
 
             <div className="my-account-block md:py-20 py-10">
                 <div className="container">
@@ -30,11 +32,11 @@ export default function AccountSettings({ profile }: { profile: { name: string; 
                                         profileForm.put(route('account.settings.update'), { preserveScroll: true });
                                     }}
                                 >
-                                    <div className="heading5 pb-4">Information</div>
+                                    <div className="heading5 pb-4">{t('account.information')}</div>
                                     <div className="grid sm:grid-cols-2 gap-4 gap-y-5">
                                         <div>
                                             <label htmlFor="name" className="caption1 capitalize">
-                                                Full name <span className="text-red">*</span>
+                                                {t('account.fullName')} <span className="text-red">*</span>
                                             </label>
                                             <input
                                                 id="name"
@@ -50,7 +52,7 @@ export default function AccountSettings({ profile }: { profile: { name: string; 
                                         </div>
                                         <div>
                                             <label htmlFor="phone" className="caption1 capitalize">
-                                                Phone number <span className="text-red">*</span>
+                                                {t('account.phoneNumber')} <span className="text-red">*</span>
                                             </label>
                                             <input
                                                 id="phone"
@@ -63,7 +65,7 @@ export default function AccountSettings({ profile }: { profile: { name: string; 
                                         </div>
                                         <div className="col-span-full">
                                             <label htmlFor="email" className="caption1 capitalize">
-                                                Email address <span className="text-red">*</span>
+                                                {t('account.emailAddress')} <span className="text-red">*</span>
                                             </label>
                                             <input
                                                 id="email"
@@ -80,7 +82,7 @@ export default function AccountSettings({ profile }: { profile: { name: string; 
                                     </div>
                                     <div className="block-button lg:mt-10 mt-6">
                                         <button type="submit" className="button-main" disabled={profileForm.processing}>
-                                            Save changes
+                                            {t('common.saveChanges')}
                                         </button>
                                     </div>
                                 </form>
@@ -95,10 +97,10 @@ export default function AccountSettings({ profile }: { profile: { name: string; 
                                         });
                                     }}
                                 >
-                                    <div className="heading5 pb-4">Change Password</div>
+                                    <div className="heading5 pb-4">{t('account.changePassword')}</div>
                                     <div className="pass">
                                         <label htmlFor="current_password" className="caption1">
-                                            Current password <span className="text-red">*</span>
+                                            {t('account.currentPassword')} <span className="text-red">*</span>
                                         </label>
                                         <input
                                             id="current_password"
@@ -118,7 +120,7 @@ export default function AccountSettings({ profile }: { profile: { name: string; 
                                     </div>
                                     <div className="new-pass mt-5">
                                         <label htmlFor="password" className="caption1">
-                                            New password <span className="text-red">*</span>
+                                            {t('account.newPassword')} <span className="text-red">*</span>
                                         </label>
                                         <input
                                             id="password"
@@ -134,7 +136,7 @@ export default function AccountSettings({ profile }: { profile: { name: string; 
                                     </div>
                                     <div className="confirm-pass mt-5">
                                         <label htmlFor="password_confirmation" className="caption1">
-                                            Confirm new password <span className="text-red">*</span>
+                                            {t('account.confirmNewPassword')} <span className="text-red">*</span>
                                         </label>
                                         <input
                                             id="password_confirmation"

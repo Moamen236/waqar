@@ -56,7 +56,14 @@ class HandleInertiaRequests extends Middleware
             // React apps read these rather than guessing from the
             // browser, so a shared /en/... link renders English for
             // everyone regardless of their own preference.
-            'locale' => [
+            //
+            // Deliberately a closure: Inertia's middleware shares props
+            // *before* it calls $next(), which is before the route-group
+            // middleware — so reading app()->getLocale() eagerly here
+            // returns the fallback, not the locale SetLocale is about to
+            // apply. The closure is resolved when the response is built,
+            // by which time it has.
+            'locale' => fn () => [
                 'current' => app()->getLocale(),
                 'direction' => in_array(app()->getLocale(), ['ar'], true) ? 'rtl' : 'ltr',
                 'supported' => SetLocale::SUPPORTED,
