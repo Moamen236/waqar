@@ -4,6 +4,7 @@ import RowActions from '../../../Components/RowActions';
 import StatusBadge from '../../../Components/StatusBadge';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import type { PaginatedData } from '../../../types';
+import { useTranslation } from '../../../lib/useTranslation';
 
 interface Representative {
     id: number;
@@ -14,30 +15,31 @@ interface Representative {
 }
 
 export default function RepresentativesIndex({ representatives }: { representatives: PaginatedData<Representative> }) {
+    const { t } = useTranslation();
     return (
-        <AdminLayout title="Delivery Representatives">
-            <Head title="Representatives" />
+        <AdminLayout title={t('admin.deliveryRepresentatives')}>
+            <Head title={t('admin.representatives')} />
             <div className="row">
                 <div className="col-xl-12">
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center gap-1">
-                            <h4 className="card-title flex-grow-1">All Representatives</h4>
+                            <h4 className="card-title flex-grow-1">{t('admin.allRepresentatives')}</h4>
                             <Link
                                 href={route('admin.delivery.representatives.create')}
                                 className="btn btn-sm btn-primary"
                             >
-                                Add Representative
+                                {t('admin.addRepresentative')}
                             </Link>
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-hover table-centered">
                                 <thead className="bg-light-subtle">
                                     <tr>
-                                        <th>Name</th>
-                                        <th>Phone</th>
-                                        <th>Status</th>
-                                        <th>Coverage Areas</th>
-                                        <th>Action</th>
+                                        <th>{t('admin.name')}</th>
+                                        <th>{t('admin.phone')}</th>
+                                        <th>{t('admin.status')}</th>
+                                        <th>{t('admin.coverageAreas')}</th>
+                                        <th>{t('admin.action')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -67,7 +69,7 @@ export default function RepresentativesIndex({ representatives }: { representati
                                     {representatives.data.length === 0 && (
                                         <tr>
                                             <td colSpan={5} className="text-center text-muted py-4">
-                                                No representatives yet.
+                                                {t('admin.noRepresentativesYet')}
                                             </td>
                                         </tr>
                                     )}

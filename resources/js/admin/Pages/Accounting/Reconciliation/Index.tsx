@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import AdminLayout from '../../../Layouts/AdminLayout';
+import { useTranslation } from '../../../lib/useTranslation';
 
 interface Company {
     id: number;
@@ -10,24 +11,25 @@ interface Company {
 }
 
 export default function ReconciliationIndex({ shippingCompanies }: { shippingCompanies: Company[] }) {
+    const { t } = useTranslation();
     return (
-        <AdminLayout title="Shipping Company Reconciliation">
-            <Head title="Reconciliation" />
+        <AdminLayout title={t('admin.shippingCompanyReconciliation')}>
+            <Head title={t('admin.reconciliation')} />
             <div className="row">
                 <div className="col-xl-12">
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">Shipping Companies</h4>
+                            <h4 className="card-title">{t('admin.shippingCompanies')}</h4>
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-hover table-centered">
                                 <thead className="bg-light-subtle">
                                     <tr>
-                                        <th>Company</th>
-                                        <th>Delivery Fee</th>
-                                        <th>Return Fee</th>
-                                        <th>Open Statements</th>
-                                        <th>Action</th>
+                                        <th>{t('admin.company')}</th>
+                                        <th>{t('admin.deliveryFee')}</th>
+                                        <th>{t('admin.returnFee')}</th>
+                                        <th>{t('admin.openStatements')}</th>
+                                        <th>{t('admin.action')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -43,7 +45,7 @@ export default function ReconciliationIndex({ shippingCompanies }: { shippingCom
                                                     </span>
                                                 ) : (
                                                     <span className="badge bg-success-subtle text-success px-2 py-1">
-                                                        Settled
+                                                        {t('admin.settled')}
                                                     </span>
                                                 )}
                                             </td>
@@ -52,7 +54,7 @@ export default function ReconciliationIndex({ shippingCompanies }: { shippingCom
                                                     href={route('admin.accounting.reconciliation.show', company.id)}
                                                     className="btn btn-soft-primary btn-sm"
                                                 >
-                                                    View Statements
+                                                    {t('admin.viewStatements')}
                                                 </Link>
                                             </td>
                                         </tr>

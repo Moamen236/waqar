@@ -3,6 +3,7 @@ import Pagination from '../../Components/Pagination';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
 import type { PaginatedData } from '../../types';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface ReturnRecord {
     id: number;
@@ -22,14 +23,15 @@ export default function ReturnsIndex({
     returns: PaginatedData<ReturnRecord>;
     status: string | null;
 }) {
+    const { t } = useTranslation();
     return (
-        <AdminLayout title="Returns & Refunds">
-            <Head title="Returns" />
+        <AdminLayout title={t('admin.returnsRefunds')}>
+            <Head title={t('admin.returns')} />
             <div className="row">
                 <div className="col-xl-12">
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center gap-1">
-                            <h4 className="card-title flex-grow-1">All Returns</h4>
+                            <h4 className="card-title flex-grow-1">{t('admin.allReturns')}</h4>
                             <select
                                 className="form-control form-control-sm"
                                 style={{ width: 200 }}
@@ -42,7 +44,7 @@ export default function ReturnsIndex({
                                     )
                                 }
                             >
-                                <option value="">All statuses</option>
+                                <option value="">{t('admin.allStatuses')}</option>
                                 {STATUSES.map((s) => (
                                     <option key={s} value={s}>
                                         {s}
@@ -50,19 +52,19 @@ export default function ReturnsIndex({
                                 ))}
                             </select>
                             <Link href={route('admin.returns.create')} className="btn btn-sm btn-primary">
-                                File a Return
+                                {t('admin.fileAReturn')}
                             </Link>
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-hover table-centered">
                                 <thead className="bg-light-subtle">
                                     <tr>
-                                        <th>Order #</th>
-                                        <th>Customer</th>
-                                        <th>Stage</th>
-                                        <th>Status</th>
-                                        <th>Filed</th>
-                                        <th>Action</th>
+                                        <th>{t('admin.order')}</th>
+                                        <th>{t('admin.customer')}</th>
+                                        <th>{t('admin.stage')}</th>
+                                        <th>{t('admin.status')}</th>
+                                        <th>{t('admin.filed')}</th>
+                                        <th>{t('admin.action')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -83,7 +85,7 @@ export default function ReturnsIndex({
                                                     href={route('admin.returns.show', r.id)}
                                                     className="btn btn-soft-primary btn-sm"
                                                 >
-                                                    View
+                                                    {t('admin.view')}
                                                 </Link>
                                             </td>
                                         </tr>
@@ -91,7 +93,7 @@ export default function ReturnsIndex({
                                     {returns.data.length === 0 && (
                                         <tr>
                                             <td colSpan={6} className="text-center text-muted py-4">
-                                                No returns found.
+                                                {t('admin.noReturnsFound')}
                                             </td>
                                         </tr>
                                     )}

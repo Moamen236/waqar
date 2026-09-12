@@ -3,28 +3,30 @@ import Pagination from '../../Components/Pagination';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
 import type { OrderSummary, PaginatedData } from '../../types';
+import { useTranslation } from '../../lib/useTranslation';
 
 // Ported from Admin Template/orders-list.html's table conventions.
 export default function CheckingIndex({ orders }: { orders: PaginatedData<OrderSummary> }) {
+    const { t } = useTranslation();
     return (
-        <AdminLayout title="Checking — Work Queue">
-            <Head title="Checking" />
+        <AdminLayout title={t('admin.checkingWorkQueue')}>
+            <Head title={t('admin.checking')} />
             <div className="row">
                 <div className="col-xl-12">
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">Orders Awaiting Review</h4>
+                            <h4 className="card-title">{t('admin.ordersAwaitingReview')}</h4>
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-hover table-centered">
                                 <thead className="bg-light-subtle">
                                     <tr>
-                                        <th>Order #</th>
-                                        <th>Customer</th>
-                                        <th>Status</th>
-                                        <th>Total</th>
-                                        <th>Placed</th>
-                                        <th>Action</th>
+                                        <th>{t('admin.order')}</th>
+                                        <th>{t('admin.customer')}</th>
+                                        <th>{t('admin.status')}</th>
+                                        <th>{t('admin.total')}</th>
+                                        <th>{t('admin.placed')}</th>
+                                        <th>{t('admin.action')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -42,7 +44,7 @@ export default function CheckingIndex({ orders }: { orders: PaginatedData<OrderS
                                                     href={route('admin.checking.show', order.id)}
                                                     className="btn btn-soft-primary btn-sm"
                                                 >
-                                                    Review
+                                                    {t('admin.review')}
                                                 </Link>
                                             </td>
                                         </tr>
@@ -50,7 +52,7 @@ export default function CheckingIndex({ orders }: { orders: PaginatedData<OrderS
                                     {orders.data.length === 0 && (
                                         <tr>
                                             <td colSpan={6} className="text-center text-muted py-4">
-                                                Nothing awaiting review.
+                                                {t('admin.nothingAwaitingReview')}
                                             </td>
                                         </tr>
                                     )}

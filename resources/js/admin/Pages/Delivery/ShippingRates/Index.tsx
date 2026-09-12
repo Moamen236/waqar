@@ -5,6 +5,7 @@ import StatusBadge from '../../../Components/StatusBadge';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import { confirmAction } from '../../../lib/confirm';
 import type { PaginatedData } from '../../../types';
+import { useTranslation } from '../../../lib/useTranslation';
 
 interface ShippingRateRow {
     id: number;
@@ -23,6 +24,7 @@ export default function ShippingRatesIndex({
     rates: PaginatedData<ShippingRateRow>;
     uncoveredGovernorates: string[];
 }) {
+    const { t } = useTranslation();
     const remove = async (id: number) => {
         const confirmed = await confirmAction({
             title: 'Remove this shipping rate?',
@@ -37,8 +39,8 @@ export default function ShippingRatesIndex({
     };
 
     return (
-        <AdminLayout title="Shipping Rates">
-            <Head title="Shipping Rates" />
+        <AdminLayout title={t('admin.shippingRates')}>
+            <Head title={t('admin.shippingRates')} />
 
             {uncoveredGovernorates.length > 0 && (
                 <div className="alert alert-warning d-flex align-items-center gap-2" role="alert">
@@ -54,24 +56,24 @@ export default function ShippingRatesIndex({
                 <div className="col-xl-12">
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center gap-1">
-                            <h4 className="card-title flex-grow-1">All Shipping Rates</h4>
+                            <h4 className="card-title flex-grow-1">{t('admin.allShippingRates')}</h4>
                             <Link
                                 href={route('admin.delivery.shipping-rates.create')}
                                 className="btn btn-sm btn-primary"
                             >
-                                Add Shipping Rate
+                                {t('admin.addShippingRate')}
                             </Link>
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-hover table-centered">
                                 <thead className="bg-light-subtle">
                                     <tr>
-                                        <th>Level</th>
-                                        <th>Location</th>
-                                        <th>Price</th>
-                                        <th>Free Over</th>
-                                        <th>Status</th>
-                                        <th>Action</th>
+                                        <th>{t('admin.level')}</th>
+                                        <th>{t('admin.location')}</th>
+                                        <th>{t('admin.price')}</th>
+                                        <th>{t('admin.freeOver')}</th>
+                                        <th>{t('admin.status')}</th>
+                                        <th>{t('admin.action')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -116,12 +118,12 @@ export default function ShippingRatesIndex({
                 <div className="col-xl-12">
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">How a rate is chosen</h4>
+                            <h4 className="card-title">{t('admin.howARateIsChosen')}</h4>
                         </div>
                         <div className="card-body">
                             <p className="text-muted mb-0">
                                 At checkout the most specific configured rate wins —{' '}
-                                <strong>Area → District → City → Governorate</strong>. Set a governorate rate as the
+                                <strong>{t('admin.areaDistrictCityGovernorate')}</strong>. Set a governorate rate as the
                                 baseline, then override individual cities, districts or areas that cost more or less to
                                 reach. A customer never sees or edits a shipping price; it is always resolved here.
                             </p>

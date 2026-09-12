@@ -4,6 +4,7 @@ import RowActions from '../../../Components/RowActions';
 import StatusBadge from '../../../Components/StatusBadge';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import type { PaginatedData } from '../../../types';
+import { useTranslation } from '../../../lib/useTranslation';
 
 interface ShippingCompany {
     id: number;
@@ -19,31 +20,32 @@ export default function ShippingCompaniesIndex({
 }: {
     shippingCompanies: PaginatedData<ShippingCompany>;
 }) {
+    const { t } = useTranslation();
     return (
-        <AdminLayout title="Shipping Companies">
-            <Head title="Shipping Companies" />
+        <AdminLayout title={t('admin.shippingCompanies')}>
+            <Head title={t('admin.shippingCompanies')} />
             <div className="row">
                 <div className="col-xl-12">
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center gap-1">
-                            <h4 className="card-title flex-grow-1">All Shipping Companies</h4>
+                            <h4 className="card-title flex-grow-1">{t('admin.allShippingCompanies')}</h4>
                             <Link
                                 href={route('admin.delivery.shipping-companies.create')}
                                 className="btn btn-sm btn-primary"
                             >
-                                Add Shipping Company
+                                {t('admin.addShippingCompany')}
                             </Link>
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-hover table-centered">
                                 <thead className="bg-light-subtle">
                                     <tr>
-                                        <th>Name</th>
-                                        <th>Phone</th>
-                                        <th>Delivery Fee</th>
-                                        <th>Return Fee</th>
-                                        <th>Status</th>
-                                        <th>Action</th>
+                                        <th>{t('admin.name')}</th>
+                                        <th>{t('admin.phone')}</th>
+                                        <th>{t('admin.deliveryFee')}</th>
+                                        <th>{t('admin.returnFee')}</th>
+                                        <th>{t('admin.status')}</th>
+                                        <th>{t('admin.action')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -69,7 +71,7 @@ export default function ShippingCompaniesIndex({
                                     {shippingCompanies.data.length === 0 && (
                                         <tr>
                                             <td colSpan={6} className="text-center text-muted py-4">
-                                                No shipping companies yet.
+                                                {t('admin.noShippingCompaniesYet')}
                                             </td>
                                         </tr>
                                     )}

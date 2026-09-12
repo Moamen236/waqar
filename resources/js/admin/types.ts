@@ -1,3 +1,5 @@
+import type { LocaleProps } from '../lib/i18n';
+
 /**
  * Shared prop shapes for the admin Inertia pages. Kept intentionally
  * loose (most list/detail records pass straight through from an Eloquent
@@ -17,6 +19,8 @@ export interface AuthEmployee {
 
 export interface SharedProps {
     [key: string]: unknown;
+    /** Driven by the {locale} URL segment, same as the storefront (Q20). */
+    locale: LocaleProps;
     auth: { employee: AuthEmployee | null };
     flash: { success?: string | null; error?: string | null };
 }

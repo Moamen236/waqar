@@ -5,6 +5,7 @@ import Pagination from '../../Components/Pagination';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { confirmAction } from '../../lib/confirm';
 import type { PaginatedData } from '../../types';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface TreasuryRecord {
     id: number;
@@ -32,6 +33,7 @@ export default function TreasuryIndex({
     selected: TreasuryRecord | null;
     transactions: PaginatedData<TransactionRecord> | null;
 }) {
+    const { t } = useTranslation();
     const [txType, setTxType] = useState('income');
     const [txAmount, setTxAmount] = useState('');
     const [txDescription, setTxDescription] = useState('');
@@ -83,14 +85,14 @@ export default function TreasuryIndex({
     }, [transactions]);
 
     return (
-        <AdminLayout title="Treasury">
-            <Head title="Treasury" />
+        <AdminLayout title={t('admin.treasury')}>
+            <Head title={t('admin.treasury')} />
 
             <div className="row">
                 <div className="col-xl-3">
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">Accounts</h4>
+                            <h4 className="card-title">{t('admin.accounts')}</h4>
                         </div>
                         <table className="table table-hover mb-0">
                             <tbody>
@@ -114,12 +116,12 @@ export default function TreasuryIndex({
 
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">New Treasury Account</h4>
+                            <h4 className="card-title">{t('admin.newTreasuryAccount')}</h4>
                         </div>
                         <div className="card-body">
                             <input
                                 className="form-control mb-2"
-                                placeholder="Name"
+                                placeholder={t('admin.name')}
                                 value={newName}
                                 onChange={(e) => setNewName(e.target.value)}
                             />
@@ -128,15 +130,15 @@ export default function TreasuryIndex({
                                 value={newType}
                                 onChange={(e) => setNewType(e.target.value)}
                             >
-                                <option value="cash">Cash</option>
-                                <option value="bank">Bank</option>
-                                <option value="wallet">Wallet</option>
+                                <option value="cash">{t('admin.cash')}</option>
+                                <option value="bank">{t('admin.bank')}</option>
+                                <option value="wallet">{t('admin.wallet')}</option>
                             </select>
                             <input
                                 type="number"
                                 step="0.01"
                                 className="form-control mb-2"
-                                placeholder="Opening balance"
+                                placeholder={t('admin.openingBalance')}
                                 value={newBalance}
                                 onChange={(e) => setNewBalance(e.target.value)}
                             />
@@ -146,7 +148,7 @@ export default function TreasuryIndex({
                                 onClick={createTreasury}
                                 disabled={!newName}
                             >
-                                Create
+                                {t('admin.create')}
                             </button>
                         </div>
                     </div>
@@ -185,7 +187,7 @@ export default function TreasuryIndex({
                                 <div className="col-lg-6">
                                     <div className="card">
                                         <div className="card-header">
-                                            <h4 className="card-title">Record Transaction</h4>
+                                            <h4 className="card-title">{t('admin.recordTransaction')}</h4>
                                         </div>
                                         <div className="card-body">
                                             <select
@@ -193,21 +195,21 @@ export default function TreasuryIndex({
                                                 value={txType}
                                                 onChange={(e) => setTxType(e.target.value)}
                                             >
-                                                <option value="income">Income</option>
-                                                <option value="expense">Expense</option>
-                                                <option value="adjustment">Adjustment</option>
+                                                <option value="income">{t('admin.income')}</option>
+                                                <option value="expense">{t('admin.expense')}</option>
+                                                <option value="adjustment">{t('admin.adjustment')}</option>
                                             </select>
                                             <input
                                                 type="number"
                                                 step="0.01"
                                                 className="form-control mb-2"
-                                                placeholder="Amount (signed for adjustment)"
+                                                placeholder={t('admin.amountSignedForAdjustment')}
                                                 value={txAmount}
                                                 onChange={(e) => setTxAmount(e.target.value)}
                                             />
                                             <input
                                                 className="form-control mb-2"
-                                                placeholder="Description"
+                                                placeholder={t('admin.description')}
                                                 value={txDescription}
                                                 onChange={(e) => setTxDescription(e.target.value)}
                                             />
@@ -216,7 +218,7 @@ export default function TreasuryIndex({
                                                 className="btn btn-primary btn-sm"
                                                 onClick={recordTransaction}
                                             >
-                                                Record
+                                                {t('admin.record')}
                                             </button>
                                         </div>
                                     </div>
@@ -224,7 +226,7 @@ export default function TreasuryIndex({
                                 <div className="col-lg-6">
                                     <div className="card">
                                         <div className="card-header">
-                                            <h4 className="card-title">Transfer To Another Treasury</h4>
+                                            <h4 className="card-title">{t('admin.transferToAnotherTreasury')}</h4>
                                         </div>
                                         <div className="card-body">
                                             <select
@@ -232,7 +234,7 @@ export default function TreasuryIndex({
                                                 value={transferTo}
                                                 onChange={(e) => setTransferTo(Number(e.target.value))}
                                             >
-                                                <option value="">Select…</option>
+                                                <option value="">{t('admin.select')}</option>
                                                 {treasuries
                                                     .filter((t) => t.id !== selected.id)
                                                     .map((t) => (
@@ -245,7 +247,7 @@ export default function TreasuryIndex({
                                                 type="number"
                                                 step="0.01"
                                                 className="form-control mb-2"
-                                                placeholder="Amount"
+                                                placeholder={t('admin.amount')}
                                                 value={transferAmount}
                                                 onChange={(e) => setTransferAmount(e.target.value)}
                                             />
@@ -255,7 +257,7 @@ export default function TreasuryIndex({
                                                 onClick={transfer}
                                                 disabled={!transferTo}
                                             >
-                                                Transfer
+                                                {t('admin.transfer')}
                                             </button>
                                         </div>
                                     </div>
@@ -264,17 +266,17 @@ export default function TreasuryIndex({
 
                             <div className="card">
                                 <div className="card-header">
-                                    <h4 className="card-title">Ledger</h4>
+                                    <h4 className="card-title">{t('admin.ledger')}</h4>
                                 </div>
                                 <div className="table-responsive">
                                     <table className="table align-middle mb-0 table-centered">
                                         <thead className="bg-light-subtle">
                                             <tr>
-                                                <th>Type</th>
-                                                <th>Amount</th>
-                                                <th>Description</th>
-                                                <th>By</th>
-                                                <th>Date</th>
+                                                <th>{t('admin.type')}</th>
+                                                <th>{t('admin.amount')}</th>
+                                                <th>{t('admin.description')}</th>
+                                                <th>{t('admin.by')}</th>
+                                                <th>{t('admin.date')}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -304,7 +306,7 @@ export default function TreasuryIndex({
                             </div>
                         </>
                     )}
-                    {!selected && <p className="text-muted">Create a treasury account to get started.</p>}
+                    {!selected && <p className="text-muted">{t('admin.createATreasuryAccountToGet')}</p>}
                 </div>
             </div>
         </AdminLayout>

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { confirmAction } from '../../lib/confirm';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface ReturnItem {
     id: number;
@@ -45,6 +46,7 @@ export default function ReturnsShow({
     warehouses: Option[];
     treasuries: Treasury[];
 }) {
+    const { t } = useTranslation();
     const [shippingFee, setShippingFee] = useState('0');
     const [warehouseId, setWarehouseId] = useState<number | ''>(warehouses[0]?.id ?? '');
     const [treasuryId, setTreasuryId] = useState<number | ''>(treasuries[0]?.id ?? '');
@@ -98,16 +100,16 @@ export default function ReturnsShow({
                 <div className="col-xl-7">
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">Product</h4>
+                            <h4 className="card-title">{t('admin.product')}</h4>
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-centered">
                                 <thead className="bg-light-subtle">
                                     <tr>
-                                        <th>Product</th>
+                                        <th>{t('admin.product')}</th>
                                         <th>SKU</th>
-                                        <th>Qty</th>
-                                        <th>Unit Price</th>
+                                        <th>{t('admin.qty')}</th>
+                                        <th>{t('admin.unitPrice')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -127,7 +129,7 @@ export default function ReturnsShow({
                     {ret.refund && (
                         <div className="card">
                             <div className="card-header">
-                                <h4 className="card-title">Refund</h4>
+                                <h4 className="card-title">{t('admin.refund')}</h4>
                             </div>
                             <div className="card-body">
                                 <p className="mb-1">
@@ -144,7 +146,7 @@ export default function ReturnsShow({
                 <div className="col-xl-5">
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">Return Details</h4>
+                            <h4 className="card-title">{t('admin.returnDetails')}</h4>
                         </div>
                         <div className="card-body">
                             <p className="mb-1 fw-medium">
@@ -163,7 +165,7 @@ export default function ReturnsShow({
 
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center">
-                            <h4 className="card-title">Actions</h4>
+                            <h4 className="card-title">{t('admin.actions')}</h4>
                             <StatusBadge status={ret.status} />
                         </div>
                         <div className="card-body">
@@ -174,7 +176,7 @@ export default function ReturnsShow({
                                         from their refund.
                                     </p>
                                     <div className="mb-2">
-                                        <label className="form-label fs-13">Return Shipping Fee</label>
+                                        <label className="form-label fs-13">{t('admin.returnShippingFee')}</label>
                                         <input
                                             type="number"
                                             step="0.01"
@@ -184,21 +186,21 @@ export default function ReturnsShow({
                                         />
                                     </div>
                                     <button type="button" className="btn btn-primary btn-sm" onClick={acceptFee}>
-                                        Record Accepted Fee
+                                        {t('admin.recordAcceptedFee')}
                                     </button>
                                 </>
                             )}
 
                             {canApprove && (
                                 <button type="button" className="btn btn-success" onClick={approve}>
-                                    Approve Return
+                                    {t('admin.approveReturn')}
                                 </button>
                             )}
 
                             {canReceive && (
                                 <>
                                     <div className="mb-2">
-                                        <label className="form-label fs-13">Receiving Warehouse</label>
+                                        <label className="form-label fs-13">{t('admin.receivingWarehouse')}</label>
                                         <select
                                             className="form-control"
                                             value={warehouseId}
@@ -220,7 +222,7 @@ export default function ReturnsShow({
                             {canRefund && (
                                 <>
                                     <div className="mb-2">
-                                        <label className="form-label fs-13">Treasury</label>
+                                        <label className="form-label fs-13">{t('admin.treasury')}</label>
                                         <select
                                             className="form-control"
                                             value={treasuryId}
@@ -234,7 +236,7 @@ export default function ReturnsShow({
                                         </select>
                                     </div>
                                     <div className="mb-2">
-                                        <label className="form-label fs-13">Method</label>
+                                        <label className="form-label fs-13">{t('admin.method')}</label>
                                         <select
                                             className="form-control"
                                             value={method}
@@ -248,7 +250,7 @@ export default function ReturnsShow({
                                         </select>
                                     </div>
                                     <div className="mb-2">
-                                        <label className="form-label fs-13">Reference Number</label>
+                                        <label className="form-label fs-13">{t('admin.referenceNumber')}</label>
                                         <input
                                             className="form-control"
                                             value={reference}
@@ -261,13 +263,13 @@ export default function ReturnsShow({
                                         onClick={refund}
                                         disabled={!reference}
                                     >
-                                        Record Refund
+                                        {t('admin.recordRefund')}
                                     </button>
                                 </>
                             )}
 
                             {!needsShippingFeeConsent && !canApprove && !canReceive && !canRefund && (
-                                <p className="text-muted mb-0">No action available at this status.</p>
+                                <p className="text-muted mb-0">{t('admin.noActionAvailableAtThisStatus')}</p>
                             )}
                         </div>
                     </div>

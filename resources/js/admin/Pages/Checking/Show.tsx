@@ -4,6 +4,7 @@ import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { confirmAction } from '../../lib/confirm';
 import type { Warehouse } from '../../types';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface OrderItem {
     id: number;
@@ -42,6 +43,7 @@ type ReasonAction = 'postpone' | 'cancel' | 'backorder';
 // Details card, plus an Actions card for this department's slice of the
 // order lifecycle.
 export default function CheckingShow({ order, warehouses }: { order: OrderDetail; warehouses: Warehouse[] }) {
+    const { t } = useTranslation();
     const [reason, setReason] = useState('');
     const [warehouseId, setWarehouseId] = useState<number | ''>(warehouses[0]?.id ?? '');
 
@@ -81,16 +83,16 @@ export default function CheckingShow({ order, warehouses }: { order: OrderDetail
                 <div className="col-xl-8">
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">Product</h4>
+                            <h4 className="card-title">{t('admin.product')}</h4>
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-centered">
                                 <thead className="bg-light-subtle">
                                     <tr>
-                                        <th>Product</th>
+                                        <th>{t('admin.product')}</th>
                                         <th>SKU</th>
-                                        <th>Qty</th>
-                                        <th>Unit Price</th>
+                                        <th>{t('admin.qty')}</th>
+                                        <th>{t('admin.unitPrice')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -109,10 +111,12 @@ export default function CheckingShow({ order, warehouses }: { order: OrderDetail
 
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">Order Timeline</h4>
+                            <h4 className="card-title">{t('admin.orderTimeline')}</h4>
                         </div>
                         <div className="card-body">
-                            {order.status_history.length === 0 && <p className="text-muted mb-0">No changes yet.</p>}
+                            {order.status_history.length === 0 && (
+                                <p className="text-muted mb-0">{t('admin.noChangesYet')}</p>
+                            )}
                             <div className="position-relative ms-2">
                                 {order.status_history.length > 0 && (
                                     <span className="position-absolute start-0 top-0 border border-dashed h-100" />
@@ -145,7 +149,7 @@ export default function CheckingShow({ order, warehouses }: { order: OrderDetail
                 <div className="col-xl-4">
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">Customer Details</h4>
+                            <h4 className="card-title">{t('admin.customerDetails')}</h4>
                         </div>
                         <div className="card-body">
                             <div className="d-flex align-items-center gap-2">
@@ -158,10 +162,10 @@ export default function CheckingShow({ order, warehouses }: { order: OrderDetail
                                 </div>
                             </div>
 
-                            <h5 className="mt-3">Contact Number</h5>
+                            <h5 className="mt-3">{t('admin.contactNumber')}</h5>
                             <p className="mb-1">{order.shipping_phone}</p>
 
-                            <h5 className="mt-3">Shipping Address</h5>
+                            <h5 className="mt-3">{t('admin.shippingAddress')}</h5>
                             <p className="mb-1">{order.shipping_recipient_name}</p>
                             <p className="mb-0 text-muted">{order.shipping_address_line}</p>
                         </div>
@@ -169,14 +173,14 @@ export default function CheckingShow({ order, warehouses }: { order: OrderDetail
 
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center">
-                            <h4 className="card-title">Actions</h4>
+                            <h4 className="card-title">{t('admin.actions')}</h4>
                             <StatusBadge status={order.status} />
                         </div>
                         <div className="card-body">
                             {order.status === 'Backorder' ? (
                                 <>
                                     <div className="mb-3">
-                                        <label className="form-label">Warehouse</label>
+                                        <label className="form-label">{t('admin.warehouse')}</label>
                                         <select
                                             className="form-control"
                                             value={warehouseId}
@@ -190,13 +194,13 @@ export default function CheckingShow({ order, warehouses }: { order: OrderDetail
                                         </select>
                                     </div>
                                     <button type="button" className="btn btn-primary w-100" onClick={resume}>
-                                        Resume — Stock Available
+                                        {t('admin.resumeStockAvailable')}
                                     </button>
                                 </>
                             ) : canAct ? (
                                 <>
                                     <div className="mb-3">
-                                        <label className="form-label">Reason / notes</label>
+                                        <label className="form-label">{t('admin.reasonNotes')}</label>
                                         <textarea
                                             className="form-control"
                                             rows={2}
@@ -206,30 +210,30 @@ export default function CheckingShow({ order, warehouses }: { order: OrderDetail
                                     </div>
                                     <div className="d-grid gap-2">
                                         <button type="button" className="btn btn-success" onClick={confirm}>
-                                            Confirm
+                                            {t('admin.confirm')}
                                         </button>
                                         <button
                                             type="button"
                                             className="btn btn-warning"
                                             onClick={() => act('postpone')}
                                         >
-                                            Postpone
+                                            {t('admin.postpone')}
                                         </button>
                                         <button
                                             type="button"
                                             className="btn btn-secondary"
                                             onClick={() => act('backorder')}
                                         >
-                                            Mark Backorder
+                                            {t('admin.markBackorder')}
                                         </button>
                                         <button type="button" className="btn btn-danger" onClick={() => act('cancel')}>
-                                            Cancel Order
+                                            {t('admin.cancelOrder')}
                                         </button>
                                     </div>
                                 </>
                             ) : (
                                 <span className="badge bg-secondary-subtle text-secondary px-2 py-1">
-                                    No actions available at this status
+                                    {t('admin.noActionsAvailableAtThisStatus')}
                                 </span>
                             )}
                         </div>

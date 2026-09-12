@@ -2,6 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { confirmAction } from '../../lib/confirm';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface AttributeValue {
     id: number;
@@ -20,6 +21,7 @@ interface AttributeRecord {
 // Larkon page names an attribute-values screen, so this reuses the same
 // card-header/card-body/list markup every other module uses.
 export default function AttributesIndex({ attributes }: { attributes: AttributeRecord[] }) {
+    const { t } = useTranslation();
     const [newAttributeName, setNewAttributeName] = useState('');
     const [newValues, setNewValues] = useState<Record<number, { value: string; color_hex: string }>>({});
 
@@ -55,19 +57,19 @@ export default function AttributesIndex({ attributes }: { attributes: AttributeR
     }
 
     return (
-        <AdminLayout title="Attributes">
-            <Head title="Attributes" />
+        <AdminLayout title={t('admin.attributes')}>
+            <Head title={t('admin.attributes')} />
 
             <div className="row">
                 <div className="col-lg-4">
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">New Attribute</h4>
+                            <h4 className="card-title">{t('admin.newAttribute')}</h4>
                         </div>
                         <div className="card-body d-flex gap-2">
                             <input
                                 className="form-control"
-                                placeholder="e.g. Color, Size"
+                                placeholder={t('admin.eGColorSize')}
                                 value={newAttributeName}
                                 onChange={(e) => setNewAttributeName(e.target.value)}
                             />
@@ -77,7 +79,7 @@ export default function AttributesIndex({ attributes }: { attributes: AttributeR
                                 onClick={createAttribute}
                                 disabled={!newAttributeName}
                             >
-                                Add
+                                {t('admin.add')}
                             </button>
                         </div>
                     </div>
@@ -119,7 +121,7 @@ export default function AttributesIndex({ attributes }: { attributes: AttributeR
                             <div className="card-body d-flex gap-2">
                                 <input
                                     className="form-control form-control-sm"
-                                    placeholder="Value"
+                                    placeholder={t('admin.value')}
                                     value={newValues[attribute.id]?.value ?? ''}
                                     onChange={(e) =>
                                         setNewValues({
@@ -136,7 +138,7 @@ export default function AttributesIndex({ attributes }: { attributes: AttributeR
                                     type="color"
                                     className="form-control form-control-sm"
                                     style={{ width: 48 }}
-                                    title="Optional color swatch"
+                                    title={t('admin.optionalColorSwatch')}
                                     value={newValues[attribute.id]?.color_hex || '#ffffff'}
                                     onChange={(e) =>
                                         setNewValues({
@@ -154,7 +156,7 @@ export default function AttributesIndex({ attributes }: { attributes: AttributeR
                                     className="btn btn-sm btn-primary"
                                     onClick={() => addValue(attribute)}
                                 >
-                                    Add
+                                    {t('admin.add')}
                                 </button>
                             </div>
                         </div>

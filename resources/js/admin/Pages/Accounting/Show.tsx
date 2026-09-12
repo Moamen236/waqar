@@ -5,6 +5,7 @@ import Tabs from 'react-bootstrap/Tabs';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { confirmAction } from '../../lib/confirm';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface OrderItem {
     id: number;
@@ -33,6 +34,7 @@ const COLLECTED_METHODS = ['cash', 'bank_transfer', 'wallet', 'other'];
 // Ported from Admin Template/order-detail.html's Product table +
 // Customer Details / Payment Information cards.
 export default function AccountingShow({ order, treasuries }: { order: OrderDetail; treasuries: Treasury[] }) {
+    const { t } = useTranslation();
     const [treasuryId, setTreasuryId] = useState<number | ''>(treasuries[0]?.id ?? '');
     const [collectedMethod, setCollectedMethod] = useState('cash');
     const [collectedAmount, setCollectedAmount] = useState(order.total);
@@ -94,16 +96,16 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                 <div className="col-xl-7">
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">Product</h4>
+                            <h4 className="card-title">{t('admin.product')}</h4>
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-centered">
                                 <thead className="bg-light-subtle">
                                     <tr>
-                                        <th>Product</th>
+                                        <th>{t('admin.product')}</th>
                                         <th>SKU</th>
-                                        <th>Qty</th>
-                                        <th>Unit Price</th>
+                                        <th>{t('admin.qty')}</th>
+                                        <th>{t('admin.unitPrice')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -124,7 +126,7 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                 <div className="col-xl-5">
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">Customer Details</h4>
+                            <h4 className="card-title">{t('admin.customerDetails')}</h4>
                         </div>
                         <div className="card-body">
                             <p className="mb-1 fw-medium">{order.customer.name}</p>
@@ -134,7 +136,7 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
 
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center">
-                            <h4 className="card-title">Delivery Result</h4>
+                            <h4 className="card-title">{t('admin.deliveryResult')}</h4>
                             <StatusBadge status={order.status} />
                         </div>
                         <div className="card-body">
@@ -142,7 +144,7 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                                 <p className="text-muted mb-0">This order isn&apos;t out for delivery.</p>
                             ) : (
                                 <Tabs defaultActiveKey="delivered" className="nav-tabs-custom mb-3">
-                                    <Tab eventKey="delivered" title="Delivered">
+                                    <Tab eventKey="delivered" title={t('admin.delivered')}>
                                         <TreasuryFields
                                             treasuries={treasuries}
                                             treasuryId={treasuryId}
@@ -157,10 +159,10 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                                             className="btn btn-success w-100 mt-2"
                                             onClick={confirmDelivered}
                                         >
-                                            Confirm Delivered
+                                            {t('admin.confirmDelivered')}
                                         </button>
                                     </Tab>
-                                    <Tab eventKey="returned" title="Returned">
+                                    <Tab eventKey="returned" title={t('admin.returned')}>
                                         <p className="text-muted fs-13">
                                             Customer refused the entire order at the door — the reservation is released,
                                             nothing was ever deducted.
@@ -170,11 +172,11 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                                             className="btn btn-danger w-100"
                                             onClick={confirmReturned}
                                         >
-                                            Confirm Returned
+                                            {t('admin.confirmReturned')}
                                         </button>
                                     </Tab>
-                                    <Tab eventKey="partial" title="Partially Returned">
-                                        <p className="text-muted fs-13">Set how many of each item the customer kept.</p>
+                                    <Tab eventKey="partial" title={t('admin.partiallyReturned')}>
+                                        <p className="text-muted fs-13">{t('admin.setHowManyOfEachItem')}</p>
                                         {order.items.map((item) => (
                                             <div key={item.id} className="mb-2">
                                                 <label className="form-label fs-13 mb-1">
@@ -209,7 +211,7 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                                             className="btn btn-warning w-100 mt-2"
                                             onClick={confirmPartial}
                                         >
-                                            Confirm Partially Returned
+                                            {t('admin.confirmPartiallyReturned')}
                                         </button>
                                     </Tab>
                                 </Tabs>
@@ -239,10 +241,12 @@ function TreasuryFields({
     collectedAmount: string;
     setCollectedAmount: (a: string) => void;
 }) {
+    const { t } = useTranslation();
+
     return (
         <>
             <div className="mb-2">
-                <label className="form-label fs-13 mb-1">Treasury</label>
+                <label className="form-label fs-13 mb-1">{t('admin.treasury')}</label>
                 <select
                     className="form-control"
                     value={treasuryId}
@@ -256,7 +260,7 @@ function TreasuryFields({
                 </select>
             </div>
             <div className="mb-2">
-                <label className="form-label fs-13 mb-1">Collection Method</label>
+                <label className="form-label fs-13 mb-1">{t('admin.collectionMethod')}</label>
                 <select
                     className="form-control"
                     value={collectedMethod}
@@ -270,7 +274,7 @@ function TreasuryFields({
                 </select>
             </div>
             <div className="mb-2">
-                <label className="form-label fs-13 mb-1">Amount Collected</label>
+                <label className="form-label fs-13 mb-1">{t('admin.amountCollected')}</label>
                 <input
                     type="number"
                     step="0.01"

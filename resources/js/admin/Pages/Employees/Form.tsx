@@ -1,6 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface EmployeeRecord {
     id: number;
@@ -26,6 +27,7 @@ export default function EmployeeForm({
     roles: string[];
     teamLeaders: { id: number; full_name: string }[];
 }) {
+    const { t } = useTranslation();
     const { data, setData, post, put, processing, errors } = useForm({
         full_name: employee?.full_name ?? '',
         email: employee?.email ?? '',
@@ -57,13 +59,13 @@ export default function EmployeeForm({
                     <div className="col-xl-9 col-lg-8">
                         <div className="card">
                             <div className="card-header">
-                                <h4 className="card-title">General Information</h4>
+                                <h4 className="card-title">{t('admin.generalInformation')}</h4>
                             </div>
                             <div className="card-body">
                                 <div className="row">
                                     <div className="col-lg-6">
                                         <div className="mb-3">
-                                            <label className="form-label">Full Name</label>
+                                            <label className="form-label">{t('admin.fullName')}</label>
                                             <input
                                                 className="form-control"
                                                 value={data.full_name}
@@ -76,7 +78,7 @@ export default function EmployeeForm({
                                     </div>
                                     <div className="col-lg-6">
                                         <div className="mb-3">
-                                            <label className="form-label">Email</label>
+                                            <label className="form-label">{t('admin.email')}</label>
                                             <input
                                                 type="email"
                                                 className="form-control"
@@ -90,7 +92,7 @@ export default function EmployeeForm({
                                     </div>
                                     <div className="col-lg-6">
                                         <div className="mb-3">
-                                            <label className="form-label">Phone</label>
+                                            <label className="form-label">{t('admin.phone')}</label>
                                             <input
                                                 className="form-control"
                                                 value={data.phone}
@@ -113,7 +115,7 @@ export default function EmployeeForm({
                                     </div>
                                     <div className="col-lg-6">
                                         <div className="mb-3">
-                                            <label className="form-label">Residence Address</label>
+                                            <label className="form-label">{t('admin.residenceAddress')}</label>
                                             <input
                                                 className="form-control"
                                                 value={data.residence_address}
@@ -135,7 +137,7 @@ export default function EmployeeForm({
                                     </div>
                                     <div className="col-lg-6">
                                         <div className="mb-3">
-                                            <label className="form-label">Role</label>
+                                            <label className="form-label">{t('admin.role')}</label>
                                             <select
                                                 className="form-control"
                                                 value={data.role}
@@ -152,7 +154,7 @@ export default function EmployeeForm({
                                     {needsTeamLeader && (
                                         <div className="col-lg-6">
                                             <div className="mb-3">
-                                                <label className="form-label">Team Leader (optional)</label>
+                                                <label className="form-label">{t('admin.teamLeaderOptional')}</label>
                                                 <select
                                                     className="form-control"
                                                     value={data.team_leader_id}
@@ -163,7 +165,7 @@ export default function EmployeeForm({
                                                         )
                                                     }
                                                 >
-                                                    <option value="">None</option>
+                                                    <option value="">{t('admin.none')}</option>
                                                     {teamLeaders.map((leader) => (
                                                         <option key={leader.id} value={leader.id}>
                                                             {leader.full_name}
@@ -177,7 +179,7 @@ export default function EmployeeForm({
                             </div>
                             <div className="card-footer border-top text-end">
                                 <button type="submit" className="btn btn-primary" disabled={processing}>
-                                    Save Employee
+                                    {t('admin.saveEmployee')}
                                 </button>
                             </div>
                         </div>
@@ -186,7 +188,7 @@ export default function EmployeeForm({
                     <div className="col-xl-3 col-lg-4">
                         <div className="card">
                             <div className="card-header">
-                                <h4 className="card-title">Status</h4>
+                                <h4 className="card-title">{t('admin.status')}</h4>
                             </div>
                             <div className="card-body">
                                 <div className="form-check">
@@ -198,7 +200,7 @@ export default function EmployeeForm({
                                         onChange={(e) => setData('is_active', e.target.checked)}
                                     />
                                     <label className="form-check-label" htmlFor="active">
-                                        Active
+                                        {t('admin.active')}
                                     </label>
                                 </div>
                             </div>

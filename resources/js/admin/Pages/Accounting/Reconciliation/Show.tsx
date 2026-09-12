@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Flatpickr from 'react-flatpickr';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import { confirmAction } from '../../../lib/confirm';
+import { useTranslation } from '../../../lib/useTranslation';
 
 interface Statement {
     id: number;
@@ -48,6 +49,7 @@ export default function ReconciliationShow({
     periodEnd: string | null;
     treasuries: Treasury[];
 }) {
+    const { t } = useTranslation();
     const [start, setStart] = useState(periodStart ?? '');
     const [end, setEnd] = useState(periodEnd ?? '');
     const [transferAmount, setTransferAmount] = useState<Record<number, string>>({});
@@ -85,12 +87,12 @@ export default function ReconciliationShow({
 
             <div className="card">
                 <div className="card-header">
-                    <h4 className="card-title">New Statement</h4>
+                    <h4 className="card-title">{t('admin.newStatement')}</h4>
                 </div>
                 <div className="card-body">
                     <div className="row g-3 align-items-end">
                         <div className="col-md-3">
-                            <label className="form-label fs-13">Period Start</label>
+                            <label className="form-label fs-13">{t('admin.periodStart')}</label>
                             <Flatpickr
                                 className="form-control"
                                 value={start}
@@ -98,7 +100,7 @@ export default function ReconciliationShow({
                             />
                         </div>
                         <div className="col-md-3">
-                            <label className="form-label fs-13">Period End</label>
+                            <label className="form-label fs-13">{t('admin.periodEnd')}</label>
                             <Flatpickr
                                 className="form-control"
                                 value={end}
@@ -112,7 +114,7 @@ export default function ReconciliationShow({
                                 onClick={preview}
                                 disabled={!start || !end}
                             >
-                                Preview
+                                {t('admin.preview')}
                             </button>
                         </div>
                     </div>
@@ -123,30 +125,30 @@ export default function ReconciliationShow({
                                 <table className="table table-sm mb-0">
                                     <tbody>
                                         <tr>
-                                            <td>Delivered orders</td>
+                                            <td>{t('admin.deliveredOrders')}</td>
                                             <td>{draft.delivered_orders_count}</td>
                                         </tr>
                                         <tr>
-                                            <td>Expected customer collection</td>
+                                            <td>{t('admin.expectedCustomerCollection')}</td>
                                             <td>{draft.expected_customer_collection}</td>
                                         </tr>
                                         <tr>
-                                            <td>Delivery fees owed</td>
+                                            <td>{t('admin.deliveryFeesOwed')}</td>
                                             <td>-{draft.delivery_fees_owed}</td>
                                         </tr>
                                         <tr>
-                                            <td>Return fees owed</td>
+                                            <td>{t('admin.returnFeesOwed')}</td>
                                             <td>-{draft.return_fees_owed}</td>
                                         </tr>
                                         <tr className="fw-bold">
-                                            <td>Net amount expected</td>
+                                            <td>{t('admin.netAmountExpected')}</td>
                                             <td>{draft.net_amount_expected}</td>
                                         </tr>
                                     </tbody>
                                 </table>
                             </div>
                             <button type="button" className="btn btn-primary" onClick={createStatement}>
-                                Create Statement
+                                {t('admin.createStatement')}
                             </button>
                         </div>
                     )}
@@ -155,18 +157,18 @@ export default function ReconciliationShow({
 
             <div className="card">
                 <div className="card-header">
-                    <h4 className="card-title">Statements</h4>
+                    <h4 className="card-title">{t('admin.statements')}</h4>
                 </div>
                 <div className="table-responsive">
                     <table className="table align-middle mb-0 table-centered">
                         <thead className="bg-light-subtle">
                             <tr>
-                                <th>Period</th>
-                                <th>Net Expected</th>
-                                <th>Transferred</th>
-                                <th>Outstanding</th>
-                                <th>Status</th>
-                                <th>Record Transfer</th>
+                                <th>{t('admin.period')}</th>
+                                <th>{t('admin.netExpected')}</th>
+                                <th>{t('admin.transferred')}</th>
+                                <th>{t('admin.outstanding')}</th>
+                                <th>{t('admin.status')}</th>
+                                <th>{t('admin.recordTransfer')}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -205,7 +207,7 @@ export default function ReconciliationShow({
                                                     step="0.01"
                                                     className="form-control form-control-sm"
                                                     style={{ width: 100 }}
-                                                    placeholder="Amount"
+                                                    placeholder={t('admin.amount')}
                                                     value={transferAmount[statement.id] ?? ''}
                                                     onChange={(e) =>
                                                         setTransferAmount({
@@ -219,7 +221,7 @@ export default function ReconciliationShow({
                                                     className="btn btn-soft-primary btn-sm"
                                                     onClick={() => recordTransfer(statement)}
                                                 >
-                                                    Record
+                                                    {t('admin.record')}
                                                 </button>
                                             </div>
                                         )}
@@ -229,7 +231,7 @@ export default function ReconciliationShow({
                             {statements.length === 0 && (
                                 <tr>
                                     <td colSpan={6} className="text-center text-muted py-4">
-                                        No statements yet.
+                                        {t('admin.noStatementsYet')}
                                     </td>
                                 </tr>
                             )}

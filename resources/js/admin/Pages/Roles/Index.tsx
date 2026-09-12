@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface RoleRecord {
     id: number;
@@ -9,14 +10,15 @@ interface RoleRecord {
 
 // Ported from Admin Template/role-list.html's table conventions.
 export default function RolesIndex({ roles }: { roles: RoleRecord[] }) {
+    const { t } = useTranslation();
     return (
-        <AdminLayout title="Roles & Permissions">
-            <Head title="Roles" />
+        <AdminLayout title={t('admin.rolesPermissions')}>
+            <Head title={t('admin.roles')} />
             <div className="row">
                 <div className="col-xl-12">
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">Roles</h4>
+                            <h4 className="card-title">{t('admin.roles')}</h4>
                             <p className="text-muted mb-0 fs-13">
                                 Every screen or action is gated by a granular permission, never by role name directly —
                                 this is where a Super Admin adjusts what each role can actually do.
@@ -26,9 +28,9 @@ export default function RolesIndex({ roles }: { roles: RoleRecord[] }) {
                             <table className="table align-middle mb-0 table-hover table-centered">
                                 <thead className="bg-light-subtle">
                                     <tr>
-                                        <th>Role</th>
-                                        <th>Permissions Granted</th>
-                                        <th>Action</th>
+                                        <th>{t('admin.role')}</th>
+                                        <th>{t('admin.permissionsGranted')}</th>
+                                        <th>{t('admin.action')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -46,7 +48,7 @@ export default function RolesIndex({ roles }: { roles: RoleRecord[] }) {
                                                         href={route('admin.roles.edit', role.id)}
                                                         className="btn btn-soft-primary btn-sm"
                                                     >
-                                                        Edit Permissions
+                                                        {t('admin.editPermissions')}
                                                     </Link>
                                                 )}
                                             </td>

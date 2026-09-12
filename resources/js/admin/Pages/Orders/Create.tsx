@@ -4,6 +4,7 @@ import { useFieldArray, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import AdminLayout from '../../Layouts/AdminLayout';
 import type { Customer, GeoTree, Warehouse } from '../../types';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface VariantOption {
     id: number;
@@ -39,6 +40,7 @@ export default function OrdersCreate({
     warehouses: Warehouse[];
     geoTree: GeoTree;
 }) {
+    const { t } = useTranslation();
     const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
 
     const { register, control, handleSubmit, watch, setValue } = useForm<FormValues>({
@@ -84,19 +86,19 @@ export default function OrdersCreate({
     }
 
     return (
-        <AdminLayout title="Create Order (Customer Service)">
-            <Head title="Create Order" />
+        <AdminLayout title={t('admin.createOrderCustomerService')}>
+            <Head title={t('admin.createOrder')} />
             <form onSubmit={handleSubmit(onSubmit)}>
                 <div className="row">
                     <div className="col-xl-8">
                         <div className="card">
                             <div className="card-header">
-                                <h4 className="card-title">Personal Details</h4>
+                                <h4 className="card-title">{t('admin.personalDetails')}</h4>
                             </div>
                             <div className="card-body">
                                 <Select
                                     options={customerOptions}
-                                    placeholder="Search by name or phone…"
+                                    placeholder={t('admin.searchByNameOrPhone')}
                                     onChange={(option) => setValue('customer_id', option?.value ?? null)}
                                 />
                                 {serverErrors.customer_id && (
@@ -105,7 +107,7 @@ export default function OrdersCreate({
                                 <div className="form-text">
                                     Customer not found?{' '}
                                     <a href={route('admin.customers.create')} target="_blank" rel="noreferrer">
-                                        Create one
+                                        {t('admin.createOne')}
                                     </a>{' '}
                                     first.
                                 </div>
@@ -114,15 +116,15 @@ export default function OrdersCreate({
 
                         <div className="card">
                             <div className="card-header">
-                                <h4 className="card-title">Items</h4>
+                                <h4 className="card-title">{t('admin.items')}</h4>
                             </div>
                             <div className="card-body">
                                 <div className="table-responsive mb-2">
                                     <table className="table align-middle mb-0 table-centered">
                                         <thead className="bg-light-subtle">
                                             <tr>
-                                                <th>Product</th>
-                                                <th style={{ width: 100 }}>Qty</th>
+                                                <th>{t('admin.product')}</th>
+                                                <th style={{ width: 100 }}>{t('admin.qty')}</th>
                                                 <th />
                                             </tr>
                                         </thead>
@@ -132,7 +134,7 @@ export default function OrdersCreate({
                                                     <td>
                                                         <Select
                                                             options={variantOptions}
-                                                            placeholder="Search product…"
+                                                            placeholder={t('admin.searchProduct')}
                                                             onChange={(option) =>
                                                                 setValue(
                                                                     `items.${index}.product_variant_id`,
@@ -170,7 +172,7 @@ export default function OrdersCreate({
                                     className="btn btn-sm btn-outline-secondary"
                                     onClick={() => append({ product_variant_id: null, quantity: 1 })}
                                 >
-                                    Add Item
+                                    {t('admin.addItem')}
                                 </button>
                                 {serverErrors.items && (
                                     <div className="text-danger fs-13 mt-2">{serverErrors.items}</div>
@@ -183,26 +185,26 @@ export default function OrdersCreate({
 
                         <div className="card">
                             <div className="card-header">
-                                <h4 className="card-title">Shipping Details</h4>
+                                <h4 className="card-title">{t('admin.shippingDetails')}</h4>
                             </div>
                             <div className="card-body">
                                 <div className="row g-3">
                                     <div className="col-md-6">
-                                        <label className="form-label">Recipient Name</label>
+                                        <label className="form-label">{t('admin.recipientName')}</label>
                                         <input className="form-control" {...register('recipient_name')} />
                                         {serverErrors.recipient_name && (
                                             <div className="text-danger fs-13 mt-1">{serverErrors.recipient_name}</div>
                                         )}
                                     </div>
                                     <div className="col-md-6">
-                                        <label className="form-label">Phone</label>
+                                        <label className="form-label">{t('admin.phone')}</label>
                                         <input className="form-control" {...register('phone')} />
                                         {serverErrors.phone && (
                                             <div className="text-danger fs-13 mt-1">{serverErrors.phone}</div>
                                         )}
                                     </div>
                                     <div className="col-md-3">
-                                        <label className="form-label">Governorate</label>
+                                        <label className="form-label">{t('admin.governorate')}</label>
                                         <select
                                             className="form-control"
                                             value={governorateId ?? ''}
@@ -213,7 +215,7 @@ export default function OrdersCreate({
                                                 setValue('area_id', null);
                                             }}
                                         >
-                                            <option value="">Select…</option>
+                                            <option value="">{t('admin.select')}</option>
                                             {geoTree.map((g) => (
                                                 <option key={g.id} value={g.id}>
                                                     {g.name}
@@ -222,7 +224,7 @@ export default function OrdersCreate({
                                         </select>
                                     </div>
                                     <div className="col-md-3">
-                                        <label className="form-label">City</label>
+                                        <label className="form-label">{t('admin.city')}</label>
                                         <select
                                             className="form-control"
                                             value={cityId ?? ''}
@@ -232,7 +234,7 @@ export default function OrdersCreate({
                                                 setValue('area_id', null);
                                             }}
                                         >
-                                            <option value="">Select…</option>
+                                            <option value="">{t('admin.select')}</option>
                                             {governorate?.cities.map((c) => (
                                                 <option key={c.id} value={c.id}>
                                                     {c.name}
@@ -241,7 +243,7 @@ export default function OrdersCreate({
                                         </select>
                                     </div>
                                     <div className="col-md-3">
-                                        <label className="form-label">District (optional)</label>
+                                        <label className="form-label">{t('admin.districtOptional')}</label>
                                         <select
                                             className="form-control"
                                             value={watch('district_id') ?? ''}
@@ -249,7 +251,7 @@ export default function OrdersCreate({
                                                 setValue('district_id', e.target.value ? Number(e.target.value) : null)
                                             }
                                         >
-                                            <option value="">None</option>
+                                            <option value="">{t('admin.none')}</option>
                                             {city?.districts.map((d) => (
                                                 <option key={d.id} value={d.id}>
                                                     {d.name}
@@ -258,13 +260,13 @@ export default function OrdersCreate({
                                         </select>
                                     </div>
                                     <div className="col-md-3">
-                                        <label className="form-label">Area</label>
+                                        <label className="form-label">{t('admin.area')}</label>
                                         <select
                                             className="form-control"
                                             value={watch('area_id') ?? ''}
                                             onChange={(e) => setValue('area_id', Number(e.target.value))}
                                         >
-                                            <option value="">Select…</option>
+                                            <option value="">{t('admin.select')}</option>
                                             {city?.areas.map((a) => (
                                                 <option key={a.id} value={a.id}>
                                                     {a.name}
@@ -273,7 +275,7 @@ export default function OrdersCreate({
                                         </select>
                                     </div>
                                     <div className="col-md-12">
-                                        <label className="form-label">Address Line</label>
+                                        <label className="form-label">{t('admin.addressLine')}</label>
                                         <input className="form-control" {...register('address_line')} />
                                         {serverErrors.address_line && (
                                             <div className="text-danger fs-13 mt-1">{serverErrors.address_line}</div>
@@ -287,11 +289,11 @@ export default function OrdersCreate({
                     <div className="col-xl-4">
                         <div className="card">
                             <div className="card-header">
-                                <h4 className="card-title">Order Summary</h4>
+                                <h4 className="card-title">{t('admin.orderSummary')}</h4>
                             </div>
                             <div className="card-body">
                                 <div className="mb-3">
-                                    <label className="form-label">Warehouse</label>
+                                    <label className="form-label">{t('admin.warehouse')}</label>
                                     <select
                                         className="form-control"
                                         {...register('warehouse_id', { valueAsNumber: true })}
@@ -304,7 +306,7 @@ export default function OrdersCreate({
                                     </select>
                                 </div>
                                 <div className="mb-3">
-                                    <label className="form-label">Coupon Code (optional)</label>
+                                    <label className="form-label">{t('admin.couponCodeOptional')}</label>
                                     <input className="form-control" {...register('coupon_code')} />
                                 </div>
                                 {serverErrors.warehouse_id && (
@@ -313,7 +315,7 @@ export default function OrdersCreate({
                             </div>
                             <div className="card-footer border-top">
                                 <button type="submit" className="btn btn-primary w-100">
-                                    Create Order
+                                    {t('admin.createOrder')}
                                 </button>
                             </div>
                         </div>

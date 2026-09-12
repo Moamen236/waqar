@@ -1,6 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
 import AdminLayout from '../../../Layouts/AdminLayout';
+import { useTranslation } from '../../../lib/useTranslation';
 
 interface Representative {
     id: number;
@@ -11,6 +12,7 @@ interface Representative {
 }
 
 export default function RepresentativeForm({ representative }: { representative: Representative | null }) {
+    const { t } = useTranslation();
     const { data, setData, post, put, processing, errors } = useForm({
         name: representative?.name ?? '',
         phone: representative?.phone ?? '',
@@ -35,13 +37,13 @@ export default function RepresentativeForm({ representative }: { representative:
                     <div className="col-xl-8 col-lg-9">
                         <div className="card">
                             <div className="card-header">
-                                <h4 className="card-title">General Information</h4>
+                                <h4 className="card-title">{t('admin.generalInformation')}</h4>
                             </div>
                             <div className="card-body">
                                 <div className="row">
                                     <div className="col-lg-6">
                                         <div className="mb-3">
-                                            <label className="form-label">Name</label>
+                                            <label className="form-label">{t('admin.name')}</label>
                                             <input
                                                 className="form-control"
                                                 value={data.name}
@@ -52,7 +54,7 @@ export default function RepresentativeForm({ representative }: { representative:
                                     </div>
                                     <div className="col-lg-6">
                                         <div className="mb-3">
-                                            <label className="form-label">Phone</label>
+                                            <label className="form-label">{t('admin.phone')}</label>
                                             <input
                                                 className="form-control"
                                                 value={data.phone}
@@ -62,20 +64,20 @@ export default function RepresentativeForm({ representative }: { representative:
                                     </div>
                                     <div className="col-lg-6">
                                         <div className="mb-3">
-                                            <label className="form-label">Status</label>
+                                            <label className="form-label">{t('admin.status')}</label>
                                             <select
                                                 className="form-control"
                                                 value={data.status}
                                                 onChange={(e) => setData('status', e.target.value)}
                                             >
-                                                <option value="active">Active</option>
-                                                <option value="inactive">Inactive</option>
+                                                <option value="active">{t('admin.active')}</option>
+                                                <option value="inactive">{t('admin.inactive')}</option>
                                             </select>
                                         </div>
                                     </div>
                                     <div className="col-lg-12">
                                         <div className="mb-0">
-                                            <label className="form-label">Notes</label>
+                                            <label className="form-label">{t('admin.notes')}</label>
                                             <textarea
                                                 className="form-control"
                                                 rows={3}
@@ -88,7 +90,7 @@ export default function RepresentativeForm({ representative }: { representative:
                             </div>
                             <div className="card-footer border-top text-end">
                                 <button type="submit" className="btn btn-primary" disabled={processing}>
-                                    Save
+                                    {t('admin.save')}
                                 </button>
                             </div>
                         </div>

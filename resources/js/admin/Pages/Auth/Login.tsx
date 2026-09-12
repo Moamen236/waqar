@@ -1,8 +1,10 @@
 import { Head, useForm } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
+import { useTranslation } from '../../lib/useTranslation';
 
 // Ported from Admin Template/auth-signin.html's authentication-form layout.
 export default function Login() {
+    const { t } = useTranslation();
     const { data, setData, post, processing, errors } = useForm({
         email: '',
         password: '',
@@ -16,7 +18,7 @@ export default function Login() {
 
     return (
         <div className="d-flex flex-column min-vh-100 justify-content-center align-items-center bg-light-subtle">
-            <Head title="Sign in" />
+            <Head title={t('admin.signIn')} />
             <div className="col-lg-4 col-md-6">
                 <div className="card">
                     <div className="card-body p-4">
@@ -24,21 +26,21 @@ export default function Login() {
                             <span className="fw-bold fs-4">WAQAR Admin</span>
                         </div>
 
-                        <h2 className="fw-bold fs-20 text-center">Sign In</h2>
+                        <h2 className="fw-bold fs-20 text-center">{t('admin.signIn')}</h2>
                         <p className="text-muted mt-1 mb-4 text-center">
-                            Enter your email address and password to access the admin panel.
+                            {t('admin.enterYourEmailAddressAndPassword')}
                         </p>
 
                         <form onSubmit={submit} className="authentication-form">
                             <div className="mb-3">
                                 <label className="form-label" htmlFor="email">
-                                    Email
+                                    {t('admin.email')}
                                 </label>
                                 <input
                                     type="email"
                                     id="email"
                                     className="form-control"
-                                    placeholder="Enter your email"
+                                    placeholder={t('admin.enterYourEmail')}
                                     value={data.email}
                                     onChange={(e) => setData('email', e.target.value)}
                                     autoFocus
@@ -47,13 +49,13 @@ export default function Login() {
                             </div>
                             <div className="mb-3">
                                 <label className="form-label" htmlFor="password">
-                                    Password
+                                    {t('admin.password')}
                                 </label>
                                 <input
                                     type="password"
                                     id="password"
                                     className="form-control"
-                                    placeholder="Enter your password"
+                                    placeholder={t('admin.enterYourPassword')}
                                     value={data.password}
                                     onChange={(e) => setData('password', e.target.value)}
                                 />
@@ -69,13 +71,13 @@ export default function Login() {
                                         onChange={(e) => setData('remember', e.target.checked)}
                                     />
                                     <label className="form-check-label" htmlFor="remember">
-                                        Remember me
+                                        {t('admin.rememberMe')}
                                     </label>
                                 </div>
                             </div>
                             <div className="mb-1 text-center d-grid">
                                 <button className="btn btn-primary" type="submit" disabled={processing}>
-                                    Sign In
+                                    {t('admin.signIn')}
                                 </button>
                             </div>
                         </form>

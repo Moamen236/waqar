@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface OrderItem {
     id: number;
@@ -30,6 +31,7 @@ export default function ReturnsCreate({
     orderNumber: string | null;
     reasons: ReturnReason[];
 }) {
+    const { t } = useTranslation();
     const [search, setSearch] = useState(orderNumber ?? '');
     const [primaryReasonId, setPrimaryReasonId] = useState<number | ''>(reasons[0]?.id ?? '');
     const [notes, setNotes] = useState('');
@@ -69,25 +71,25 @@ export default function ReturnsCreate({
     }
 
     return (
-        <AdminLayout title="File a Return">
-            <Head title="File a Return" />
+        <AdminLayout title={t('admin.fileAReturn')}>
+            <Head title={t('admin.fileAReturn')} />
 
             <div className="row">
                 <div className="col-lg-5">
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">Find the Order</h4>
+                            <h4 className="card-title">{t('admin.findTheOrder')}</h4>
                         </div>
                         <div className="card-body">
                             <form onSubmit={lookupOrder} className="d-flex gap-2">
                                 <input
                                     className="form-control"
-                                    placeholder="Order number"
+                                    placeholder={t('admin.orderNumber')}
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                 />
                                 <button type="submit" className="btn btn-primary">
-                                    Look Up
+                                    {t('admin.lookUp')}
                                 </button>
                             </form>
                             {orderNumber && !order && (
@@ -116,10 +118,10 @@ export default function ReturnsCreate({
                                         <thead className="bg-light-subtle">
                                             <tr>
                                                 <th />
-                                                <th>Product</th>
+                                                <th>{t('admin.product')}</th>
                                                 <th>SKU</th>
-                                                <th>Ordered Qty</th>
-                                                <th>Return Qty</th>
+                                                <th>{t('admin.orderedQty')}</th>
+                                                <th>{t('admin.returnQty')}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -164,7 +166,7 @@ export default function ReturnsCreate({
                                 <div className="row">
                                     <div className="col-lg-4">
                                         <div className="mb-3">
-                                            <label className="form-label">Reason</label>
+                                            <label className="form-label">{t('admin.reason')}</label>
                                             <select
                                                 className="form-control"
                                                 value={primaryReasonId}
@@ -180,7 +182,9 @@ export default function ReturnsCreate({
                                     </div>
                                     <div className="col-lg-8">
                                         <div className="mb-3">
-                                            <label className="form-label">Notes (what the customer told you)</label>
+                                            <label className="form-label">
+                                                {t('admin.notesWhatTheCustomerToldYou')}
+                                            </label>
                                             <textarea
                                                 className="form-control"
                                                 rows={1}
@@ -197,7 +201,7 @@ export default function ReturnsCreate({
                                     onClick={submit}
                                     disabled={Object.keys(quantities).length === 0}
                                 >
-                                    File Return
+                                    {t('admin.fileReturn')}
                                 </button>
                             </div>
                         </div>

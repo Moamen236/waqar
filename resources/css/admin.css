@@ -1,3 +1,16 @@
+/* Arabic typeface for the staff UI. Must lead the file: CSS requires
+ * @import before any other rule, and the Tailwind/Vite pipeline silently
+ * drops one that appears later (learned the hard way on the storefront).
+ *
+ * Larkon's bundled family has no Arabic glyphs — Arabic rendered as tofu
+ * boxes until this was added. Cairo leads the stack rather than trailing
+ * it, unlike the storefront: Q2 ships the staff UI Arabic-only, so Arabic
+ * is the primary script here, and Cairo's Latin subset covers the SKUs,
+ * emails and numbers that stay Latin. Same vendored files both apps use
+ * (tools/fetch-arabic-font.sh).
+ */
+@import "./fonts/cairo.css";
+
 /* Admin — the real Larkon theme (Section 23), not a generic Bootstrap
  * substitute. The theme's own compiled CSS (vendor.min.css, icons.min.css,
  * app.min.css — a full Bootstrap 5 build with Larkon's customization
@@ -6,8 +19,8 @@
  * Larkon's visual treatment automatically without a separate plain-
  * Bootstrap import. Never imported alongside storefront.css on the same
  * page (Section 23's "two CSS frameworks, one per area" decision).
- * RTL for v1 (Arabic-only staff UI, Q2) will use Larkon's own
- * app-rtl.min.css build once Phase 6 lands — not wired yet.
+ * RTL for v1 (Arabic-only staff UI, Q2) uses Larkon's own app-rtl.min.css
+ * build, swapped in by admin.blade.php per locale (Phase 6).
  *
  * Brand palette override below: Main #012c4e (navy), Secondary #efddb7
  * (cream). Bootstrap 5.3's compiled CSS bakes each color variant's
@@ -132,4 +145,25 @@
 }
 .nav-link.active .nav-icon {
     color: #012c4e;
+}
+
+/* The theme sets font-family on body *and* separately on every heading
+ * (`.h1,…,h6 { font-family: "Hanken Grotesk" }`), which is why the page
+ * title alone still rendered as tofu after the body rule was in place —
+ * headings never inherited it. Both are covered here. This file loads
+ * after the theme, so plain source order wins without !important. */
+body,
+.h1,
+.h2,
+.h3,
+.h4,
+.h5,
+.h6,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: "Cairo", var(--bs-body-font-family, system-ui), sans-serif;
 }

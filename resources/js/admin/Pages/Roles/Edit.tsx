@@ -2,6 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface RoleRecord {
     id: number;
@@ -40,6 +41,7 @@ export default function RoleEdit({
     assigned: string[];
     allPermissions: string[];
 }) {
+    const { t } = useTranslation();
     const groups = useMemo(() => groupByDomain(allPermissions), [allPermissions]);
 
     const { register, handleSubmit } = useForm<FormValues>({
@@ -85,7 +87,7 @@ export default function RoleEdit({
                     ))}
                 </div>
                 <button type="submit" className="btn btn-primary">
-                    Save Permissions
+                    {t('admin.savePermissions')}
                 </button>
             </form>
         </AdminLayout>

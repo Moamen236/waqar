@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import { confirmAction } from '../../../lib/confirm';
 import type { GeoTree } from '../../../types';
+import { useTranslation } from '../../../lib/useTranslation';
 
 interface Area {
     id: number;
@@ -19,6 +20,7 @@ export default function RepresentativeAreas({
     areas: Area[];
     geoTree: GeoTree;
 }) {
+    const { t } = useTranslation();
     const [geoType, setGeoType] = useState<Area['geo_type']>('governorate');
     const [governorateId, setGovernorateId] = useState<number | ''>('');
     const [cityId, setCityId] = useState<number | ''>('');
@@ -68,16 +70,16 @@ export default function RepresentativeAreas({
 
     return (
         <AdminLayout title={`Coverage Areas — ${representative.name}`}>
-            <Head title="Coverage Areas" />
+            <Head title={t('admin.coverageAreas')} />
             <div className="row">
                 <div className="col-lg-6">
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">Add Coverage Area</h4>
+                            <h4 className="card-title">{t('admin.addCoverageArea')}</h4>
                         </div>
                         <div className="card-body">
                             <div className="mb-3">
-                                <label className="form-label">Level</label>
+                                <label className="form-label">{t('admin.level')}</label>
                                 <select
                                     className="form-control"
                                     value={geoType}
@@ -86,16 +88,16 @@ export default function RepresentativeAreas({
                                         setSelectedId('');
                                     }}
                                 >
-                                    <option value="governorate">Governorate</option>
-                                    <option value="city">City</option>
-                                    <option value="district">District</option>
-                                    <option value="area">Area</option>
+                                    <option value="governorate">{t('admin.governorate')}</option>
+                                    <option value="city">{t('admin.city')}</option>
+                                    <option value="district">{t('admin.district')}</option>
+                                    <option value="area">{t('admin.area')}</option>
                                 </select>
                             </div>
 
                             {geoType !== 'governorate' && (
                                 <div className="mb-3">
-                                    <label className="form-label">Governorate</label>
+                                    <label className="form-label">{t('admin.governorate')}</label>
                                     <select
                                         className="form-control"
                                         value={governorateId}
@@ -105,7 +107,7 @@ export default function RepresentativeAreas({
                                             setSelectedId('');
                                         }}
                                     >
-                                        <option value="">Select…</option>
+                                        <option value="">{t('admin.select')}</option>
                                         {geoTree.map((g) => (
                                             <option key={g.id} value={g.id}>
                                                 {g.name}
@@ -117,7 +119,7 @@ export default function RepresentativeAreas({
 
                             {(geoType === 'district' || geoType === 'area') && (
                                 <div className="mb-3">
-                                    <label className="form-label">City</label>
+                                    <label className="form-label">{t('admin.city')}</label>
                                     <select
                                         className="form-control"
                                         value={cityId}
@@ -126,7 +128,7 @@ export default function RepresentativeAreas({
                                             setSelectedId('');
                                         }}
                                     >
-                                        <option value="">Select…</option>
+                                        <option value="">{t('admin.select')}</option>
                                         {governorate?.cities.map((c) => (
                                             <option key={c.id} value={c.id}>
                                                 {c.name}
@@ -143,7 +145,7 @@ export default function RepresentativeAreas({
                                     value={selectedId}
                                     onChange={(e) => setSelectedId(Number(e.target.value))}
                                 >
-                                    <option value="">Select…</option>
+                                    <option value="">{t('admin.select')}</option>
                                     {options.map((o) => (
                                         <option key={o.id} value={o.id}>
                                             {o.name}
@@ -153,7 +155,7 @@ export default function RepresentativeAreas({
                             </div>
 
                             <button type="button" className="btn btn-primary" onClick={addArea} disabled={!selectedId}>
-                                Add
+                                {t('admin.add')}
                             </button>
                         </div>
                     </div>
@@ -162,7 +164,7 @@ export default function RepresentativeAreas({
                 <div className="col-lg-6">
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">Current Coverage</h4>
+                            <h4 className="card-title">{t('admin.currentCoverage')}</h4>
                         </div>
                         <ul className="list-group list-group-flush">
                             {areas.map((area) => (
@@ -181,7 +183,7 @@ export default function RepresentativeAreas({
                                 </li>
                             ))}
                             {areas.length === 0 && (
-                                <li className="list-group-item text-muted">No coverage areas yet.</li>
+                                <li className="list-group-item text-muted">{t('admin.noCoverageAreasYet')}</li>
                             )}
                         </ul>
                     </div>

@@ -1,6 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface CustomerRecord {
     id: number;
@@ -13,6 +14,7 @@ interface CustomerRecord {
 // Ported from Admin Template/customer-add.html's General Information
 // card layout.
 export default function CustomerForm({ customer }: { customer: CustomerRecord | null }) {
+    const { t } = useTranslation();
     const { data, setData, post, put, processing, errors } = useForm({
         name: customer?.name ?? '',
         email: customer?.email ?? '',
@@ -38,13 +40,13 @@ export default function CustomerForm({ customer }: { customer: CustomerRecord | 
                     <div className="col-xl-9 col-lg-8">
                         <div className="card">
                             <div className="card-header">
-                                <h4 className="card-title">General Information</h4>
+                                <h4 className="card-title">{t('admin.generalInformation')}</h4>
                             </div>
                             <div className="card-body">
                                 <div className="row">
                                     <div className="col-lg-6">
                                         <div className="mb-3">
-                                            <label className="form-label">Name</label>
+                                            <label className="form-label">{t('admin.name')}</label>
                                             <input
                                                 className="form-control"
                                                 value={data.name}
@@ -55,7 +57,7 @@ export default function CustomerForm({ customer }: { customer: CustomerRecord | 
                                     </div>
                                     <div className="col-lg-6">
                                         <div className="mb-3">
-                                            <label className="form-label">Email</label>
+                                            <label className="form-label">{t('admin.email')}</label>
                                             <input
                                                 type="email"
                                                 className="form-control"
@@ -69,7 +71,7 @@ export default function CustomerForm({ customer }: { customer: CustomerRecord | 
                                     </div>
                                     <div className="col-lg-6">
                                         <div className="mb-3">
-                                            <label className="form-label">Phone</label>
+                                            <label className="form-label">{t('admin.phone')}</label>
                                             <input
                                                 className="form-control"
                                                 value={data.phone}
@@ -100,7 +102,7 @@ export default function CustomerForm({ customer }: { customer: CustomerRecord | 
                             </div>
                             <div className="card-footer border-top text-end">
                                 <button type="submit" className="btn btn-primary" disabled={processing}>
-                                    Save Customer
+                                    {t('admin.saveCustomer')}
                                 </button>
                             </div>
                         </div>
@@ -109,7 +111,7 @@ export default function CustomerForm({ customer }: { customer: CustomerRecord | 
                     <div className="col-xl-3 col-lg-4">
                         <div className="card">
                             <div className="card-header">
-                                <h4 className="card-title">Status</h4>
+                                <h4 className="card-title">{t('admin.status')}</h4>
                             </div>
                             <div className="card-body">
                                 <div className="form-check">
@@ -121,7 +123,7 @@ export default function CustomerForm({ customer }: { customer: CustomerRecord | 
                                         onChange={(e) => setData('is_active', e.target.checked)}
                                     />
                                     <label className="form-check-label" htmlFor="active">
-                                        Active
+                                        {t('admin.active')}
                                     </label>
                                 </div>
                             </div>

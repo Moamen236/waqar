@@ -6,6 +6,7 @@ import 'simplebar-react/dist/simplebar.min.css';
 import { usePermissions } from '../Hooks/usePermissions';
 import { notifyError, notifySuccess } from '../lib/confirm';
 import type { SharedProps } from '../types';
+import { useTranslation } from '../lib/useTranslation';
 
 interface NavItem {
     label: string;
@@ -26,32 +27,32 @@ interface NavGroup {
 // dependency).
 const NAV: NavGroup[] = [
     {
-        label: 'Overview',
-        items: [{ label: 'Dashboard', href: route('admin.dashboard'), icon: 'bx-grid-alt' }],
+        label: 'admin.navOverview',
+        items: [{ label: 'admin.navDashboard', href: route('admin.dashboard'), icon: 'bx-grid-alt' }],
     },
     {
-        label: 'Orders',
+        label: 'admin.navOrders',
         items: [
             {
-                label: 'Create Order',
+                label: 'admin.navCreateOrder',
                 href: route('admin.orders.create'),
                 icon: 'bx-cart-add',
                 permission: 'orders.create',
             },
             {
-                label: 'Checking',
+                label: 'admin.navChecking',
                 href: route('admin.checking.index'),
                 icon: 'bx-check-square',
                 permission: 'orders.view',
             },
             {
-                label: 'Delivery Board',
+                label: 'admin.navDeliveryBoard',
                 href: route('admin.delivery.index'),
                 icon: 'bxs-truck',
                 permission: 'orders.view',
             },
             {
-                label: 'Accounting',
+                label: 'admin.navAccounting',
                 href: route('admin.accounting.index'),
                 icon: 'bx-wallet',
                 permission: 'orders.view',
@@ -59,28 +60,28 @@ const NAV: NavGroup[] = [
         ],
     },
     {
-        label: 'Delivery',
+        label: 'admin.navDelivery',
         items: [
             {
-                label: 'Representatives',
+                label: 'admin.navRepresentatives',
                 href: route('admin.delivery.representatives.index'),
                 icon: 'bx-user-pin',
                 permission: 'delivery.representatives.manage',
             },
             {
-                label: 'Shipping Companies',
+                label: 'admin.navShippingCompanies',
                 href: route('admin.delivery.shipping-companies.index'),
                 icon: 'bx-buildings',
                 permission: 'delivery.companies.manage',
             },
             {
-                label: 'Shipping Rates',
+                label: 'admin.navShippingRates',
                 href: route('admin.delivery.shipping-rates.index'),
                 icon: 'bx-map-pin',
                 permission: 'delivery.rates.manage',
             },
             {
-                label: 'Reconciliation',
+                label: 'admin.navReconciliation',
                 href: route('admin.accounting.reconciliation.index'),
                 icon: 'bx-receipt',
                 permission: 'accounting.reconciliation.manage',
@@ -88,10 +89,10 @@ const NAV: NavGroup[] = [
         ],
     },
     {
-        label: 'Returns',
+        label: 'admin.navReturns',
         items: [
             {
-                label: 'Returns & Refunds',
+                label: 'admin.navReturnsRefunds',
                 href: route('admin.returns.index'),
                 icon: 'bx-undo',
                 // Everyone who holds returns.manage also holds
@@ -103,29 +104,34 @@ const NAV: NavGroup[] = [
         ],
     },
     {
-        label: 'Catalog & Marketing',
+        label: 'admin.navCatalogMarketing',
         items: [
-            { label: 'Products', href: route('admin.products.index'), icon: 'bx-package', permission: 'products.view' },
             {
-                label: 'Categories',
+                label: 'admin.navProducts',
+                href: route('admin.products.index'),
+                icon: 'bx-package',
+                permission: 'products.view',
+            },
+            {
+                label: 'admin.navCategories',
                 href: route('admin.categories.index'),
                 icon: 'bx-category',
                 permission: 'categories.manage',
             },
             {
-                label: 'Attributes',
+                label: 'admin.navAttributes',
                 href: route('admin.attributes.index'),
                 icon: 'bx-palette',
                 permission: 'attributes.manage',
             },
             {
-                label: 'Collections',
+                label: 'admin.navCollections',
                 href: route('admin.collections.index'),
                 icon: 'bx-collection',
                 permission: 'collections.manage',
             },
             {
-                label: 'Promotions',
+                label: 'admin.navPromotions',
                 href: route('admin.promotions.index'),
                 icon: 'bxs-megaphone',
                 permission: 'promotions.manage',
@@ -133,16 +139,16 @@ const NAV: NavGroup[] = [
         ],
     },
     {
-        label: 'People',
+        label: 'admin.navPeople',
         items: [
             {
-                label: 'Customers',
+                label: 'admin.navCustomers',
                 href: route('admin.customers.index'),
                 icon: 'bx-group',
                 permission: 'customers.view',
             },
             {
-                label: 'Employees',
+                label: 'admin.navEmployees',
                 href: route('admin.employees.index'),
                 icon: 'bx-id-card',
                 permission: 'employees.view',
@@ -150,16 +156,21 @@ const NAV: NavGroup[] = [
         ],
     },
     {
-        label: 'Finance',
+        label: 'admin.navFinance',
         items: [
-            { label: 'Treasury', href: route('admin.treasury.index'), icon: 'bx-money', permission: 'treasury.view' },
+            {
+                label: 'admin.navTreasury',
+                href: route('admin.treasury.index'),
+                icon: 'bx-money',
+                permission: 'treasury.view',
+            },
         ],
     },
     {
-        label: 'System',
+        label: 'admin.navSystem',
         items: [
             {
-                label: 'Roles & Permissions',
+                label: 'admin.navRolesPermissions',
                 href: route('admin.roles.index'),
                 icon: 'bx-lock-alt',
                 permission: 'roles.manage',
@@ -169,6 +180,7 @@ const NAV: NavGroup[] = [
 ];
 
 export default function AdminLayout({ title, children }: PropsWithChildren<{ title: string }>) {
+    const { t } = useTranslation();
     const { flash } = usePage<SharedProps>().props;
     const { employee, can } = usePermissions();
     const currentUrl = usePage().url;
@@ -231,7 +243,7 @@ export default function AdminLayout({ title, children }: PropsWithChildren<{ tit
                                             className="text-danger"
                                         >
                                             <i className="bx bx-log-out me-1 align-middle" />
-                                            Log out
+                                            {t('admin.logOut')}
                                         </Dropdown.Item>
                                     </Dropdown.Menu>
                                 </Dropdown>
@@ -256,7 +268,7 @@ export default function AdminLayout({ title, children }: PropsWithChildren<{ tit
 
                             return (
                                 <Fragment key={group.label}>
-                                    <li className="menu-title">{group.label}</li>
+                                    <li className="menu-title">{t(group.label)}</li>
                                     {items.map((item) => (
                                         <li className="nav-item" key={item.href}>
                                             <Link
@@ -267,7 +279,7 @@ export default function AdminLayout({ title, children }: PropsWithChildren<{ tit
                                                 <span className="nav-icon">
                                                     <i className={`bx ${item.icon}`} />
                                                 </span>
-                                                <span className="nav-text">{item.label}</span>
+                                                <span className="nav-text">{t(item.label)}</span>
                                             </Link>
                                         </li>
                                     ))}

@@ -5,9 +5,11 @@ import Pagination from '../../Components/Pagination';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
 import type { Customer, PaginatedData } from '../../types';
+import { useTranslation } from '../../lib/useTranslation';
 
 // Ported from Admin Template/customer-list.html's table structure.
 export default function CustomersIndex({ customers, q }: { customers: PaginatedData<Customer>; q: string | null }) {
+    const { t } = useTranslation();
     const [search, setSearch] = useState(q ?? '');
 
     function submitSearch(e: FormEvent) {
@@ -16,35 +18,35 @@ export default function CustomersIndex({ customers, q }: { customers: PaginatedD
     }
 
     return (
-        <AdminLayout title="Customers">
-            <Head title="Customers" />
+        <AdminLayout title={t('admin.customers')}>
+            <Head title={t('admin.customers')} />
             <div className="row">
                 <div className="col-xl-12">
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center gap-1">
-                            <h4 className="card-title flex-grow-1">All Customers</h4>
+                            <h4 className="card-title flex-grow-1">{t('admin.allCustomers')}</h4>
                             <form onSubmit={submitSearch} className="d-flex gap-2">
                                 <input
                                     className="form-control form-control-sm"
-                                    placeholder="Search name, email, phone…"
+                                    placeholder={t('admin.searchNameEmailPhone')}
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                 />
                             </form>
                             <Link href={route('admin.customers.create')} className="btn btn-sm btn-primary">
-                                Add Customer
+                                {t('admin.addCustomer')}
                             </Link>
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-hover table-centered">
                                 <thead className="bg-light-subtle">
                                     <tr>
-                                        <th>Name</th>
-                                        <th>Email</th>
-                                        <th>Phone</th>
-                                        <th>Orders</th>
-                                        <th>Status</th>
-                                        <th>Action</th>
+                                        <th>{t('admin.name')}</th>
+                                        <th>{t('admin.email')}</th>
+                                        <th>{t('admin.phone')}</th>
+                                        <th>{t('admin.orders')}</th>
+                                        <th>{t('admin.status')}</th>
+                                        <th>{t('admin.action')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -65,7 +67,7 @@ export default function CustomersIndex({ customers, q }: { customers: PaginatedD
                                     {customers.data.length === 0 && (
                                         <tr>
                                             <td colSpan={6} className="text-center text-muted py-4">
-                                                No customers found.
+                                                {t('admin.noCustomersFound')}
                                             </td>
                                         </tr>
                                     )}

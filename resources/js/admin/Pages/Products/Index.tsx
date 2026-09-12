@@ -5,6 +5,7 @@ import StatusBadge from '../../Components/StatusBadge';
 import RowActions from '../../Components/RowActions';
 import AdminLayout from '../../Layouts/AdminLayout';
 import type { PaginatedData } from '../../types';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface ProductRecord {
     id: number;
@@ -24,6 +25,7 @@ interface ProductRecord {
 // [[admin-ui-use-larkon-template]] in memory for why this isn't a
 // generic react-bootstrap Card/Table.
 export default function ProductsIndex({ products, q }: { products: PaginatedData<ProductRecord>; q: string | null }) {
+    const { t } = useTranslation();
     const [search, setSearch] = useState(q ?? '');
 
     function submitSearch(e: FormEvent) {
@@ -32,24 +34,24 @@ export default function ProductsIndex({ products, q }: { products: PaginatedData
     }
 
     return (
-        <AdminLayout title="Products">
-            <Head title="Products" />
+        <AdminLayout title={t('admin.products')}>
+            <Head title={t('admin.products')} />
             <div className="row">
                 <div className="col-xl-12">
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center gap-1">
-                            <h4 className="card-title flex-grow-1">All Products</h4>
+                            <h4 className="card-title flex-grow-1">{t('admin.allProducts')}</h4>
                             <form onSubmit={submitSearch} className="d-flex gap-2">
                                 <input
                                     type="text"
                                     className="form-control form-control-sm"
-                                    placeholder="Search name or SKU…"
+                                    placeholder={t('admin.searchNameOrSku')}
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                 />
                             </form>
                             <Link href={route('admin.products.create')} className="btn btn-sm btn-primary">
-                                Add Product
+                                {t('admin.addProduct')}
                             </Link>
                         </div>
                         <div>
@@ -57,14 +59,14 @@ export default function ProductsIndex({ products, q }: { products: PaginatedData
                                 <table className="table align-middle mb-0 table-hover table-centered">
                                     <thead className="bg-light-subtle">
                                         <tr>
-                                            <th>Product</th>
+                                            <th>{t('admin.product')}</th>
                                             <th>SKU</th>
-                                            <th>Price</th>
-                                            <th>Type</th>
-                                            <th>Categories</th>
-                                            <th>Variants</th>
-                                            <th>Status</th>
-                                            <th>Action</th>
+                                            <th>{t('admin.price')}</th>
+                                            <th>{t('admin.type')}</th>
+                                            <th>{t('admin.categories')}</th>
+                                            <th>{t('admin.variants')}</th>
+                                            <th>{t('admin.status')}</th>
+                                            <th>{t('admin.action')}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -104,7 +106,7 @@ export default function ProductsIndex({ products, q }: { products: PaginatedData
                                         {products.data.length === 0 && (
                                             <tr>
                                                 <td colSpan={8} className="text-center text-muted py-4">
-                                                    No products found.
+                                                    {t('admin.noProductsFound')}
                                                 </td>
                                             </tr>
                                         )}

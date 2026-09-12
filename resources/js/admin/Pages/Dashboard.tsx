@@ -1,4 +1,5 @@
 import AdminLayout from '../Layouts/AdminLayout';
+import { useTranslation } from '../lib/useTranslation';
 
 /**
  * Role-scoped widget content (Question 18) is explicitly deferred by the
@@ -8,8 +9,9 @@ import AdminLayout from '../Layouts/AdminLayout';
  * generic Bootstrap card.
  */
 export default function Dashboard() {
+    const { t } = useTranslation();
     return (
-        <AdminLayout title="Dashboard">
+        <AdminLayout title={t('admin.dashboard')}>
             <div className="row">
                 <div className="col-12">
                     <div className="card">
@@ -19,7 +21,7 @@ export default function Dashboard() {
                                     <i className="bx bx-store fs-24 text-primary" />
                                 </div>
                                 <div>
-                                    <h4 className="mb-1">Welcome to WAQAR Admin</h4>
+                                    <h4 className="mb-1">{t('admin.welcomeToWaqarAdmin')}</h4>
                                     <p className="text-muted mb-0">
                                         Use the sidebar to reach your department&apos;s work queue. The role-scoped
                                         dashboard widgets (Question 18) are a follow-up design pass, not yet built here.

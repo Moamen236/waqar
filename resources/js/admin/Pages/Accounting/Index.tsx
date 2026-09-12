@@ -3,27 +3,29 @@ import Pagination from '../../Components/Pagination';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
 import type { OrderSummary, PaginatedData } from '../../types';
+import { useTranslation } from '../../lib/useTranslation';
 
 export default function AccountingIndex({ orders }: { orders: PaginatedData<OrderSummary> }) {
+    const { t } = useTranslation();
     return (
-        <AdminLayout title="Accounting — Delivery Confirmation">
-            <Head title="Accounting" />
+        <AdminLayout title={t('admin.accountingDeliveryConfirmation')}>
+            <Head title={t('admin.accounting')} />
             <div className="row">
                 <div className="col-xl-12">
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">Orders Awaiting a Delivery Result</h4>
+                            <h4 className="card-title">{t('admin.ordersAwaitingADeliveryResult')}</h4>
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-hover table-centered">
                                 <thead className="bg-light-subtle">
                                     <tr>
-                                        <th>Order #</th>
-                                        <th>Customer</th>
-                                        <th>Status</th>
-                                        <th>Assigned To</th>
-                                        <th>Total</th>
-                                        <th>Action</th>
+                                        <th>{t('admin.order')}</th>
+                                        <th>{t('admin.customer')}</th>
+                                        <th>{t('admin.status')}</th>
+                                        <th>{t('admin.assignedTo')}</th>
+                                        <th>{t('admin.total')}</th>
+                                        <th>{t('admin.action')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -45,7 +47,7 @@ export default function AccountingIndex({ orders }: { orders: PaginatedData<Orde
                                                     href={route('admin.accounting.show', order.id)}
                                                     className="btn btn-soft-primary btn-sm"
                                                 >
-                                                    Confirm Result
+                                                    {t('admin.confirmResult')}
                                                 </Link>
                                             </td>
                                         </tr>
@@ -53,7 +55,7 @@ export default function AccountingIndex({ orders }: { orders: PaginatedData<Orde
                                     {orders.data.length === 0 && (
                                         <tr>
                                             <td colSpan={6} className="text-center text-muted py-4">
-                                                Nothing awaiting a delivery result.
+                                                {t('admin.nothingAwaitingADeliveryResult')}
                                             </td>
                                         </tr>
                                     )}

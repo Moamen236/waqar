@@ -2,6 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { type UseFieldArrayReturn, useFieldArray, useForm } from 'react-hook-form';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { useTranslation } from '../../lib/useTranslation';
 
 type TargetType = 'variant' | 'category' | 'collection';
 
@@ -95,6 +96,7 @@ export default function PromotionForm({
     categories: Option[];
     collections: Option[];
 }) {
+    const { t } = useTranslation();
     const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
 
     const { register, control, handleSubmit, watch } = useForm<PromotionFormValues>({
@@ -165,9 +167,9 @@ export default function PromotionForm({
                     <table className="table align-middle mb-0 table-centered">
                         <thead className="bg-light-subtle">
                             <tr>
-                                <th>Target Type</th>
-                                <th>Target</th>
-                                <th style={{ width: 100 }}>Qty</th>
+                                <th>{t('admin.targetType')}</th>
+                                <th>{t('admin.target')}</th>
+                                <th style={{ width: 100 }}>{t('admin.qty')}</th>
                                 <th />
                             </tr>
                         </thead>
@@ -181,9 +183,9 @@ export default function PromotionForm({
                                                 className="form-control form-control-sm"
                                                 {...register(`${name}.${index}.target_type`)}
                                             >
-                                                <option value="variant">Product Variant</option>
-                                                <option value="category">Category</option>
-                                                <option value="collection">Collection</option>
+                                                <option value="variant">{t('admin.productVariant')}</option>
+                                                <option value="category">{t('admin.category')}</option>
+                                                <option value="collection">{t('admin.collection')}</option>
                                             </select>
                                         </td>
                                         <td>
@@ -191,7 +193,7 @@ export default function PromotionForm({
                                                 className="form-control form-control-sm"
                                                 {...register(`${name}.${index}.target_id`, { valueAsNumber: true })}
                                             >
-                                                <option value="">Select…</option>
+                                                <option value="">{t('admin.select')}</option>
                                                 {optionsFor(targetType).map((o) => (
                                                     <option key={o.id} value={o.id}>
                                                         {o.label ?? o.name}
@@ -227,7 +229,7 @@ export default function PromotionForm({
                     className="btn btn-sm btn-outline-secondary"
                     onClick={() => array.append({ target_type: 'variant', target_id: null, quantity: 1 })}
                 >
-                    Add Row
+                    {t('admin.addRow')}
                 </button>
             </>
         );
@@ -241,13 +243,13 @@ export default function PromotionForm({
                     <div className="col-xl-8">
                         <div className="card">
                             <div className="card-header">
-                                <h4 className="card-title">General Information</h4>
+                                <h4 className="card-title">{t('admin.generalInformation')}</h4>
                             </div>
                             <div className="card-body">
                                 <div className="row">
                                     <div className="col-lg-6">
                                         <div className="mb-3">
-                                            <label className="form-label">Name (English)</label>
+                                            <label className="form-label">{t('admin.nameEnglish')}</label>
                                             <input className="form-control" {...register('name_en')} />
                                             {serverErrors['name.en'] && (
                                                 <div className="text-danger small mt-1">{serverErrors['name.en']}</div>
@@ -256,16 +258,16 @@ export default function PromotionForm({
                                     </div>
                                     <div className="col-lg-6">
                                         <div className="mb-3">
-                                            <label className="form-label">Type</label>
+                                            <label className="form-label">{t('admin.type')}</label>
                                             <select className="form-control" {...register('type')}>
-                                                <option value="bundle">Bundle</option>
-                                                <option value="buy_x_get_y">Buy X Get Y</option>
+                                                <option value="bundle">{t('admin.bundle')}</option>
+                                                <option value="buy_x_get_y">{t('admin.buyXGetY')}</option>
                                             </select>
                                         </div>
                                     </div>
                                     <div className="col-lg-12">
                                         <div className="mb-3">
-                                            <label className="form-label">Description (English)</label>
+                                            <label className="form-label">{t('admin.descriptionEnglish')}</label>
                                             <textarea
                                                 className="form-control"
                                                 rows={2}
@@ -275,18 +277,18 @@ export default function PromotionForm({
                                     </div>
                                     <div className="col-lg-6">
                                         <div className="mb-3">
-                                            <label className="form-label">Discount Type</label>
+                                            <label className="form-label">{t('admin.discountType')}</label>
                                             <select className="form-control" {...register('discount_type')}>
-                                                <option value="percentage">Percentage</option>
-                                                <option value="fixed_amount">Fixed Amount</option>
-                                                <option value="fixed_price">Fixed Price</option>
-                                                <option value="free">Free</option>
+                                                <option value="percentage">{t('admin.percentage')}</option>
+                                                <option value="fixed_amount">{t('admin.fixedAmount')}</option>
+                                                <option value="fixed_price">{t('admin.fixedPrice')}</option>
+                                                <option value="free">{t('admin.free')}</option>
                                             </select>
                                         </div>
                                     </div>
                                     <div className="col-lg-6">
                                         <div className="mb-3">
-                                            <label className="form-label">Discount Value</label>
+                                            <label className="form-label">{t('admin.discountValue')}</label>
                                             <input
                                                 type="number"
                                                 step="0.01"
@@ -313,7 +315,7 @@ export default function PromotionForm({
                         {type === 'buy_x_get_y' && (
                             <div className="card">
                                 <div className="card-header">
-                                    <h4 className="card-title">Reward Items (Get)</h4>
+                                    <h4 className="card-title">{t('admin.rewardItemsGet')}</h4>
                                 </div>
                                 <div className="card-body">
                                     <TargetRows array={rewardsArray} name="rewards" />
@@ -325,19 +327,19 @@ export default function PromotionForm({
                     <div className="col-xl-4">
                         <div className="card">
                             <div className="card-header">
-                                <h4 className="card-title">Rules</h4>
+                                <h4 className="card-title">{t('admin.rules')}</h4>
                             </div>
                             <div className="card-body">
                                 <div className="mb-3">
-                                    <label className="form-label">Starts At</label>
+                                    <label className="form-label">{t('admin.startsAt')}</label>
                                     <input type="datetime-local" className="form-control" {...register('starts_at')} />
                                 </div>
                                 <div className="mb-3">
-                                    <label className="form-label">Ends At</label>
+                                    <label className="form-label">{t('admin.endsAt')}</label>
                                     <input type="datetime-local" className="form-control" {...register('ends_at')} />
                                 </div>
                                 <div className="mb-3">
-                                    <label className="form-label">Priority</label>
+                                    <label className="form-label">{t('admin.priority')}</label>
                                     <input
                                         type="number"
                                         className="form-control"
@@ -345,11 +347,11 @@ export default function PromotionForm({
                                     />
                                 </div>
                                 <div className="mb-3">
-                                    <label className="form-label">Usage Limit (total)</label>
+                                    <label className="form-label">{t('admin.usageLimitTotal')}</label>
                                     <input type="number" className="form-control" {...register('usage_limit')} />
                                 </div>
                                 <div className="mb-3">
-                                    <label className="form-label">Usage Limit (per customer)</label>
+                                    <label className="form-label">{t('admin.usageLimitPerCustomer')}</label>
                                     <input
                                         type="number"
                                         className="form-control"
@@ -364,7 +366,7 @@ export default function PromotionForm({
                                         {...register('stackable_with_coupons')}
                                     />
                                     <label className="form-check-label" htmlFor="stackable">
-                                        Stackable with coupons
+                                        {t('admin.stackableWithCoupons')}
                                     </label>
                                 </div>
                                 <div className="form-check mb-3">
@@ -375,13 +377,13 @@ export default function PromotionForm({
                                         {...register('is_active')}
                                     />
                                     <label className="form-check-label" htmlFor="active">
-                                        Active
+                                        {t('admin.active')}
                                     </label>
                                 </div>
                             </div>
                             <div className="card-footer border-top">
                                 <button type="submit" className="btn btn-primary w-100">
-                                    Save Promotion
+                                    {t('admin.savePromotion')}
                                 </button>
                             </div>
                         </div>

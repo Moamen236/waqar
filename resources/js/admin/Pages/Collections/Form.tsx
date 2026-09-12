@@ -5,6 +5,7 @@ import { useDropzone } from 'react-dropzone';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface CollectionRecord {
     id: number;
@@ -19,6 +20,7 @@ interface CollectionRecord {
 // Ported from Admin Template/category-add.html's General Information +
 // Add Thumbnail Photo card layout.
 export default function CollectionForm({ collection }: { collection: CollectionRecord | null }) {
+    const { t } = useTranslation();
     const [preview, setPreview] = useState<string | null>(collection?.image ? `/storage/${collection.image}` : null);
 
     const { data, setData, post, put, processing, errors } = useForm<{
@@ -69,7 +71,7 @@ export default function CollectionForm({ collection }: { collection: CollectionR
                     <div className="col-xl-3 col-lg-4">
                         <div className="card">
                             <div className="card-header">
-                                <h4 className="card-title">Thumbnail</h4>
+                                <h4 className="card-title">{t('admin.thumbnail')}</h4>
                             </div>
                             <div className="card-body">
                                 <div
@@ -78,18 +80,18 @@ export default function CollectionForm({ collection }: { collection: CollectionR
                                 >
                                     <input {...getInputProps()} />
                                     {preview ? (
-                                        <img src={preview} alt="Preview" className="img-fluid rounded" />
+                                        <img src={preview} alt={t('admin.preview')} className="img-fluid rounded" />
                                     ) : (
                                         <div className="dz-message needsclick text-center">
                                             <i className="bx bx-cloud-upload fs-36 text-primary" />
-                                            <p className="mb-0 text-muted fs-13">Drag an image, or click to select</p>
+                                            <p className="mb-0 text-muted fs-13">{t('admin.dragAnImageOrClickTo')}</p>
                                         </div>
                                     )}
                                 </div>
                             </div>
                             <div className="card-footer border-top">
                                 <div className="mb-3">
-                                    <label className="form-label">Sort Order</label>
+                                    <label className="form-label">{t('admin.sortOrder')}</label>
                                     <input
                                         type="number"
                                         className="form-control"
@@ -106,7 +108,7 @@ export default function CollectionForm({ collection }: { collection: CollectionR
                                         onChange={(e) => setData('is_active', e.target.checked)}
                                     />
                                     <label className="form-check-label" htmlFor="active">
-                                        Active
+                                        {t('admin.active')}
                                     </label>
                                 </div>
                             </div>
@@ -116,13 +118,13 @@ export default function CollectionForm({ collection }: { collection: CollectionR
                     <div className="col-xl-9 col-lg-8">
                         <div className="card">
                             <div className="card-header">
-                                <h4 className="card-title">General Information</h4>
+                                <h4 className="card-title">{t('admin.generalInformation')}</h4>
                             </div>
                             <div className="card-body">
                                 <div className="row">
                                     <div className="col-lg-6">
                                         <div className="mb-3">
-                                            <label className="form-label">Name (English)</label>
+                                            <label className="form-label">{t('admin.nameEnglish')}</label>
                                             <input
                                                 className="form-control"
                                                 value={data.name.en}
@@ -135,7 +137,7 @@ export default function CollectionForm({ collection }: { collection: CollectionR
                                     </div>
                                     <div className="col-lg-6">
                                         <div className="mb-3">
-                                            <label className="form-label">Name (Arabic)</label>
+                                            <label className="form-label">{t('admin.nameArabic')}</label>
                                             <input
                                                 className="form-control"
                                                 dir="rtl"
@@ -146,7 +148,7 @@ export default function CollectionForm({ collection }: { collection: CollectionR
                                     </div>
                                     <div className="col-lg-6">
                                         <div className="mb-3">
-                                            <label className="form-label">Slug (auto-generated if blank)</label>
+                                            <label className="form-label">{t('admin.slugAutoGeneratedIfBlank')}</label>
                                             <input
                                                 className="form-control"
                                                 value={data.slug}
@@ -156,7 +158,7 @@ export default function CollectionForm({ collection }: { collection: CollectionR
                                     </div>
                                     <div className="col-lg-12">
                                         <div className="mb-0">
-                                            <label className="form-label">Description (English)</label>
+                                            <label className="form-label">{t('admin.descriptionEnglish')}</label>
                                             <ReactQuill
                                                 theme="snow"
                                                 value={data.description.en}
@@ -168,7 +170,7 @@ export default function CollectionForm({ collection }: { collection: CollectionR
                             </div>
                             <div className="card-footer border-top text-end">
                                 <button type="submit" className="btn btn-primary" disabled={processing}>
-                                    Save Collection
+                                    {t('admin.saveCollection')}
                                 </button>
                             </div>
                         </div>

@@ -4,6 +4,7 @@ import RowActions from '../../Components/RowActions';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
 import type { PaginatedData } from '../../types';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface PromotionRecord {
     id: number;
@@ -18,28 +19,29 @@ interface PromotionRecord {
 // Ported from Admin Template/coupons-list.html's table conventions —
 // the closest domain match for a discount-campaign list.
 export default function PromotionsIndex({ promotions }: { promotions: PaginatedData<PromotionRecord> }) {
+    const { t } = useTranslation();
     return (
-        <AdminLayout title="Promotions">
-            <Head title="Promotions" />
+        <AdminLayout title={t('admin.promotions')}>
+            <Head title={t('admin.promotions')} />
             <div className="row">
                 <div className="col-xl-12">
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center gap-1">
-                            <h4 className="card-title flex-grow-1">All Promotions</h4>
+                            <h4 className="card-title flex-grow-1">{t('admin.allPromotions')}</h4>
                             <Link href={route('admin.promotions.create')} className="btn btn-sm btn-primary">
-                                Add Promotion
+                                {t('admin.addPromotion')}
                             </Link>
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-hover table-centered">
                                 <thead className="bg-light-subtle">
                                     <tr>
-                                        <th>Name</th>
-                                        <th>Type</th>
-                                        <th>Discount</th>
-                                        <th>Used</th>
-                                        <th>Status</th>
-                                        <th>Action</th>
+                                        <th>{t('admin.name')}</th>
+                                        <th>{t('admin.type')}</th>
+                                        <th>{t('admin.discount')}</th>
+                                        <th>{t('admin.used')}</th>
+                                        <th>{t('admin.status')}</th>
+                                        <th>{t('admin.action')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -63,7 +65,7 @@ export default function PromotionsIndex({ promotions }: { promotions: PaginatedD
                                     {promotions.data.length === 0 && (
                                         <tr>
                                             <td colSpan={6} className="text-center text-muted py-4">
-                                                No promotions yet.
+                                                {t('admin.noPromotionsYet')}
                                             </td>
                                         </tr>
                                     )}

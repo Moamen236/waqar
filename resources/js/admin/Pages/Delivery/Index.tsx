@@ -5,6 +5,7 @@ import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { confirmAction } from '../../lib/confirm';
 import type { OrderSummary, PaginatedData } from '../../types';
+import { useTranslation } from '../../lib/useTranslation';
 
 interface Assignee {
     id: number;
@@ -22,6 +23,7 @@ export default function DeliveryIndex({
     representatives: Assignee[];
     shippingCompanies: Assignee[];
 }) {
+    const { t } = useTranslation();
     const [choice, setChoice] = useState<Record<number, string>>({});
 
     async function assign(orderId: number) {
@@ -33,22 +35,22 @@ export default function DeliveryIndex({
     }
 
     return (
-        <AdminLayout title="Delivery Assignment Board">
-            <Head title="Delivery" />
+        <AdminLayout title={t('admin.deliveryAssignmentBoard')}>
+            <Head title={t('admin.delivery')} />
 
             <div className="row">
                 <div className="col-xl-7">
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">Ready to Assign (Confirmed)</h4>
+                            <h4 className="card-title">{t('admin.readyToAssignConfirmed')}</h4>
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-centered">
                                 <thead className="bg-light-subtle">
                                     <tr>
-                                        <th>Order #</th>
-                                        <th>Customer</th>
-                                        <th>Assign To</th>
+                                        <th>{t('admin.order')}</th>
+                                        <th>{t('admin.customer')}</th>
+                                        <th>{t('admin.assignTo')}</th>
                                         <th />
                                     </tr>
                                 </thead>
@@ -65,7 +67,7 @@ export default function DeliveryIndex({
                                                         setChoice({ ...choice, [order.id]: e.target.value })
                                                     }
                                                 >
-                                                    <option value="">Select…</option>
+                                                    <option value="">{t('admin.select')}</option>
                                                     <optgroup label="Representatives">
                                                         {representatives.map((rep) => (
                                                             <option
@@ -95,7 +97,7 @@ export default function DeliveryIndex({
                                                     disabled={!choice[order.id]}
                                                     onClick={() => assign(order.id)}
                                                 >
-                                                    Assign
+                                                    {t('admin.assign')}
                                                 </button>
                                             </td>
                                         </tr>
@@ -103,7 +105,7 @@ export default function DeliveryIndex({
                                     {ready.data.length === 0 && (
                                         <tr>
                                             <td colSpan={4} className="text-center text-muted py-4">
-                                                Nothing ready to assign.
+                                                {t('admin.nothingReadyToAssign')}
                                             </td>
                                         </tr>
                                     )}
@@ -121,15 +123,15 @@ export default function DeliveryIndex({
                 <div className="col-xl-5">
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">Out Today</h4>
+                            <h4 className="card-title">{t('admin.outToday')}</h4>
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-centered">
                                 <thead className="bg-light-subtle">
                                     <tr>
-                                        <th>Order #</th>
-                                        <th>Status</th>
-                                        <th>Assigned To</th>
+                                        <th>{t('admin.order')}</th>
+                                        <th>{t('admin.status')}</th>
+                                        <th>{t('admin.assignedTo')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -149,7 +151,7 @@ export default function DeliveryIndex({
                                     {active.data.length === 0 && (
                                         <tr>
                                             <td colSpan={3} className="text-center text-muted py-4">
-                                                Nothing out for delivery.
+                                                {t('admin.nothingOutForDelivery')}
                                             </td>
                                         </tr>
                                     )}
