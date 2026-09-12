@@ -90,7 +90,7 @@ export default function AccountAddresses({
                 <div className="container">
                     <div className="content-main lg:px-[60px] md:px-4 flex gap-y-8 max-md:flex-col w-full">
                         <AccountNav active="addresses" />
-                        <div className="right list-filter md:w-2/3 w-full pl-2.5">
+                        <div className="right list-filter md:w-2/3 w-full ps-2.5">
                             <div className="tab_address text-content w-full p-7 border border-line rounded-xl">
                                 <strong className="heading6">Saved addresses</strong>
                                 <div className="grid gap-4 mt-4">
@@ -221,7 +221,7 @@ export default function AccountAddresses({
                                                 />
                                                 <i className="ph-fill ph-check-square icon-checkbox text-2xl"></i>
                                             </div>
-                                            <label htmlFor="is_default" className="text-title pl-2 cursor-pointer">
+                                            <label htmlFor="is_default" className="text-title ps-2 cursor-pointer">
                                                 Make this my default address
                                             </label>
                                         </div>

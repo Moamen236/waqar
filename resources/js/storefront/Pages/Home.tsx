@@ -48,7 +48,7 @@ export default function Home({
                                     Shop Now
                                 </Link>
                             </div>
-                            <div className="sub-img absolute sm:w-1/2 w-3/5 2xl:-right-[60px] -right-[16px] bottom-0">
+                            <div className="sub-img absolute sm:w-1/2 w-3/5 2xl:-end-[60px] -end-[16px] bottom-0">
                                 <img src="/storefront/images/generated/hero.svg" alt="" />
                             </div>
                         </div>
@@ -146,7 +146,7 @@ export default function Home({
                             alt="Best sellers"
                         />
                     </div>
-                    <div className="banner-content absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center">
+                    <div className="banner-content absolute top-0 start-0 w-full h-full flex flex-col items-center justify-center">
                         <div className="heading2 text-white">Best Sellers</div>
                         <div className="text-button text-white relative inline-block pb-1 border-b-2 border-white duration-500 mt-2">
                             Shop Now
@@ -164,7 +164,7 @@ export default function Home({
                             alt="On sale"
                         />
                     </div>
-                    <div className="banner-content absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center">
+                    <div className="banner-content absolute top-0 start-0 w-full h-full flex flex-col items-center justify-center">
                         <div className="heading2 text-white">On Sale</div>
                         <div className="text-button text-white relative inline-block pb-1 border-b-2 border-white duration-500 mt-2">
                             Shop Now

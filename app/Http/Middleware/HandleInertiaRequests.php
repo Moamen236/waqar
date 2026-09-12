@@ -52,6 +52,20 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
+            // The URL is the source of truth for language (Q20); both
+            // React apps read these rather than guessing from the
+            // browser, so a shared /en/... link renders English for
+            // everyone regardless of their own preference.
+            'locale' => [
+                'current' => app()->getLocale(),
+                'direction' => in_array(app()->getLocale(), ['ar'], true) ? 'rtl' : 'ltr',
+                'supported' => SetLocale::SUPPORTED,
+                // Pre-built sibling URLs for the switcher: the same page
+                // under each other locale, path and query preserved, so
+                // switching language never drops the visitor on the
+                // homepage.
+                'alternates' => $this->alternates($request),
+            ],
             'auth' => [
                 // The storefront shell needs the signed-in customer on
                 // every page (header account menu, wishlist/cart counts)
@@ -98,6 +112,32 @@ class HandleInertiaRequests extends Middleware
                 'nav' => fn () => $this->navigation(),
             ],
         ];
+    }
+
+    /**
+     * The current URL under every supported locale.
+     *
+     * Built by swapping the first path segment rather than by re-routing,
+     * which keeps query strings (shop filters, search terms, pagination)
+     * intact — switching language mid-search should keep the search.
+     *
+     * @return array<string, string>
+     */
+    private function alternates(Request $request): array
+    {
+        $segments = explode('/', trim($request->getPathInfo(), '/'));
+
+        return collect(SetLocale::SUPPORTED)
+            ->mapWithKeys(function (string $locale) use ($request, $segments) {
+                $swapped = $segments;
+                $swapped[0] = $locale;
+
+                $path = '/'.implode('/', array_filter($swapped, fn ($segment) => $segment !== ''));
+                $query = $request->getQueryString();
+
+                return [$locale => $path.($query !== null ? '?'.$query : '')];
+            })
+            ->all();
     }
 
     /**

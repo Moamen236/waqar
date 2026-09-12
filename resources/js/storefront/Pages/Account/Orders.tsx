@@ -43,7 +43,7 @@ export default function AccountOrders({ orders }: { orders: OrderCard[] }) {
                 <div className="container">
                     <div className="content-main lg:px-[60px] md:px-4 flex gap-y-8 max-md:flex-col w-full">
                         <AccountNav active="orders" />
-                        <div className="right list-filter md:w-2/3 w-full pl-2.5">
+                        <div className="right list-filter md:w-2/3 w-full ps-2.5">
                             <div className="tab_order text-content overflow-hidden w-full p-7 border border-line rounded-xl">
                                 <h6 className="heading6">Your Orders</h6>
                                 <div className="w-full overflow-x-auto">
@@ -129,7 +129,7 @@ export default function AccountOrders({ orders }: { orders: OrderCard[] }) {
                                                         Cancel Order
                                                     </button>
                                                 )}
-                                                <div className="ml-auto text-title">{price(order.total)}</div>
+                                                <div className="ms-auto text-title">{price(order.total)}</div>
                                             </div>
                                         </div>
                                     ))}

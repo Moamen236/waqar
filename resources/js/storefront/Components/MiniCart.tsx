@@ -44,7 +44,7 @@ export default function MiniCart({ open, onClose }: { open: boolean; onClose: ()
                     <div className="heading px-6 pb-3 flex items-center justify-between relative">
                         <div className="heading5">Shopping Cart</div>
                         <div
-                            className="close-btn absolute right-6 top-0 w-6 h-6 rounded-full bg-surface flex items-center justify-center duration-300 cursor-pointer hover:bg-black hover:text-white"
+                            className="close-btn absolute end-6 top-0 w-6 h-6 rounded-full bg-surface flex items-center justify-center duration-300 cursor-pointer hover:bg-black hover:text-white"
                             onClick={onClose}
                         >
                             <i className="ph ph-x text-sm"></i>
@@ -93,7 +93,7 @@ export default function MiniCart({ open, onClose }: { open: boolean; onClose: ()
                             </div>
                         ))}
                     </div>
-                    <div className="footer-modal bg-white absolute bottom-0 left-0 w-full">
+                    <div className="footer-modal bg-white absolute bottom-0 start-0 w-full">
                         <div className="flex items-center justify-between pt-6 px-6">
                             <div className="heading5">Subtotal</div>
                             <div className="heading5 total-cart">{price(cart?.subtotal ?? 0)}</div>

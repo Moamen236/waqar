@@ -39,7 +39,7 @@ export default function OrderTrackingIndex({
             <div className="order-tracking md:py-20 py-10">
                 <div className="container">
                     <div className="content-main flex gap-y-8 max-md:flex-col">
-                        <div className="left md:w-1/2 w-full lg:pr-[60px] md:pr-[40px] md:border-r border-line">
+                        <div className="left md:w-1/2 w-full lg:pe-[60px] md:pe-[40px] md:border-r border-line">
                             <div className="heading4">Order Tracking</div>
                             <div className="mt-2">
                                 Enter your order number and the email address the order was placed with. Both are on
@@ -85,7 +85,7 @@ export default function OrderTrackingIndex({
                                 </div>
                             </form>
                         </div>
-                        <div className="right md:w-1/2 w-full lg:pl-[60px] md:pl-[40px] flex items-center">
+                        <div className="right md:w-1/2 w-full lg:ps-[60px] md:ps-[40px] flex items-center">
                             <div className="text-content">
                                 <div className="heading4">Have an account?</div>
                                 <div className="mt-2 text-secondary">

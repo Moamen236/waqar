@@ -75,7 +75,7 @@ export default function Faqs() {
                                 ))}
                             </div>
                         </div>
-                        <div className="right xl:w-3/4 xl:pl-20">
+                        <div className="right xl:w-3/4 xl:ps-20">
                             {groups.map((group) => (
                                 <div key={group.title} className="tab-question mb-10">
                                     <div className="heading5">{group.title}</div>

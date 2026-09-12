@@ -84,7 +84,7 @@ export default function CartIndex({
             <div className="cart-block md:py-20 py-10">
                 <div className="container">
                     <div className="content-main flex justify-between max-xl:flex-col gap-y-8">
-                        <div className="xl:w-2/3 xl:pr-3 w-full">
+                        <div className="xl:w-2/3 xl:pe-3 w-full">
                             <div className="list-product w-full sm:mt-7 mt-5">
                                 <div className="w-full">
                                     <div className="heading bg-surface bora-4 pt-4 pb-4">
@@ -210,12 +210,12 @@ export default function CartIndex({
                                         value={code}
                                         onChange={(event) => setCode(event.target.value)}
                                         placeholder="Add voucher discount"
-                                        className="w-full h-full bg-surface pl-4 pr-14 rounded-lg border border-line"
+                                        className="w-full h-full bg-surface ps-4 pe-14 rounded-lg border border-line"
                                         required
                                     />
                                     <button
                                         type="submit"
-                                        className="button-main absolute top-1 bottom-1 right-1 px-5 rounded-lg flex items-center justify-center"
+                                        className="button-main absolute top-1 bottom-1 end-1 px-5 rounded-lg flex items-center justify-center"
                                     >
                                         Apply Code
                                     </button>
@@ -267,7 +267,7 @@ export default function CartIndex({
                             )}
                         </div>
 
-                        <div className="xl:w-1/3 xl:pl-12 w-full">
+                        <div className="xl:w-1/3 xl:ps-12 w-full">
                             <div className="checkout-block bg-surface p-6 rounded-2xl">
                                 <div className="heading5">Order Summary</div>
                                 <div className="total-block py-5 flex justify-between border-b border-line">
@@ -280,7 +280,7 @@ export default function CartIndex({
                                         {view.coupon && (
                                             <button
                                                 type="button"
-                                                className="caption1 text-red underline ml-2"
+                                                className="caption1 text-red underline ms-2"
                                                 onClick={() =>
                                                     router.delete(route('cart.coupon.remove'), { preserveScroll: true })
                                                 }

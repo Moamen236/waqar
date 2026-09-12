@@ -1,3 +1,5 @@
+import type { LocaleProps } from '../lib/i18n';
+
 /**
  * Shared prop shapes for the storefront Inertia pages. These mirror what
  * App\Support\ProductPresenter and the Store\* controllers actually send
@@ -126,6 +128,8 @@ export interface NavCategory {
 
 export interface SharedProps {
     [key: string]: unknown;
+    /** Driven by the {locale} URL segment, never the browser (Q20). */
+    locale: LocaleProps;
     auth: { customer: { id: number; name: string; email: string } | null };
     flash: { success?: string | null; error?: string | null };
     storefront: {

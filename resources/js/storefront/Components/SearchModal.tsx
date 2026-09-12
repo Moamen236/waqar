@@ -55,14 +55,14 @@ export default function SearchModal({ open, onClose }: { open: boolean; onClose:
             >
                 <form className="form-search relative w-full" onSubmit={submit}>
                     <button type="submit" aria-label="Search">
-                        <i className="ph ph-magnifying-glass absolute heading5 right-6 top-1/2 -translate-y-1/2 cursor-pointer"></i>
+                        <i className="ph ph-magnifying-glass absolute heading5 end-6 top-1/2 -translate-y-1/2 cursor-pointer"></i>
                     </button>
                     <input
                         type="text"
                         value={term}
                         onChange={(event) => setTerm(event.target.value)}
                         placeholder="Searching..."
-                        className="text-button-lg h-14 rounded-2xl border border-line w-full pl-6 pr-12"
+                        className="text-button-lg h-14 rounded-2xl border border-line w-full ps-6 pe-12"
                     />
                 </form>
                 {visible.length > 0 && (

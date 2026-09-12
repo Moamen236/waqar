@@ -22,8 +22,30 @@
  * fragile to rewrite (unlike the admin's Larkon bundle). The SCSS
  * *source* is still dropped — there is no sass step in the pipeline
  * (roadmap Phase 5 / Section 23). */
+/* Arabic typeface. Instrument Sans — the theme's own family, imported by
+ * theme.css — carries no Arabic glyphs, so Arabic rendered as tofu boxes
+ * until this was added (caught by the RTL screenshot pass, not by any
+ * build check). Cairo is listed *after* Instrument Sans in --font-sans
+ * below rather than swapped in per-locale: font fallback is per-glyph, so
+ * Latin keeps Instrument Sans and Arabic picks up Cairo automatically, in
+ * either locale and even in a sentence mixing both.
+ *
+ * Vendored rather than pulled from Google at runtime — the same treatment
+ * Phosphor and icomoon get, and necessary besides: an external
+ * `@import url(...)` written here is silently dropped by the Tailwind/Vite
+ * CSS pipeline. See tools/fetch-arabic-font.sh. */
+@import "./fonts/cairo.css";
+
 @import "./anvogue/icomoon.css" layer(anvogue);
 @import "./anvogue/theme.css" layer(anvogue);
+
+/* Anvogue ships no RTL companion sheet (unlike Larkon's app-rtl.min.css on
+ * the admin side), so this one is generated from theme.css by
+ * tools/build-rtl-css.py and committed — Section 16 requires a real
+ * [dir=rtl] pass, not an assumption that the direction attribute is
+ * enough. Same layer, loaded after, and every rule is scoped under
+ * [dir="rtl"] so it outranks its LTR counterpart on specificity. */
+@import "./anvogue/theme-rtl.css" layer(anvogue);
 
 /* Phosphor Icons (`ph ph-*`), self-hosted rather than loaded from the
  * template's unpkg CDN script (assets/js/phosphor-icons.js). Vendored
@@ -55,7 +77,8 @@
     --color-surface2: rgba(255, 255, 255, 0.2);
 
     --font-sans:
-        "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        "Instrument Sans", "Cairo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+        sans-serif;
 }
 
 /* --- Tailwind v3 → v4 compatibility ------------------------------------
@@ -106,4 +129,17 @@
     .rounded-sm {
         border-radius: 0.125rem;
     }
+}
+
+/* theme.css sets `font-family: "Instrument Sans", sans-serif` directly on
+ * html/body, which would otherwise skip the Arabic face entirely no matter
+ * what --font-sans says.
+ *
+ * Deliberately unlayered: theme.css lives in the `anvogue` layer, which
+ * sits *after* `base`, so a @layer base rule here would lose to it.
+ * Unlayered CSS outranks every layer, which is exactly what this one
+ * declaration needs. */
+html,
+body {
+    font-family: var(--font-sans);
 }

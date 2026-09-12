@@ -96,7 +96,7 @@ export default function ProductShow({
             <div className="product-detail default">
                 <div className="featured-product underwear filter-product-img md:py-20 py-14">
                     <div className="container flex justify-between gap-y-6 flex-wrap">
-                        <div className="list-img md:w-1/2 md:pr-[45px] w-full flex-shrink-0">
+                        <div className="list-img md:w-1/2 md:pe-[45px] w-full flex-shrink-0">
                             <div className="sticky top-24">
                                 <div className="rounded-2xl overflow-hidden bg-surface">
                                     <img
@@ -128,7 +128,7 @@ export default function ProductShow({
                                 )}
                             </div>
                         </div>
-                        <div className="product-item product-infor md:w-1/2 w-full lg:pl-[15px] md:pl-2">
+                        <div className="product-item product-infor md:w-1/2 w-full lg:ps-[15px] md:ps-2">
                             <div className="flex justify-between">
                                 <div>
                                     <div className="product-category caption2 text-secondary font-semibold uppercase">
@@ -461,8 +461,8 @@ export default function ProductShow({
                     <table className="w-full mt-5">
                         <thead className="border-b border-line">
                             <tr>
-                                <th className="pb-3 text-left text-sm font-bold uppercase text-secondary">Size</th>
-                                <th className="pb-3 text-left text-sm font-bold uppercase text-secondary">
+                                <th className="pb-3 text-start text-sm font-bold uppercase text-secondary">Size</th>
+                                <th className="pb-3 text-start text-sm font-bold uppercase text-secondary">
                                     Weight range
                                 </th>
                             </tr>

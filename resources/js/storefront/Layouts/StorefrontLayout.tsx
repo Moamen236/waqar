@@ -1,7 +1,9 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useState, type ReactNode } from 'react';
+import LocaleSwitcher from '../Components/LocaleSwitcher';
 import MiniCart from '../Components/MiniCart';
 import SearchModal from '../Components/SearchModal';
+import { useTranslation } from '../lib/useTranslation';
 import type { SharedProps } from '../types';
 
 /**
@@ -16,9 +18,10 @@ import type { SharedProps } from '../types';
  * over:
  *  - the currency switcher (USD/EUR/GBP) is removed entirely — single
  *    currency, EGP (Q11);
- *  - the cosmetic English/Espana/France language switcher is removed;
- *    real ar/en switching is Phase 6, and adding a fake one now would
- *    just have to be torn out again;
+ *  - the cosmetic English/Espana/France language switcher is replaced by
+ *    the real Arabic/English one (Section 16, Q11) — it navigates to the
+ *    sibling URL under the other locale prefix rather than re-rendering
+ *    the same URL, so every page stays shareable per language (Q20);
  *  - the Demo / Features / Blog / Store-List mega-menu columns are gone
  *    — the menu is the real category tree, and there is no blog or CMS
  *    module in this system;
@@ -37,6 +40,7 @@ export default function StorefrontLayout({
     headerStyle?: 'default' | 'transparent';
 }) {
     const { auth, storefront, flash } = usePage<SharedProps>().props;
+    const { t } = useTranslation();
     const [mobileMenu, setMobileMenu] = useState(false);
     const [openGroup, setOpenGroup] = useState<string | null>(null);
     const [searchOpen, setSearchOpen] = useState(false);
@@ -70,12 +74,13 @@ export default function StorefrontLayout({
                 <div className="container mx-auto h-full">
                     <div className="top-nav-main flex justify-between max-md:justify-center h-full">
                         <div className="left-content flex items-center gap-5 max-md:hidden">
+                            <LocaleSwitcher />
                             <Link href={route('order-tracking.index')} className="caption2 text-white hover:underline">
-                                Track your order
+                                {t('nav.trackOrder')}
                             </Link>
                         </div>
                         <div className="text-center text-button-uppercase text-white flex items-center">
-                            Cash on delivery on every order
+                            {t('nav.codBanner')}
                         </div>
                         <div className="right-content flex items-center gap-5 max-md:hidden">
                             <a href="https://www.facebook.com/" target="_blank" rel="noreferrer">
@@ -96,7 +101,7 @@ export default function StorefrontLayout({
                 <div
                     className={`header-menu style-one w-full md:h-[74px] h-[56px] ${
                         headerStyle === 'transparent'
-                            ? 'absolute top-0 left-0 right-0 bg-transparent'
+                            ? 'absolute top-0 start-0 end-0 bg-transparent'
                             : 'relative bg-white border-b border-line'
                     }`}
                 >
@@ -122,7 +127,7 @@ export default function StorefrontLayout({
                                                 href={route('shop.index')}
                                                 className="text-button-uppercase duration-300 h-full flex items-center justify-center"
                                             >
-                                                Shop
+                                                {t('nav.shop')}
                                             </Link>
                                         </li>
                                         {categories.map((category) => (
@@ -137,7 +142,7 @@ export default function StorefrontLayout({
                                                     )}
                                                 </Link>
                                                 {category.children.length > 0 && (
-                                                    <div className="sub-menu py-3 px-5 -left-10 w-max absolute grid gap-5 bg-white rounded-b-xl">
+                                                    <div className="sub-menu py-3 px-5 -start-10 w-max absolute grid gap-5 bg-white rounded-b-xl">
                                                         <ul>
                                                             {category.children.map((child) => (
                                                                 <li key={child.slug}>
@@ -157,10 +162,10 @@ export default function StorefrontLayout({
                                         {collections.length > 0 && (
                                             <li className="h-full relative">
                                                 <span className="text-button-uppercase duration-300 h-full flex items-center justify-center gap-1 cursor-pointer">
-                                                    Collections
+                                                    {t('nav.collections')}
                                                     <i className="ph ph-caret-down text-xs"></i>
                                                 </span>
-                                                <div className="sub-menu py-3 px-5 -left-10 w-max absolute grid gap-5 bg-white rounded-b-xl">
+                                                <div className="sub-menu py-3 px-5 -start-10 w-max absolute grid gap-5 bg-white rounded-b-xl">
                                                     <ul>
                                                         {collections.map((collection) => (
                                                             <li key={collection.slug}>
@@ -181,7 +186,7 @@ export default function StorefrontLayout({
                                                 href={route('pages.about')}
                                                 className="text-button-uppercase duration-300 h-full flex items-center justify-center"
                                             >
-                                                About
+                                                {t('nav.about')}
                                             </Link>
                                         </li>
                                         <li className="h-full relative">
@@ -189,7 +194,7 @@ export default function StorefrontLayout({
                                                 href={route('pages.contact')}
                                                 className="text-button-uppercase duration-300 h-full flex items-center justify-center"
                                             >
-                                                Contact
+                                                {t('nav.contact')}
                                             </Link>
                                         </li>
                                     </ul>
@@ -201,7 +206,7 @@ export default function StorefrontLayout({
                                     onClick={() => setSearchOpen(true)}
                                 >
                                     <i className="ph-bold ph-magnifying-glass text-2xl"></i>
-                                    <div className="line absolute bg-line w-px h-6 -right-6"></div>
+                                    <div className="line absolute bg-line w-px h-6 -end-6"></div>
                                 </div>
                                 <div className="list-action flex items-center gap-4">
                                     <div
@@ -210,21 +215,21 @@ export default function StorefrontLayout({
                                     >
                                         <i className="ph-bold ph-user text-2xl"></i>
                                         {accountOpen && (
-                                            <div className="login-popup absolute top-[42px] right-0 w-[320px] p-7 rounded-xl bg-white box-shadow-sm z-10 block opacity-100 visible">
+                                            <div className="login-popup absolute top-[42px] end-0 w-[320px] p-7 rounded-xl bg-white box-shadow-sm z-10 block opacity-100 visible">
                                                 {auth.customer ? (
                                                     <>
-                                                        <div className="text-button pb-3">Hi, {auth.customer.name}</div>
+                                                        <div className="text-button pb-3">{t('nav.greeting', { name: auth.customer.name })}</div>
                                                         <Link
                                                             href={route('account.dashboard')}
                                                             className="button-main w-full text-center"
                                                         >
-                                                            My Account
+                                                            {t('nav.myAccount')}
                                                         </Link>
                                                         <Link
                                                             href={route('account.orders')}
                                                             className="button-main bg-white text-black border border-black w-full text-center mt-3"
                                                         >
-                                                            My Orders
+                                                            {t('nav.myOrders')}
                                                         </Link>
                                                         <div className="bottom mt-4 pt-4 border-t border-line"></div>
                                                         <button
@@ -232,7 +237,7 @@ export default function StorefrontLayout({
                                                             className="body1 hover:underline"
                                                             onClick={() => router.post(route('logout'))}
                                                         >
-                                                            Logout
+                                                            {t('common.logout')}
                                                         </button>
                                                     </>
                                                 ) : (
@@ -241,22 +246,22 @@ export default function StorefrontLayout({
                                                             href={route('login')}
                                                             className="button-main w-full text-center"
                                                         >
-                                                            Login
+                                                            {t('auth.login')}
                                                         </Link>
                                                         <div className="text-secondary text-center mt-3 pb-4">
-                                                            Don&apos;t have an account?
+                                                            {t('auth.noAccount')}
                                                             <Link
                                                                 href={route('register')}
-                                                                className="text-black pl-1 hover:underline"
+                                                                className="text-black ps-1 hover:underline"
                                                             >
-                                                                Register
+                                                                {t('auth.register')}
                                                             </Link>
                                                         </div>
                                                         <Link
                                                             href={route('order-tracking.index')}
                                                             className="button-main bg-white text-black border border-black w-full text-center"
                                                         >
-                                                            Track an order
+                                                            {t('nav.trackAnOrder')}
                                                         </Link>
                                                     </>
                                                 )}
@@ -268,7 +273,7 @@ export default function StorefrontLayout({
                                         className="max-md:hidden wishlist-icon flex items-center relative cursor-pointer"
                                     >
                                         <i className="ph-bold ph-heart text-2xl"></i>
-                                        <span className="quantity wishlist-quantity absolute -right-1.5 -top-1.5 text-xs text-white bg-black w-4 h-4 flex items-center justify-center rounded-full">
+                                        <span className="quantity wishlist-quantity absolute -end-1.5 -top-1.5 text-xs text-white bg-black w-4 h-4 flex items-center justify-center rounded-full">
                                             {storefront?.wishlistCount ?? 0}
                                         </span>
                                     </Link>
@@ -277,7 +282,7 @@ export default function StorefrontLayout({
                                         onClick={() => setCartOpen(true)}
                                     >
                                         <i className="ph-bold ph-handbag text-2xl"></i>
-                                        <span className="quantity cart-quantity absolute -right-1.5 -top-1.5 text-xs text-white bg-black w-4 h-4 flex items-center justify-center rounded-full">
+                                        <span className="quantity cart-quantity absolute -end-1.5 -top-1.5 text-xs text-white bg-black w-4 h-4 flex items-center justify-center rounded-full">
                                             {storefront?.cartCount ?? 0}
                                         </span>
                                     </div>
@@ -293,7 +298,7 @@ export default function StorefrontLayout({
                             <div className="menu-main h-full overflow-hidden">
                                 <div className="heading py-2 relative flex items-center justify-center">
                                     <div
-                                        className="close-menu-mobile-btn absolute left-0 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-surface flex items-center justify-center"
+                                        className="close-menu-mobile-btn absolute start-0 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-surface flex items-center justify-center"
                                         onClick={() => setMobileMenu(false)}
                                     >
                                         <i className="ph ph-x text-sm"></i>
@@ -310,12 +315,12 @@ export default function StorefrontLayout({
                                         router.get(route('search.index'), { q: String(term ?? '') });
                                     }}
                                 >
-                                    <i className="ph ph-magnifying-glass text-xl absolute left-3 top-1/2 -translate-y-1/2 cursor-pointer"></i>
+                                    <i className="ph ph-magnifying-glass text-xl absolute start-3 top-1/2 -translate-y-1/2 cursor-pointer"></i>
                                     <input
                                         type="text"
                                         name="q"
-                                        placeholder="What are you looking for?"
-                                        className="h-12 rounded-lg border border-line text-sm w-full pl-10 pr-4"
+                                        placeholder={t('nav.searchPlaceholder')}
+                                        className="h-12 rounded-lg border border-line text-sm w-full ps-10 pe-4"
                                     />
                                 </form>
                                 <div className="list-nav mt-6">
@@ -325,7 +330,7 @@ export default function StorefrontLayout({
                                                 href={route('shop.index')}
                                                 className="text-xl font-semibold flex items-center justify-between"
                                             >
-                                                Shop
+                                                {t('nav.shop')}
                                             </Link>
                                         </li>
                                         {categories.map((category) => (
@@ -340,7 +345,7 @@ export default function StorefrontLayout({
                                                     }
                                                 >
                                                     {category.name}
-                                                    <span className="text-right">
+                                                    <span className="text-end">
                                                         <i className="ph ph-caret-right text-xl"></i>
                                                     </span>
                                                 </button>
@@ -361,7 +366,7 @@ export default function StorefrontLayout({
                                                                     href={route('shop.category', category.slug)}
                                                                     className="link text-secondary duration-300"
                                                                 >
-                                                                    All {category.name}
+                                                                    {t('nav.allOf', { name: category.name })}
                                                                 </Link>
                                                             </li>
                                                             {category.children.map((child) => (
@@ -384,7 +389,7 @@ export default function StorefrontLayout({
                                                 href={route('pages.about')}
                                                 className="text-xl font-semibold flex items-center justify-between mt-5"
                                             >
-                                                About Us
+                                                {t('nav.aboutUs')}
                                             </Link>
                                         </li>
                                         <li>
@@ -392,7 +397,7 @@ export default function StorefrontLayout({
                                                 href={route('pages.contact')}
                                                 className="text-xl font-semibold flex items-center justify-between mt-5"
                                             >
-                                                Contact Us
+                                                {t('nav.contactUs')}
                                             </Link>
                                         </li>
                                         <li>
@@ -400,7 +405,7 @@ export default function StorefrontLayout({
                                                 href={route('order-tracking.index')}
                                                 className="text-xl font-semibold flex items-center justify-between mt-5"
                                             >
-                                                Order Tracking
+                                                {t('nav.orderTracking')}
                                             </Link>
                                         </li>
                                     </ul>
@@ -410,28 +415,28 @@ export default function StorefrontLayout({
                     </div>
                 </div>
 
-                <div className="menu_bar fixed bg-white bottom-0 left-0 w-full h-[70px] sm:hidden z-[101]">
+                <div className="menu_bar fixed bg-white bottom-0 start-0 w-full h-[70px] sm:hidden z-[101]">
                     <div className="menu_bar-inner grid grid-cols-4 items-center h-full">
                         <Link href={route('home')} className="menu_bar-link flex flex-col items-center gap-1">
                             <span className="ph-bold ph-house text-2xl block"></span>
-                            <span className="menu_bar-title caption2 font-semibold">Home</span>
+                            <span className="menu_bar-title caption2 font-semibold">{t('nav.home')}</span>
                         </Link>
                         <Link href={route('shop.index')} className="menu_bar-link flex flex-col items-center gap-1">
                             <span className="ph-bold ph-list text-2xl block"></span>
-                            <span className="menu_bar-title caption2 font-semibold">Shop</span>
+                            <span className="menu_bar-title caption2 font-semibold">{t('nav.shop')}</span>
                         </Link>
                         <Link href={route('search.index')} className="menu_bar-link flex flex-col items-center gap-1">
                             <span className="ph-bold ph-magnifying-glass text-2xl block"></span>
-                            <span className="menu_bar-title caption2 font-semibold">Search</span>
+                            <span className="menu_bar-title caption2 font-semibold">{t('nav.search')}</span>
                         </Link>
                         <Link href={route('cart.index')} className="menu_bar-link flex flex-col items-center gap-1">
                             <div className="cart-icon relative">
                                 <span className="ph-bold ph-handbag text-2xl block"></span>
-                                <span className="quantity cart-quantity absolute -right-1.5 -top-1.5 text-xs text-white bg-black w-4 h-4 flex items-center justify-center rounded-full">
+                                <span className="quantity cart-quantity absolute -end-1.5 -top-1.5 text-xs text-white bg-black w-4 h-4 flex items-center justify-center rounded-full">
                                     {storefront?.cartCount ?? 0}
                                 </span>
                             </div>
-                            <span className="menu_bar-title caption2 font-semibold">Cart</span>
+                            <span className="menu_bar-title caption2 font-semibold">{t('nav.cart')}</span>
                         </Link>
                     </div>
                 </div>
@@ -455,54 +460,54 @@ export default function StorefrontLayout({
                 <div className="footer-main bg-surface">
                     <div className="container">
                         <div className="content-footer md:py-[60px] py-10 flex justify-between flex-wrap gap-y-8">
-                            <div className="company-infor basis-1/4 max-lg:basis-full pr-7">
+                            <div className="company-infor basis-1/4 max-lg:basis-full pe-7">
                                 <Link href={route('home')} className="logo inline-block">
                                     <div className="heading3 w-fit">WAQAR</div>
                                 </Link>
                                 <div className="flex gap-3 mt-3">
                                     <div className="flex flex-col">
-                                        <span className="text-button">Mail:</span>
-                                        <span className="text-button mt-3">Phone:</span>
-                                        <span className="text-button mt-3">Address:</span>
+                                        <span className="text-button">{t('footer.mail')}</span>
+                                        <span className="text-button mt-3">{t('footer.phone')}</span>
+                                        <span className="text-button mt-3">{t('footer.address')}</span>
                                     </div>
                                     <div className="flex flex-col">
                                         <span>support@waqar.test</span>
                                         <span className="mt-[14px]">+20 100 000 0000</span>
-                                        <span className="mt-3 pt-1">Cairo, Egypt</span>
+                                        <span className="mt-3 pt-1">{t('footer.city')}</span>
                                     </div>
                                 </div>
                             </div>
                             <div className="right-content flex flex-wrap gap-y-8 basis-3/4 max-lg:basis-full">
                                 <div className="list-nav flex justify-between basis-2/3 max-md:basis-full gap-4">
                                     <div className="item flex flex-col basis-1/3">
-                                        <div className="text-button-uppercase pb-3">Information</div>
+                                        <div className="text-button-uppercase pb-3">{t('footer.information')}</div>
                                         <Link
                                             className="caption1 has-line-before duration-300 w-fit"
                                             href={route('pages.contact')}
                                         >
-                                            Contact us
+                                            {t('footer.contactUs')}
                                         </Link>
                                         <Link
                                             className="caption1 has-line-before duration-300 w-fit pt-2"
                                             href={route('account.dashboard')}
                                         >
-                                            My Account
+                                            {t('nav.myAccount')}
                                         </Link>
                                         <Link
                                             className="caption1 has-line-before duration-300 w-fit pt-2"
                                             href={route('order-tracking.index')}
                                         >
-                                            Order Tracking
+                                            {t('nav.orderTracking')}
                                         </Link>
                                         <Link
                                             className="caption1 has-line-before duration-300 w-fit pt-2"
                                             href={route('pages.faqs')}
                                         >
-                                            FAQs
+                                            {t('footer.faqs')}
                                         </Link>
                                     </div>
                                     <div className="item flex flex-col basis-1/3">
-                                        <div className="text-button-uppercase pb-3">Quick Shop</div>
+                                        <div className="text-button-uppercase pb-3">{t('footer.quickShop')}</div>
                                         {categories.slice(0, 4).map((category) => (
                                             <Link
                                                 key={category.slug}
@@ -516,42 +521,41 @@ export default function StorefrontLayout({
                                             className="caption1 has-line-before duration-300 w-fit pt-2"
                                             href={route('shop.index')}
                                         >
-                                            All products
+                                            {t('footer.allProducts')}
                                         </Link>
                                     </div>
                                     <div className="item flex flex-col basis-1/3">
-                                        <div className="text-button-uppercase pb-3">Customer Services</div>
+                                        <div className="text-button-uppercase pb-3">{t('footer.customerServices')}</div>
                                         <Link
                                             className="caption1 has-line-before duration-300 w-fit"
                                             href={route('pages.faqs')}
                                         >
-                                            FAQs
+                                            {t('footer.faqs')}
                                         </Link>
                                         <Link
                                             className="caption1 has-line-before duration-300 w-fit pt-2"
                                             href={route('pages.faqs')}
                                         >
-                                            Shipping
+                                            {t('footer.shipping')}
                                         </Link>
                                         <Link
                                             className="caption1 has-line-before duration-300 w-fit pt-2"
                                             href={route('pages.faqs')}
                                         >
-                                            Returns &amp; Refunds
+                                            {t('footer.returns')}
                                         </Link>
                                         <Link
                                             className="caption1 has-line-before duration-300 w-fit pt-2"
                                             href={route('pages.about')}
                                         >
-                                            About us
+                                            {t('footer.aboutUs')}
                                         </Link>
                                     </div>
                                 </div>
-                                <div className="newsletter basis-1/3 pl-7 max-md:basis-full max-md:pl-0">
-                                    <div className="text-button-uppercase">Cash on delivery</div>
+                                <div className="newsletter basis-1/3 ps-7 max-md:basis-full max-md:ps-0">
+                                    <div className="text-button-uppercase">{t('footer.codTitle')}</div>
                                     <div className="caption1 mt-3">
-                                        Pay in cash when your order reaches your door — no card details are ever
-                                        collected.
+                                        {t('footer.codBody')}
                                     </div>
                                     <div className="list-social flex items-center gap-6 mt-4">
                                         <a href="https://www.facebook.com/" target="_blank" rel="noreferrer">
@@ -570,11 +574,11 @@ export default function StorefrontLayout({
                         <div className="footer-bottom py-3 flex items-center justify-between gap-5 max-lg:justify-center max-lg:flex-col border-t border-line">
                             <div className="left flex items-center gap-8">
                                 <div className="copyright caption1 text-secondary">
-                                    ©{new Date().getFullYear()} WAQAR. All Rights Reserved.
+                                    {t('footer.copyright', { year: new Date().getFullYear() })}
                                 </div>
                             </div>
                             <div className="right flex items-center gap-2">
-                                <div className="caption1 text-secondary">Payment: Cash on Delivery only</div>
+                                <div className="caption1 text-secondary">{t('footer.paymentNote')}</div>
                             </div>
                         </div>
                     </div>

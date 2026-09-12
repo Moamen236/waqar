@@ -11,7 +11,7 @@ export default function NotFound() {
                 <div className="container">
                     <div className="flex items-center justify-between max-sm:flex-col gap-y-8">
                         <img src="/storefront/images/generated/not-found.svg" alt="" className="sm:w-1/2 w-3/4" />
-                        <div className="text-content sm:w-1/2 w-full flex items-center justify-center sm:pl-10">
+                        <div className="text-content sm:w-1/2 w-full flex items-center justify-center sm:ps-10">
                             <div>
                                 <div className="lg:text-[140px] md:text-[80px] text-[42px] lg:leading-[152px] md:leading-[92px] leading-[52px] font-semibold">
                                     404

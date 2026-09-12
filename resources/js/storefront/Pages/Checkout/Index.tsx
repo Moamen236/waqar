@@ -118,7 +118,7 @@ export default function CheckoutIndex({
             <div className="checkout-block relative md:pt-10 pt-6">
                 <div className="content-main flex max-lg:flex-col-reverse justify-between">
                     <div className="left flex lg:justify-end w-full">
-                        <div className="lg:max-w-[716px] flex-shrink-0 w-full lg:pt-20 pt-12 lg:pr-[70px] pl-[16px] max-lg:pr-[16px]">
+                        <div className="lg:max-w-[716px] flex-shrink-0 w-full lg:pt-20 pt-12 lg:pe-[70px] ps-[16px] max-lg:pe-[16px]">
                             <form
                                 onSubmit={(event) => {
                                     event.preventDefault();
@@ -184,7 +184,7 @@ export default function CheckoutIndex({
                                                 <button
                                                     key={address.id}
                                                     type="button"
-                                                    className="item flex items-center justify-between gap-3 px-5 py-4 border border-line rounded-lg text-left hover:border-black duration-300"
+                                                    className="item flex items-center justify-between gap-3 px-5 py-4 border border-line rounded-lg text-start hover:border-black duration-300"
                                                     onClick={() => applySavedAddress(address)}
                                                 >
                                                     <span>
@@ -238,7 +238,7 @@ export default function CheckoutIndex({
                                                     </div>
                                                     <label
                                                         htmlFor="save_address"
-                                                        className="text-title pl-2 cursor-pointer"
+                                                        className="text-title ps-2 cursor-pointer"
                                                     >
                                                         Save this address to my account
                                                     </label>
@@ -290,7 +290,7 @@ export default function CheckoutIndex({
                     </div>
 
                     <div className="right justify-start flex-shrink-0 lg:w-[47%] bg-surface lg:py-20 py-12">
-                        <div className="lg:sticky lg:top-24 h-fit lg:max-w-[606px] w-full flex-shrink-0 lg:pl-[80px] pr-[16px] max-lg:pl-[16px]">
+                        <div className="lg:sticky lg:top-24 h-fit lg:max-w-[606px] w-full flex-shrink-0 lg:ps-[80px] pe-[16px] max-lg:ps-[16px]">
                             <div className="list_prd flex flex-col gap-7">
                                 {cart.items.map((item) => (
                                     <div key={item.id} className="item flex items-center justify-between gap-6">
@@ -301,7 +301,7 @@ export default function CheckoutIndex({
                                                     alt={item.name}
                                                     className="w-full h-full object-cover rounded-lg"
                                                 />
-                                                <span className="quantity flex items-center justify-center absolute -top-3 -right-3 w-7 h-7 rounded-full bg-black text-white">
+                                                <span className="quantity flex items-center justify-center absolute -top-3 -end-3 w-7 h-7 rounded-full bg-black text-white">
                                                     {item.quantity}
                                                 </span>
                                             </div>

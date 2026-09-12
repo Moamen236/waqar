@@ -43,11 +43,11 @@ export default function SearchIndex({
                                     value={value}
                                     onChange={(event) => setValue(event.target.value)}
                                     placeholder="Search..."
-                                    className="caption1 w-full h-full pl-4 md:pr-[150px] pr-32 rounded-xl border border-line"
+                                    className="caption1 w-full h-full ps-4 md:pe-[150px] pe-32 rounded-xl border border-line"
                                 />
                                 <button
                                     type="submit"
-                                    className="button-main absolute top-1 bottom-1 right-1 flex items-center justify-center"
+                                    className="button-main absolute top-1 bottom-1 end-1 flex items-center justify-center"
                                 >
                                     search
                                 </button>

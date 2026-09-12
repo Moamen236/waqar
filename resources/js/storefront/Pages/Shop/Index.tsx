@@ -138,7 +138,7 @@ export default function ShopIndex({
             <div className="shop-product breadcrumb1 lg:py-20 md:py-14 py-10">
                 <div className="container">
                     <div className="flex max-md:flex-wrap max-md:flex-col-reverse gap-y-8">
-                        <div className="sidebar lg:w-1/4 md:w-1/3 w-full md:pr-12">
+                        <div className="sidebar lg:w-1/4 md:w-1/3 w-full md:pe-12">
                             <div className="filter-type-block pb-8 border-b border-line">
                                 <div className="heading6">Products Type</div>
                                 <div className="list-type filter-type menu-tab mt-4">
@@ -286,7 +286,7 @@ export default function ShopIndex({
                                             </div>
                                             <label
                                                 htmlFor={`availability-${option.value}`}
-                                                className="pl-2 cursor-pointer"
+                                                className="ps-2 cursor-pointer"
                                             >
                                                 {option.label}
                                             </label>
@@ -296,7 +296,7 @@ export default function ShopIndex({
                             </div>
                         </div>
 
-                        <div className="list-product-block style-grid lg:w-3/4 md:w-2/3 w-full md:pl-3">
+                        <div className="list-product-block style-grid lg:w-3/4 md:w-2/3 w-full md:ps-3">
                             <div className="filter-heading flex items-center justify-between gap-5 flex-wrap">
                                 <div className="left flex has-line items-center flex-wrap gap-5">
                                     <div className="check-sale flex items-center gap-2 cursor-pointer">
@@ -321,7 +321,7 @@ export default function ShopIndex({
                                         <select
                                             id="select-filter"
                                             name="select-filter"
-                                            className="caption1 py-2 pl-3 md:pr-20 pr-10 rounded-lg border border-line"
+                                            className="caption1 py-2 ps-3 md:pe-20 pe-10 rounded-lg border border-line"
                                             value={filters.sort ?? ''}
                                             onChange={(event) => apply({ sort: event.target.value || null })}
                                         >
@@ -331,7 +331,7 @@ export default function ShopIndex({
                                             <option value="priceHighToLow">Price High To Low</option>
                                             <option value="priceLowToHigh">Price Low To High</option>
                                         </select>
-                                        <i className="ph ph-caret-down absolute top-1/2 -translate-y-1/2 md:right-4 right-2"></i>
+                                        <i className="ph ph-caret-down absolute top-1/2 -translate-y-1/2 md:end-4 end-2"></i>
                                     </div>
                                 </div>
                             </div>

@@ -29,7 +29,7 @@ export default function AccountNav({ active }: { active: string }) {
     const unread = storefront?.notificationCount ?? 0;
 
     return (
-        <div className="left md:w-1/3 w-full xl:pr-[3.125rem] lg:pr-[28px] md:pr-[16px]">
+        <div className="left md:w-1/3 w-full xl:pe-[3.125rem] lg:pe-[28px] md:pe-[16px]">
             <div className="user-infor bg-surface md:px-8 px-5 md:py-10 py-6 md:rounded-[20px] rounded-xl">
                 <div className="heading flex flex-col items-center justify-center">
                     <div className="avatar md:w-[140px] w-[120px] md:h-[140px] h-[120px] rounded-full bg-white flex items-center justify-center">
@@ -52,7 +52,7 @@ export default function AccountNav({ active }: { active: string }) {
                             <span className={`ph ${item.icon} text-xl`}></span>
                             <strong className="heading6">{item.label}</strong>
                             {item.key === 'notifications' && unread > 0 && (
-                                <span className="caption2 ml-auto bg-red text-white rounded-full px-2 py-0.5">
+                                <span className="caption2 ms-auto bg-red text-white rounded-full px-2 py-0.5">
                                     {unread}
                                 </span>
                             )}

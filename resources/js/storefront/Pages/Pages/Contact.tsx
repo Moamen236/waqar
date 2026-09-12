@@ -24,7 +24,7 @@ export default function Contact() {
             <div className="contact-us md:py-20 py-10">
                 <div className="container">
                     <div className="flex justify-between max-lg:flex-col gap-y-10">
-                        <div className="left lg:w-2/3 lg:pr-4">
+                        <div className="left lg:w-2/3 lg:pe-4">
                             <div className="heading3">Get in touch</div>
                             <div className="body1 text-secondary2 mt-3">
                                 Our Customer Service team handles orders, deliveries and returns.
@@ -107,7 +107,7 @@ export default function Contact() {
                                 </div>
                             </form>
                         </div>
-                        <div className="right lg:w-1/4 lg:pl-4">
+                        <div className="right lg:w-1/4 lg:ps-4">
                             <div className="item">
                                 <div className="heading4">Contact</div>
                                 <p className="mt-3">

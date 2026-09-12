@@ -39,21 +39,21 @@ export default function ProductCard({ product }: { product: ProductCardData }) {
             <Link href={route('product.show', product.slug)} className="product-main cursor-pointer block">
                 <div className="product-thumb bg-white relative overflow-hidden rounded-2xl">
                     {product.is_new && (
-                        <div className="product-tag text-button-uppercase bg-green px-3 py-0.5 inline-block rounded-full absolute top-3 left-3 z-[1]">
+                        <div className="product-tag text-button-uppercase bg-green px-3 py-0.5 inline-block rounded-full absolute top-3 start-3 z-[1]">
                             New
                         </div>
                     )}
                     {!product.is_new && product.sale_percent > 0 && (
-                        <div className="product-tag text-button-uppercase text-white bg-red px-3 py-0.5 inline-block rounded-full absolute top-3 left-3 z-[1]">
+                        <div className="product-tag text-button-uppercase text-white bg-red px-3 py-0.5 inline-block rounded-full absolute top-3 start-3 z-[1]">
                             Sale
                         </div>
                     )}
                     {!product.in_stock && (
-                        <div className="product-tag text-button-uppercase bg-surface px-3 py-0.5 inline-block rounded-full absolute top-3 left-3 z-[1]">
+                        <div className="product-tag text-button-uppercase bg-surface px-3 py-0.5 inline-block rounded-full absolute top-3 start-3 z-[1]">
                             Out of stock
                         </div>
                     )}
-                    <div className="list-action-right absolute top-3 right-3 max-lg:hidden">
+                    <div className="list-action-right absolute top-3 end-3 max-lg:hidden">
                         <div
                             className="add-wishlist-btn w-[32px] h-[32px] flex items-center justify-center rounded-full bg-white duration-300 relative"
                             onClick={toggleWishlist}

@@ -31,7 +31,7 @@ export default function AccountDashboard({
                 <div className="container">
                     <div className="content-main lg:px-[60px] md:px-4 flex gap-y-8 max-md:flex-col w-full">
                         <AccountNav active="dashboard" />
-                        <div className="right list-filter md:w-2/3 w-full pl-2.5">
+                        <div className="right list-filter md:w-2/3 w-full ps-2.5">
                             <div className="overview grid sm:grid-cols-3 gap-5">
                                 <div className="overview-item flex items-center justify-between p-5 border border-line rounded-lg box-shadow-xs">
                                     <div className="counter">
@@ -62,16 +62,16 @@ export default function AccountDashboard({
                                     <table className="w-full max-[1400px]:w-[700px] max-md:w-[700px]">
                                         <thead className="border-b border-line">
                                             <tr>
-                                                <th className="pb-3 text-left text-sm font-bold uppercase text-secondary whitespace-nowrap">
+                                                <th className="pb-3 text-start text-sm font-bold uppercase text-secondary whitespace-nowrap">
                                                     Order
                                                 </th>
-                                                <th className="pb-3 text-left text-sm font-bold uppercase text-secondary whitespace-nowrap">
+                                                <th className="pb-3 text-start text-sm font-bold uppercase text-secondary whitespace-nowrap">
                                                     Products
                                                 </th>
-                                                <th className="pb-3 text-left text-sm font-bold uppercase text-secondary whitespace-nowrap">
+                                                <th className="pb-3 text-start text-sm font-bold uppercase text-secondary whitespace-nowrap">
                                                     Pricing
                                                 </th>
-                                                <th className="pb-3 text-right text-sm font-bold uppercase text-secondary whitespace-nowrap">
+                                                <th className="pb-3 text-end text-sm font-bold uppercase text-secondary whitespace-nowrap">
                                                     Status
                                                 </th>
                                             </tr>
@@ -89,7 +89,7 @@ export default function AccountDashboard({
                                                     key={order.order_number}
                                                     className="item duration-300 border-b border-line"
                                                 >
-                                                    <th scope="row" className="py-3 text-left">
+                                                    <th scope="row" className="py-3 text-start">
                                                         <Link
                                                             href={route('account.orders.show', order.order_number)}
                                                             className="text-title"
@@ -108,7 +108,7 @@ export default function AccountDashboard({
                                                         </div>
                                                     </td>
                                                     <td className="py-3 price">{price(order.total)}</td>
-                                                    <td className="py-3 text-right">
+                                                    <td className="py-3 text-end">
                                                         <StatusTag status={order.status} />
                                                     </td>
                                                 </tr>

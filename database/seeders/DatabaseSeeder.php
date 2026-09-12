@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             WarehouseSeeder::class,
             ProductSeeder::class,
             ShippingRateSeeder::class,
+            StorefrontDemoSeeder::class,
         ]);
 
         $superAdmin = Employee::create([

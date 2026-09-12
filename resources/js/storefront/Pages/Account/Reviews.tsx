@@ -30,7 +30,7 @@ export default function AccountReviews({ reviews }: { reviews: ReviewRow[] }) {
                 <div className="container">
                     <div className="content-main lg:px-[60px] md:px-4 flex gap-y-8 max-md:flex-col w-full">
                         <AccountNav active="reviews" />
-                        <div className="right list-filter md:w-2/3 w-full pl-2.5">
+                        <div className="right list-filter md:w-2/3 w-full ps-2.5">
                             <div className="text-content w-full p-7 border border-line rounded-xl">
                                 <h6 className="heading6">Your reviews</h6>
                                 {reviews.length === 0 && (

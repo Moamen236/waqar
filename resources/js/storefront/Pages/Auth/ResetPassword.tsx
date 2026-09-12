@@ -22,7 +22,7 @@ export default function ResetPassword({ token, email }: { token: string; email: 
             <div className="forgot-pass md:py-20 py-10">
                 <div className="container">
                     <div className="content-main flex gap-y-8 max-md:flex-col">
-                        <div className="left md:w-1/2 w-full lg:pr-[60px] md:pr-[40px]">
+                        <div className="left md:w-1/2 w-full lg:pe-[60px] md:pe-[40px]">
                             <div className="heading4">Choose a new password</div>
                             <form
                                 className="md:mt-7 mt-4"

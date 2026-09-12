@@ -56,7 +56,7 @@ export default function AccountOrderShow({ order, timeline }: { order: OrderDeta
                 <div className="container">
                     <div className="content-main lg:px-[60px] md:px-4 flex gap-y-8 max-md:flex-col w-full">
                         <AccountNav active="orders" />
-                        <div className="right list-filter md:w-2/3 w-full pl-2.5">
+                        <div className="right list-filter md:w-2/3 w-full ps-2.5">
                             <div className="text-content w-full p-7 border border-line rounded-xl">
                                 <div className="flex flex-wrap items-center justify-between gap-3">
                                     <div>

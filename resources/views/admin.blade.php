@@ -5,9 +5,12 @@
      (copied from Admin Template/assets/, pruned of unused template demo
      images) rather than run through Vite — a precompiled vendor theme's
      internal relative asset paths are fragile to rebundle, so this mirrors
-     how the template ships it. Arabic-only for v1 staff UI (Q2); same
-     {locale} mechanism as storefront.blade.php will apply once Phase 6
-     lands (Larkon ships an app-rtl.min.css for that, not wired yet). --}}
+     how the template ships it. Arabic-only for v1 staff UI (Q2), under the
+     same {locale} mechanism as the storefront (Q20).
+
+     app.min.css is Larkon's LTR build and app-rtl.min.css its mirrored
+     one; they are alternatives, never both — loading the LTR sheet under
+     dir="rtl" is what broke the layout before Phase 6. --}}
 {{-- data-menu-color/data-topbar-color activate Larkon's own themed
      variable blocks (app.min.css only defines --bs-main-nav-bg etc.
      inside [data-menu-color=...] attribute selectors — without this
@@ -24,7 +27,8 @@
     <link rel="shortcut icon" href="{{ asset('admin-theme/assets/images/favicon.ico') }}">
     <link href="{{ asset('admin-theme/assets/css/vendor.min.css') }}" rel="stylesheet" type="text/css">
     <link href="{{ asset('admin-theme/assets/css/icons.min.css') }}" rel="stylesheet" type="text/css">
-    <link href="{{ asset('admin-theme/assets/css/app.min.css') }}" rel="stylesheet" type="text/css">
+    @php($rtl = in_array(app()->getLocale(), ['ar'], true))
+    <link href="{{ asset($rtl ? 'admin-theme/assets/css/app-rtl.min.css' : 'admin-theme/assets/css/app.min.css') }}" rel="stylesheet" type="text/css">
     @routes
     @vite(['resources/css/admin.css', 'resources/js/admin/app.tsx'])
     @inertiaHead
