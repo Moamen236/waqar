@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\RecordsActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -11,7 +12,26 @@ use Illuminate\Notifications\Notifiable;
 
 class Customer extends Authenticatable
 {
-    use HasFactory, Notifiable, SoftDeletes;
+    use HasFactory, Notifiable, RecordsActivity, SoftDeletes;
+
+    protected function activityLogName(): string
+    {
+        return 'customers';
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function activityLogAttributes(): array
+    {
+        return [
+            'name',
+            'email',
+            'phone',
+            'is_active',
+            'is_guest',
+        ];
+    }
 
     protected $fillable = [
         'name',

@@ -3,23 +3,34 @@
 namespace App\Notifications\Orders;
 
 use App\Models\Order;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Queue\InteractsWithQueue;
 
 /**
- * "Order placed" — the first of Section 23's notification events, on the
- * database + mail channels.
+ * Queued since Phase 8. Phase 5 deliberately left these synchronous
+ * because the compose stack had no worker to drain Redis, so anything
+ * pushed there would have sat undelivered — including the database
+ * channel the customer account's Notifications tab reads. supervisord
+ * now runs two workers, so an SMTP round-trip no longer happens inside
+ * the customer's checkout request.
  *
- * Deliberately *not* ShouldQueue yet: the compose stack has no
- * Supervisor-managed queue worker until Phase 8, so queueing these would
- * leave them sitting in Redis undelivered — including the database
- * channel, which is what the customer account's Notifications tab reads.
- * Adding `implements ShouldQueue` to this class and its siblings is the
- * one-line change to make at that point.
+ * The locale is captured in the constructor, not read when the job runs.
+ * Every route lives under /{locale}/… (Q20) and the worker has no request
+ * to inherit one from, so without this a customer shopping in English
+ * would be mailed in Arabic by whichever worker happened to pick the job
+ * up. Laravel wraps delivery in `withLocale($this->locale)`.
  */
-class OrderPlacedNotification extends Notification
+class OrderPlacedNotification extends Notification implements ShouldQueue
 {
-    public function __construct(private readonly Order $order) {}
+    use InteractsWithQueue, Queueable;
+
+    public function __construct(private readonly Order $order)
+    {
+        $this->locale = app()->getLocale();
+    }
 
     /**
      * @return array<int, string>
@@ -37,7 +48,7 @@ class OrderPlacedNotification extends Notification
             ->line(__('Your order #:number has been received and is being processed.', ['number' => $this->order->order_number]))
             ->line(__('Payment is cash on delivery — you pay when it reaches you, nothing before.'))
             ->line(__('Total to pay on delivery: :amount', ['amount' => 'EGP '.number_format((float) $this->order->total, 2)]))
-            ->action(__('Track your order'), route('order-tracking.index'));
+            ->action(__('Track your order'), route('order-tracking.index', ['locale' => app()->getLocale()]));
     }
 
     /**
@@ -50,7 +61,7 @@ class OrderPlacedNotification extends Notification
             'order_number' => $this->order->order_number,
             'title' => __('Order #:number received', ['number' => $this->order->order_number]),
             'message' => __('We have your order and will start processing it shortly.'),
-            'url' => route('order-tracking.index'),
+            'url' => route('order-tracking.index', ['locale' => app()->getLocale()]),
         ];
     }
 }

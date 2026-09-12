@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SerializesTranslations;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Spatie\Translatable\HasTranslations;
 
 class Collection extends Model
 {
-    use HasTranslations;
+    use HasTranslations, SerializesTranslations;
 
     public array $translatable = ['name', 'description'];
 

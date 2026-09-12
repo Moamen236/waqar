@@ -81,7 +81,7 @@ export default function ShippingRateForm({
 
     return (
         <AdminLayout title={rate ? 'Edit Shipping Rate' : 'New Shipping Rate'}>
-            <Head title={rate ? 'Edit Shipping Rate' : 'New Shipping Rate'} />
+            <Head title={rate ? t('admin.editShippingRate') : t('admin.addShippingRate')} />
             <form onSubmit={submit}>
                 <div className="row">
                     <div className="col-xl-9 col-lg-8">

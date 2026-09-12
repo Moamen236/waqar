@@ -10,7 +10,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" href="/storefront/images/generated/favicon.svg" type="image/svg+xml">
     <title inertia>{{ config('app.name', 'WAQAR') }}</title>
-    @routes
+    @routes(nonce: request()->attributes->get('csp_nonce'))
     @vite(['resources/css/storefront.css', 'resources/js/storefront/app.tsx'])
     @inertiaHead
 </head>

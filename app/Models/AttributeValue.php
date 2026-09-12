@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SerializesTranslations;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -12,7 +13,7 @@ use Spatie\Translatable\HasTranslations;
  */
 class AttributeValue extends Model
 {
-    use HasTranslations;
+    use HasTranslations, SerializesTranslations;
 
     public array $translatable = ['value'];
 

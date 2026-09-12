@@ -29,8 +29,14 @@ return [
 
     /*
      * If set to true, the subject returns soft deleted models.
+     *
+     * True here on purpose: most of what this project soft-deletes
+     * (products, orders, customers, employees) is soft-deleted precisely
+     * so the audit trail can still reach it. With this false, the one
+     * entry anyone actually goes looking for — "who deleted this product"
+     * — resolves its own subject to null.
      */
-    'subject_returns_soft_deleted_models' => false,
+    'subject_returns_soft_deleted_models' => true,
 
     /*
      * This model will be used to log activity.

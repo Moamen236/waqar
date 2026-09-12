@@ -75,6 +75,11 @@ class PermissionSeeder extends Seeder
         // Reporting (screens are later phases — permission exists now so
         // it can be attached ahead of that UI landing)
         'reports.view',
+
+        // The audit trail (Section 23). Read-only by construction —
+        // there is deliberately no activity.delete: an audit log an
+        // operator can edit is not an audit log.
+        'activity.view',
     ];
 
     /**
@@ -87,7 +92,7 @@ class PermissionSeeder extends Seeder
             'categories.manage', 'collections.manage',
             'treasury.view', 'treasury.manage',
             'orders.view', 'employees.view', 'customers.view',
-            'reports.view',
+            'reports.view', 'activity.view',
         ],
         'Vice Chairman' => [
             'products.view', 'products.create', 'products.update', 'products.delete',

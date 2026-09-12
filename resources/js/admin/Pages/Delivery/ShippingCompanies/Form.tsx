@@ -42,8 +42,8 @@ export default function ShippingCompanyForm({ shippingCompany }: { shippingCompa
     };
 
     return (
-        <AdminLayout title={shippingCompany ? 'Edit Shipping Company' : 'New Shipping Company'}>
-            <Head title={shippingCompany ? 'Edit Shipping Company' : 'New Shipping Company'} />
+        <AdminLayout title={shippingCompany ? t('admin.editShippingCompany') : t('admin.newShippingCompany')}>
+            <Head title={shippingCompany ? t('admin.editShippingCompany') : t('admin.newShippingCompany')} />
             <form onSubmit={submit}>
                 <div className="row">
                     <div className="col-xl-9 col-lg-8">

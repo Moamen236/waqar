@@ -8,7 +8,15 @@ import { useTranslation } from '../../lib/useTranslation';
 interface ReturnItem {
     id: number;
     quantity: number;
-    order_item: { unit_price: string; product_variant: { sku: string; product: { name: string } } };
+    order_item: {
+        unit_price: string;
+        // The name and SKU as sold. order_items snapshots both at
+        // checkout, so they stay correct — and stay *renderable* —
+        // after a product is soft-deleted, which nulls the relation.
+        product_name_snapshot: string;
+        variant_sku_snapshot: string;
+        product_variant: { sku: string; product: { name: string } | null } | null;
+    };
 }
 
 interface ReturnDetail {
@@ -94,7 +102,7 @@ export default function ReturnsShow({
 
     return (
         <AdminLayout title={`Return for Order #${ret.order.order_number}`}>
-            <Head title={`Return — Order #${ret.order.order_number}`} />
+            <Head title={t('admin.returnForOrder', { number: ret.order.order_number })} />
 
             <div className="row">
                 <div className="col-xl-7">
@@ -115,8 +123,8 @@ export default function ReturnsShow({
                                 <tbody>
                                     {ret.items.map((item) => (
                                         <tr key={item.id}>
-                                            <td>{item.order_item.product_variant.product.name}</td>
-                                            <td className="text-muted">{item.order_item.product_variant.sku}</td>
+                                            <td>{item.order_item.product_name_snapshot}</td>
+                                            <td className="text-muted">{item.order_item.variant_sku_snapshot}</td>
                                             <td>{item.quantity}</td>
                                             <td>{item.order_item.unit_price}</td>
                                         </tr>

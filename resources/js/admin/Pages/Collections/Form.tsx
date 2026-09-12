@@ -9,8 +9,12 @@ import { useTranslation } from '../../lib/useTranslation';
 
 interface CollectionRecord {
     id: number;
-    name: string;
-    description: string | null;
+    // Both languages: this is an authoring screen, so the controller
+    // sends getTranslations() rather than the serialized current-locale
+    // string. Typed as a string it silently dropped the Arabic name on
+    // every edit — the form posted `ar: ''` back over it.
+    name: { en: string; ar: string };
+    description: { en: string; ar: string } | null;
     slug: string;
     image: string | null;
     is_active: boolean;
@@ -31,8 +35,8 @@ export default function CollectionForm({ collection }: { collection: CollectionR
         sort_order: number;
         image: File | null;
     }>({
-        name: { en: collection?.name ?? '', ar: '' },
-        description: { en: collection?.description ?? '', ar: '' },
+        name: { en: collection?.name.en ?? '', ar: collection?.name.ar ?? '' },
+        description: { en: collection?.description?.en ?? '', ar: collection?.description?.ar ?? '' },
         slug: collection?.slug ?? '',
         is_active: collection?.is_active ?? true,
         sort_order: collection?.sort_order ?? 0,
@@ -64,8 +68,8 @@ export default function CollectionForm({ collection }: { collection: CollectionR
     };
 
     return (
-        <AdminLayout title={collection ? 'Edit Collection' : 'New Collection'}>
-            <Head title={collection ? 'Edit Collection' : 'New Collection'} />
+        <AdminLayout title={collection ? t('admin.editCollection') : t('admin.newCollection')}>
+            <Head title={collection ? t('admin.editCollection') : t('admin.newCollection')} />
             <form onSubmit={submit}>
                 <div className="row">
                     <div className="col-xl-3 col-lg-4">

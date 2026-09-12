@@ -7,6 +7,7 @@ use App\Enums\DeliveryAssignmentType;
 use App\Enums\OrderSource;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
+use App\Models\Concerns\RecordsActivity;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -24,7 +25,33 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Order extends Model
 {
-    use SoftDeletes;
+    use RecordsActivity, SoftDeletes;
+
+    protected function activityLogName(): string
+    {
+        return 'orders';
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function activityLogAttributes(): array
+    {
+        return [
+            'order_number',
+            'customer_id',
+            'status',
+            'customer_status',
+            'payment_status',
+            'delivery_assignment_type',
+            'delivery_representative_id',
+            'shipping_company_id',
+            'subtotal',
+            'discount_amount',
+            'shipping_amount',
+            'total',
+        ];
+    }
 
     // Mirrors the DB defaults so a freshly created instance reads
     // correctly without a round-trip (Eloquent doesn't otherwise reflect

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ReturnStage;
 use App\Enums\ReturnStatus;
+use App\Models\Concerns\RecordsActivity;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,7 +23,27 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class OrderReturn extends Model
 {
-    use SoftDeletes;
+    use RecordsActivity, SoftDeletes;
+
+    protected function activityLogName(): string
+    {
+        return 'orders';
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function activityLogAttributes(): array
+    {
+        return [
+            'order_id',
+            'customer_id',
+            'stage',
+            'status',
+            'reason_id',
+            'return_shipping_fee',
+        ];
+    }
 
     protected $table = 'returns';
 
@@ -84,5 +105,15 @@ class OrderReturn extends Model
     public function refund(): HasOne
     {
         return $this->hasOne(Refund::class, 'return_id');
+    }
+
+    public function activitySubjectLabel(): string
+    {
+        // withTrashed: the order is soft-deletable, so the plain relation
+        // goes null exactly when someone most needs the label to still say
+        // which order this return belonged to.
+        $orderNumber = Order::withTrashed()->whereKey($this->order_id)->value('order_number');
+
+        return is_string($orderNumber) ? $orderNumber : 'Return #'.$this->getKey();
     }
 }

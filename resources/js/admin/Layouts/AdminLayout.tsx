@@ -136,6 +136,14 @@ const NAV: NavGroup[] = [
                 icon: 'bxs-megaphone',
                 permission: 'promotions.manage',
             },
+            {
+                label: 'admin.navInventory',
+                href: route('admin.inventory.index'),
+                icon: 'bx-box',
+                // .view, not .adjust — plenty of roles have reason to see
+                // stock levels without being able to correct them.
+                permission: 'inventory.view',
+            },
         ],
     },
     {
@@ -174,6 +182,12 @@ const NAV: NavGroup[] = [
                 href: route('admin.roles.index'),
                 icon: 'bx-lock-alt',
                 permission: 'roles.manage',
+            },
+            {
+                label: 'admin.navActivityLog',
+                href: route('admin.activity-log.index'),
+                icon: 'bx-history',
+                permission: 'activity.view',
             },
         ],
     },

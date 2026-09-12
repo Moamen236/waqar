@@ -33,8 +33,8 @@ export default function CustomerForm({ customer }: { customer: CustomerRecord | 
     };
 
     return (
-        <AdminLayout title={customer ? 'Edit Customer' : 'New Customer'}>
-            <Head title={customer ? 'Edit Customer' : 'New Customer'} />
+        <AdminLayout title={customer ? t('admin.editCustomer') : t('admin.newCustomer')}>
+            <Head title={customer ? t('admin.editCustomer') : t('admin.newCustomer')} />
             <form onSubmit={submit}>
                 <div className="row">
                     <div className="col-xl-9 col-lg-8">

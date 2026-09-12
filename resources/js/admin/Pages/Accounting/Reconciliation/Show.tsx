@@ -82,8 +82,8 @@ export default function ReconciliationShow({
     }
 
     return (
-        <AdminLayout title={`Reconciliation — ${shippingCompany.name}`}>
-            <Head title={`Reconciliation — ${shippingCompany.name}`} />
+        <AdminLayout title={t('admin.reconciliationFor', { company: shippingCompany.name })}>
+            <Head title={t('admin.reconciliationFor', { company: shippingCompany.name })} />
 
             <div className="card">
                 <div className="card-header">

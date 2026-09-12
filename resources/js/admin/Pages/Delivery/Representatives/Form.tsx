@@ -30,8 +30,8 @@ export default function RepresentativeForm({ representative }: { representative:
     };
 
     return (
-        <AdminLayout title={representative ? 'Edit Representative' : 'New Representative'}>
-            <Head title={representative ? 'Edit Representative' : 'New Representative'} />
+        <AdminLayout title={representative ? t('admin.editRepresentative') : t('admin.newRepresentative')}>
+            <Head title={representative ? t('admin.editRepresentative') : t('admin.newRepresentative')} />
             <form onSubmit={submit}>
                 <div className="row">
                     <div className="col-xl-8 col-lg-9">

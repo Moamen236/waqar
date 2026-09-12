@@ -11,6 +11,8 @@ use App\Models\InventoryMovement;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Services\Content\RichTextSanitizer;
+use App\Support\ImageUpload;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +32,8 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  */
 class ProductController extends Controller
 {
+    public function __construct(private readonly RichTextSanitizer $sanitizer) {}
+
     public function index(Request $request): Response
     {
         $products = Product::query()
@@ -75,6 +79,14 @@ class ProductController extends Controller
         return Inertia::render('Products/Form', [
             'product' => [
                 ...$product->toArray(),
+                // Both languages, not the serialized current-locale
+                // string — this form authors translations. See
+                // Concerns\SerializesTranslations.
+                'name' => $product->getTranslations('name'),
+                'description' => $product->getTranslations('description'),
+                'short_description' => $product->getTranslations('short_description'),
+                'meta_title' => $product->getTranslations('meta_title'),
+                'meta_description' => $product->getTranslations('meta_description'),
                 'images' => $product->getMedia('product_images')->map(fn (Media $media) => [
                     'id' => $media->id,
                     'url' => $media->getUrl(),
@@ -120,7 +132,7 @@ class ProductController extends Controller
      */
     private function validated(Request $request, ?Product $product = null): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'name' => ['required', 'array'],
             'name.en' => ['required', 'string', 'max:255'],
             'name.ar' => ['nullable', 'string', 'max:255'],
@@ -156,8 +168,22 @@ class ProductController extends Controller
             'variants.*.attribute_value_ids' => ['array'],
             'variants.*.attribute_value_ids.*' => ['exists:attribute_values,id'],
             'images' => ['array'],
-            'images.*' => ['image', 'max:5120'],
+            'images.*' => ImageUpload::RULES,
         ]);
+
+        // The two rich-text fields, scrubbed on the way in — this is the
+        // single choke point both store() and update() pass through, and
+        // sanitising here rather than at render protects every consumer
+        // of the stored value, not just the storefront page that happens
+        // to use dangerouslySetInnerHTML today. See RichTextSanitizer.
+        $data['description'] = $this->sanitizer->cleanTranslations($data['description'] ?? null);
+        $data['short_description'] = $this->sanitizer->cleanTranslations($data['short_description'] ?? null);
+
+        return array_filter(
+            $data,
+            fn (mixed $value, string $key) => ! in_array($key, ['description', 'short_description'], true) || $value !== null,
+            ARRAY_FILTER_USE_BOTH,
+        );
     }
 
     /**

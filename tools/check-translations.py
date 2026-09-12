@@ -27,7 +27,22 @@ ROOT = pathlib.Path("resources/js")
 
 # Keys reached through a template literal or a variable rather than a
 # literal. Anything under these prefixes is exempt from the unused check.
-DYNAMIC_PREFIXES = ("status.", "review.", "faq.", "account.filter", "account.nav", "admin.nav")
+DYNAMIC_PREFIXES = (
+    "status.",
+    "review.",
+    "faq.",
+    "account.filter",
+    "account.nav",
+    "admin.nav",
+    # Phase 7: the audit domains/events and the manual movement types are
+    # all looked up from the server's own stored value, never a literal.
+    "activity.log.",
+    "productType.",
+    "treasury.type.",
+    "treasury.tx.",
+    "activity.event.",
+    "inventory.type.",
+)
 
 USE = re.compile(r"\bt\(\s*'([^']+)'")
 

@@ -221,8 +221,8 @@ export default function ProductForm({
     }
 
     return (
-        <AdminLayout title={product ? 'Edit Product' : 'New Product'}>
-            <Head title={product ? 'Edit Product' : 'New Product'} />
+        <AdminLayout title={product ? t('admin.editProduct') : t('admin.newProduct')}>
+            <Head title={product ? t('admin.editProduct') : t('admin.newProduct')} />
             <form onSubmit={handleSubmit(onSubmit)}>
                 <div className="row">
                     <div className="col-12">

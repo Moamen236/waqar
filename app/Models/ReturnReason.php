@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SerializesTranslations;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Translatable\HasTranslations;
 
 class ReturnReason extends Model
 {
-    use HasTranslations;
+    use HasTranslations, SerializesTranslations;
 
     public array $translatable = ['name'];
 

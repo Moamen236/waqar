@@ -105,7 +105,9 @@ export default function TreasuryIndex({
                                     >
                                         <td>
                                             {treasury.name}
-                                            <div className="text-muted fs-13">{treasury.type}</div>
+                                            <div className="text-muted fs-13">
+                                                {t(`treasury.type.${treasury.type}`)}
+                                            </div>
                                         </td>
                                         <td className="text-end">{treasury.current_balance}</td>
                                     </tr>
@@ -162,7 +164,7 @@ export default function TreasuryIndex({
                                     <div>
                                         <h5 className="mb-1">{selected.name}</h5>
                                         <span className="badge bg-secondary-subtle text-secondary px-2 py-1">
-                                            {selected.type}
+                                            {t(`treasury.type.${selected.type}`)}
                                         </span>
                                     </div>
                                     <h3 className="mb-0">{selected.current_balance}</h3>
@@ -286,7 +288,7 @@ export default function TreasuryIndex({
                                                         <span
                                                             className={`badge px-2 py-1 ${Number(tx.amount) >= 0 ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'}`}
                                                         >
-                                                            {tx.type}
+                                                            {t(`treasury.tx.${tx.type}`)}
                                                         </span>
                                                     </td>
                                                     <td>{tx.amount}</td>

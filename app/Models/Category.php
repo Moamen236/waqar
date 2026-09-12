@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\RecordsActivity;
+use App\Models\Concerns\SerializesTranslations;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -11,7 +13,26 @@ use Spatie\Translatable\HasTranslations;
 
 class Category extends Model
 {
-    use HasTranslations, SoftDeletes;
+    use HasTranslations, RecordsActivity, SerializesTranslations, SoftDeletes;
+
+    protected function activityLogName(): string
+    {
+        return 'catalog';
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function activityLogAttributes(): array
+    {
+        return [
+            'parent_id',
+            'name',
+            'slug',
+            'status',
+            'sort_order',
+        ];
+    }
 
     public array $translatable = ['name', 'description'];
 

@@ -51,7 +51,12 @@ class ReturnController extends Controller
             $order = Order::query()
                 ->where('order_number', $request->query('order_number'))
                 ->where('status', OrderStatus::Delivered)
-                ->with('items.productVariant.product')
+                // `customer` is rendered on this screen — without it the
+                // page threw "Cannot read properties of undefined" and
+                // rendered blank, which is not visible in the payload
+                // audit because the prop is simply absent rather than
+                // wrongly shaped.
+                ->with(['customer', 'items.productVariant.product'])
                 ->first();
         }
 

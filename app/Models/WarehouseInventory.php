@@ -5,6 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property-read Warehouse|null $warehouse
+ * @property-read ProductVariant|null $productVariant
+ */
 class WarehouseInventory extends Model
 {
     // Singular table name (spec Section 24) — Eloquent would otherwise

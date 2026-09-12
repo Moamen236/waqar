@@ -55,8 +55,8 @@ export default function CategoryForm({
     };
 
     return (
-        <AdminLayout title={category ? 'Edit Category' : 'New Category'}>
-            <Head title={category ? 'Edit Category' : 'New Category'} />
+        <AdminLayout title={category ? t('admin.editCategory') : t('admin.newCategory')}>
+            <Head title={category ? t('admin.editCategory') : t('admin.newCategory')} />
             <form onSubmit={submit}>
                 <div className="row">
                     <div className="col-xl-9 col-lg-8">

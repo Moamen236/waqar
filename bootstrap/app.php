@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -23,6 +24,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             HandleInertiaRequests::class,
+            // Prepended rather than appended would be wrong: the CSP
+            // nonce has to be registered with Vite before the response
+            // is rendered, and this middleware sets it on the way *in*
+            // and writes the headers on the way back out.
+            SecurityHeaders::class,
         ]);
 
         $middleware->alias([

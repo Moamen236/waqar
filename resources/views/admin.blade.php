@@ -29,7 +29,7 @@
     <link href="{{ asset('admin-theme/assets/css/icons.min.css') }}" rel="stylesheet" type="text/css">
     @php($rtl = in_array(app()->getLocale(), ['ar'], true))
     <link href="{{ asset($rtl ? 'admin-theme/assets/css/app-rtl.min.css' : 'admin-theme/assets/css/app.min.css') }}" rel="stylesheet" type="text/css">
-    @routes
+    @routes(nonce: request()->attributes->get('csp_nonce'))
     @vite(['resources/css/admin.css', 'resources/js/admin/app.tsx'])
     @inertiaHead
 </head>

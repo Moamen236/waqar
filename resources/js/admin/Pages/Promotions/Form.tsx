@@ -236,8 +236,8 @@ export default function PromotionForm({
     }
 
     return (
-        <AdminLayout title={promotion ? 'Edit Promotion' : 'New Promotion'}>
-            <Head title={promotion ? 'Edit Promotion' : 'New Promotion'} />
+        <AdminLayout title={promotion ? t('admin.editPromotion') : t('admin.newPromotion')}>
+            <Head title={promotion ? t('admin.editPromotion') : t('admin.newPromotion')} />
             <form onSubmit={handleSubmit(onSubmit)}>
                 <div className="row">
                     <div className="col-xl-8">

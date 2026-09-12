@@ -120,8 +120,15 @@ class PromotionController extends Controller
     private function pickerOptions(): array
     {
         return [
-            'variants' => ProductVariant::query()->with('product:id,name')->get()
-                ->map(fn ($v) => ['id' => $v->id, 'label' => $v->product->getTranslation('name', 'en').' — '.$v->sku]),
+            // whereHas(): a soft-deleted product's variants would
+            // otherwise resolve `$v->product` to null and 500 this screen.
+            'variants' => ProductVariant::query()->whereHas('product')->with('product:id,name')->get()
+                ->map(fn ($v) => [
+                    'id' => $v->id,
+                    // app locale, not a hard-coded 'en' — staff run this
+                    // admin in Arabic (Q2).
+                    'label' => $v->product->getTranslation('name', app()->getLocale()).' — '.$v->sku,
+                ]),
             'categories' => Category::query()->get(['id', 'name']),
             'collections' => Collection::query()->get(['id', 'name']),
         ];

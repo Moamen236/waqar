@@ -57,8 +57,8 @@ export default function RoleEdit({
     }
 
     return (
-        <AdminLayout title={`Permissions — ${role.name}`}>
-            <Head title={`Permissions — ${role.name}`} />
+        <AdminLayout title={t('admin.permissionsFor', { role: role.name })}>
+            <Head title={t('admin.permissionsFor', { role: role.name })} />
             <form onSubmit={handleSubmit(onSubmit)}>
                 <div className="row">
                     {Object.entries(groups).map(([domain, permissions]) => (

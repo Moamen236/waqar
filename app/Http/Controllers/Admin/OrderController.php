@@ -29,6 +29,12 @@ class OrderController extends Controller
             'customers' => Customer::query()->orderBy('name')->get(['id', 'name', 'email', 'phone']),
             'variants' => ProductVariant::query()
                 ->where('status', true)
+                // whereHas() respects the product's soft-delete scope, so
+                // a deleted product's variants drop out of the picker.
+                // Without it `$variant->product` is null for them and this
+                // screen 500s outright — a deleted product cannot be sold,
+                // and should not be offerable.
+                ->whereHas('product')
                 ->with('product:id,name,sku')
                 ->get()
                 ->map(fn ($variant) => [

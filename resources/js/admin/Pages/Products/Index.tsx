@@ -90,7 +90,7 @@ export default function ProductsIndex({ products, q }: { products: PaginatedData
                                                     <span
                                                         className={`badge px-2 py-1 ${product.product_type === 'real' ? 'bg-success-subtle text-success' : 'bg-info-subtle text-info'}`}
                                                     >
-                                                        {product.product_type}
+                                                        {t(`productType.${product.product_type}`)}
                                                     </span>
                                                 </td>
                                                 <td>{product.categories.map((c) => c.name).join(', ')}</td>

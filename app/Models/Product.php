@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\ProductType;
+use App\Models\Concerns\RecordsActivity;
+use App\Models\Concerns\SerializesTranslations;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,7 +15,31 @@ use Spatie\Translatable\HasTranslations;
 
 class Product extends Model implements HasMedia
 {
-    use HasTranslations, InteractsWithMedia, SoftDeletes;
+    use HasTranslations, InteractsWithMedia, RecordsActivity, SerializesTranslations, SoftDeletes;
+
+    protected function activityLogName(): string
+    {
+        return 'catalog';
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function activityLogAttributes(): array
+    {
+        return [
+            'name',
+            'slug',
+            'sku',
+            'price',
+            'sale_price',
+            'cost_price',
+            'status',
+            'product_type',
+            'inventory_tracking_enabled',
+            'is_featured',
+        ];
+    }
 
     public array $translatable = [
         'name',

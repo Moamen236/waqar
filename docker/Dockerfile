@@ -17,6 +17,7 @@ RUN apk add --no-cache \
     icu-dev \
     nodejs \
     npm \
+    supervisor \
     $PHPIZE_DEPS
 
 # PHP extensions required by the stack (Laravel 12, Spatie Media Library,
@@ -46,7 +47,17 @@ COPY . .
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 777 storage bootstrap/cache 2>/dev/null || true
 
+# Process manager (Phase 8): php-fpm, the Redis queue workers, and the
+# scheduler — see docker/supervisor/supervisord.conf for why all three
+# live in one container.
+COPY docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Still www-data, not root. supervisord runs happily unprivileged, and
+# dropping this line would silently change the documented dev workflow:
+# every `docker compose run --rm app ...` would start writing root-owned
+# files into the bind-mounted repo (CLAUDE.md's file-ownership note
+# exists precisely because the container is uid 82).
 USER www-data
 
 EXPOSE 9000
-CMD ["php-fpm"]
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

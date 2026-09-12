@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\RecordsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -11,6 +12,29 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  */
 class ProductVariant extends Model
 {
+    use RecordsActivity;
+
+    protected function activityLogName(): string
+    {
+        return 'catalog';
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function activityLogAttributes(): array
+    {
+        return [
+            'product_id',
+            'sku',
+            'barcode',
+            'price',
+            'sale_price',
+            'cost_price',
+            'status',
+        ];
+    }
+
     protected $fillable = [
         'product_id',
         'sku',
@@ -70,5 +94,10 @@ class ProductVariant extends Model
     public function attributeValues(): BelongsToMany
     {
         return $this->belongsToMany(AttributeValue::class, 'variant_attribute_values');
+    }
+
+    public function activitySubjectLabel(): string
+    {
+        return $this->sku ?? 'Variant #'.$this->getKey();
     }
 }

@@ -7,7 +7,12 @@ interface OrderItem {
     id: number;
     quantity: number;
     unit_price: string;
-    product_variant: { sku: string; product: { name: string } };
+    // The name and SKU as sold. order_items snapshots both at
+    // checkout, so they stay correct — and stay *renderable* —
+    // after a product is soft-deleted, which nulls the relation.
+    product_name_snapshot: string;
+    variant_sku_snapshot: string;
+    product_variant: { sku: string; product: { name: string } | null } | null;
 }
 
 interface OrderRecord {
@@ -137,8 +142,8 @@ export default function ReturnsCreate({
                                                             />
                                                         </div>
                                                     </td>
-                                                    <td>{item.product_variant.product.name}</td>
-                                                    <td className="text-muted">{item.product_variant.sku}</td>
+                                                    <td>{item.product_name_snapshot}</td>
+                                                    <td className="text-muted">{item.variant_sku_snapshot}</td>
                                                     <td>{item.quantity}</td>
                                                     <td>
                                                         <input

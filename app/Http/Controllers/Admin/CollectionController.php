@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Collection;
+use App\Support\ImageUpload;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -41,7 +42,14 @@ class CollectionController extends Controller
 
     public function edit(Collection $collection): Response
     {
-        return Inertia::render('Collections/Form', ['collection' => $collection]);
+        return Inertia::render('Collections/Form', [
+            // Both languages — see CategoryController::edit().
+            'collection' => [
+                ...$collection->toArray(),
+                'name' => $collection->getTranslations('name'),
+                'description' => $collection->getTranslations('description'),
+            ],
+        ]);
     }
 
     public function update(Request $request, Collection $collection): RedirectResponse
@@ -73,6 +81,10 @@ class CollectionController extends Controller
             'description.ar' => ['nullable', 'string'],
             'is_active' => ['required', 'boolean'],
             'sort_order' => ['required', 'integer', 'min:0'],
+            // Raster images only — see ImageUpload for why `image` alone
+            // is not enough (it permits SVG, which is scriptable and is
+            // served back from this application's own origin).
+            'image' => ImageUpload::optional(),
         ]);
     }
 

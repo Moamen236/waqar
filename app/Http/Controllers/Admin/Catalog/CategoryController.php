@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Catalog;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Support\ImageUpload;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -43,7 +44,19 @@ class CategoryController extends Controller
 
     public function edit(Category $category): Response
     {
-        return Inertia::render('Categories/Form', ['category' => $category, 'categories' => $this->parentOptions($category)]);
+        return Inertia::render('Categories/Form', [
+            // An authoring screen, so it needs *both* languages rather
+            // than the current-locale string models now serialize to
+            // (see Concerns\SerializesTranslations). Sending the whole
+            // model and overriding the two translatable fields keeps the
+            // form's other inputs working off the plain serialization.
+            'category' => [
+                ...$category->toArray(),
+                'name' => $category->getTranslations('name'),
+                'description' => $category->getTranslations('description'),
+            ],
+            'categories' => $this->parentOptions($category),
+        ]);
     }
 
     public function update(Request $request, Category $category): RedirectResponse
@@ -80,6 +93,10 @@ class CategoryController extends Controller
             'description.en' => ['nullable', 'string'],
             'description.ar' => ['nullable', 'string'],
             'status' => ['required', 'boolean'],
+            // Raster images only — see ImageUpload for why `image` alone
+            // is not enough (it permits SVG, which is scriptable and is
+            // served back from this application's own origin).
+            'image' => ImageUpload::optional(),
             'sort_order' => ['required', 'integer', 'min:0'],
         ]);
     }

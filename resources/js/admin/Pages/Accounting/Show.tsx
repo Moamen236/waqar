@@ -11,7 +11,12 @@ interface OrderItem {
     id: number;
     quantity: number;
     unit_price: string;
-    product_variant: { id: number; sku: string; product: { name: string } };
+    // The name and SKU as sold. order_items snapshots both at
+    // checkout, so they stay correct — and stay *renderable* —
+    // after a product is soft-deleted, which nulls the relation.
+    product_name_snapshot: string;
+    variant_sku_snapshot: string;
+    product_variant: { id: number; sku: string; product: { name: string } | null } | null;
 }
 
 interface OrderDetail {
@@ -90,7 +95,7 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
 
     return (
         <AdminLayout title={`Order #${order.order_number} — Accounting`}>
-            <Head title={`Order #${order.order_number}`} />
+            <Head title={t('admin.orderNumber', { number: order.order_number })} />
 
             <div className="row">
                 <div className="col-xl-7">
@@ -111,8 +116,8 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                                 <tbody>
                                     {order.items.map((item) => (
                                         <tr key={item.id}>
-                                            <td>{item.product_variant.product.name}</td>
-                                            <td className="text-muted">{item.product_variant.sku}</td>
+                                            <td>{item.product_name_snapshot}</td>
+                                            <td className="text-muted">{item.variant_sku_snapshot}</td>
                                             <td>{item.quantity}</td>
                                             <td>{item.unit_price}</td>
                                         </tr>
@@ -180,7 +185,7 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                                         {order.items.map((item) => (
                                             <div key={item.id} className="mb-2">
                                                 <label className="form-label fs-13 mb-1">
-                                                    {item.product_variant.product.name} (of {item.quantity})
+                                                    {item.product_name_snapshot} (of {item.quantity})
                                                 </label>
                                                 <input
                                                     type="number"

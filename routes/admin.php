@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\Accounting\AccountingController;
 use App\Http\Controllers\Admin\Accounting\ReconciliationController;
+use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\AttributeController;
 use App\Http\Controllers\Admin\Auth\LoginController;
 use App\Http\Controllers\Admin\Catalog\CategoryController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\Admin\Delivery\RepresentativeController;
 use App\Http\Controllers\Admin\Delivery\ShippingCompanyController;
 use App\Http\Controllers\Admin\Delivery\ShippingRateController;
 use App\Http\Controllers\Admin\EmployeeController;
+use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PromotionController;
 use App\Http\Controllers\Admin\Returns\ReturnController;
@@ -228,6 +230,22 @@ Route::middleware('auth:employee')->group(function () {
         Route::post('treasury', [TreasuryController::class, 'store'])->name('treasury.store');
         Route::post('treasury/transactions', [TreasuryController::class, 'storeTransaction'])->name('treasury.transactions.store');
         Route::post('treasury/transfer', [TreasuryController::class, 'transfer'])->name('treasury.transfer');
+    });
+
+    // Stock on hand, and manual corrections to it (Warehouse Manager).
+    // Viewing and adjusting are split: plenty of roles have reason to see
+    // stock levels, far fewer to change them without an order behind it.
+    Route::middleware('permission:inventory.view')->group(function () {
+        Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index');
+    });
+    Route::middleware('permission:inventory.adjust')->group(function () {
+        Route::post('inventory/adjust', [InventoryController::class, 'adjust'])->name('inventory.adjust');
+    });
+
+    // The audit trail (Section 23). Read-only by construction — there is
+    // no write/delete route here at all, not merely no permission for one.
+    Route::middleware('permission:activity.view')->group(function () {
+        Route::get('activity-log', [ActivityLogController::class, 'index'])->name('activity-log.index');
     });
 
     // RBAC — permission-matrix editor (Super Admin only, in practice).

@@ -10,4 +10,8 @@ storage/framework/views/*
 .env.*
 !.env.example
 docker
+# …except the supervisor config, which the image itself needs (the rest of
+# docker/ is build-context only: the Dockerfile and the nginx conf are
+# consumed by the builder and by the nginx service's bind mount).
+!docker/supervisor/supervisord.conf
 *.md

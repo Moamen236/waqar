@@ -1,3 +1,5 @@
+import { useTranslation } from '../lib/useTranslation';
+
 // Larkon's own status-pill convention (orders-list.html, customer-list.html):
 // `badge bg-{color}-subtle text-{color} px-2 py-1`, not react-bootstrap's
 // solid <Badge bg="...">.
@@ -30,7 +32,11 @@ const VARIANTS: Record<string, string> = {
 };
 
 export default function StatusBadge({ status }: { status: string }) {
+    const { t } = useTranslation();
     const color = VARIANTS[status] ?? 'secondary';
 
-    return <span className={`badge bg-${color}-subtle text-${color} px-2 py-1`}>{status}</span>;
+    // Keyed by the server's own value (Section 03's enum stays the
+    // contract, only the rendering is localised) — the raw value was
+    // leaking English into the Arabic admin on every list.
+    return <span className={`badge bg-${color}-subtle text-${color} px-2 py-1`}>{t(`status.${status}`)}</span>;
 }

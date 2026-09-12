@@ -3,17 +3,34 @@
 namespace App\Notifications\Orders;
 
 use App\Models\OrderReturn;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Queue\InteractsWithQueue;
 
 /**
- * "Return requested" — Section 23's post-delivery return event (Section
- * 12's customer-initiated flow). See OrderPlacedNotification for why
- * these aren't queued yet.
+ * Queued since Phase 8. Phase 5 deliberately left these synchronous
+ * because the compose stack had no worker to drain Redis, so anything
+ * pushed there would have sat undelivered — including the database
+ * channel the customer account's Notifications tab reads. supervisord
+ * now runs two workers, so an SMTP round-trip no longer happens inside
+ * the customer's checkout request.
+ *
+ * The locale is captured in the constructor, not read when the job runs.
+ * Every route lives under /{locale}/… (Q20) and the worker has no request
+ * to inherit one from, so without this a customer shopping in English
+ * would be mailed in Arabic by whichever worker happened to pick the job
+ * up. Laravel wraps delivery in `withLocale($this->locale)`.
  */
-class ReturnRequestedNotification extends Notification
+class ReturnRequestedNotification extends Notification implements ShouldQueue
 {
-    public function __construct(private readonly OrderReturn $return) {}
+    use InteractsWithQueue, Queueable;
+
+    public function __construct(private readonly OrderReturn $return)
+    {
+        $this->locale = app()->getLocale();
+    }
 
     /**
      * @return array<int, string>
@@ -42,7 +59,7 @@ class ReturnRequestedNotification extends Notification
             'return_id' => $this->return->id,
             'title' => __('Return requested for order #:number', ['number' => $this->return->order->order_number]),
             'message' => __('We have logged your return request and will review it shortly.'),
-            'url' => route('account.orders.show', $this->return->order->order_number),
+            'url' => route('account.orders.show', ['locale' => app()->getLocale(), 'order' => $this->return->order->order_number]),
         ];
     }
 }

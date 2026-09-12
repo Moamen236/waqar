@@ -52,8 +52,8 @@ export default function EmployeeForm({
     const needsTeamLeader = data.role === 'Customer Service';
 
     return (
-        <AdminLayout title={employee ? 'Edit Employee' : 'New Employee'}>
-            <Head title={employee ? 'Edit Employee' : 'New Employee'} />
+        <AdminLayout title={employee ? t('admin.editEmployee') : t('admin.newEmployee')}>
+            <Head title={employee ? t('admin.editEmployee') : t('admin.newEmployee')} />
             <form onSubmit={submit}>
                 <div className="row">
                     <div className="col-xl-9 col-lg-8">

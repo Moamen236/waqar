@@ -17,9 +17,16 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-secret}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      MAIL_MAILER: ${MAIL_MAILER:-smtp}
+      MAIL_HOST: ${MAIL_HOST:-mailpit}
+      MAIL_PORT: ${MAIL_PORT:-1025}
     depends_on:
-      - mysql
-      - redis
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
     networks:
       - waqar
 
@@ -51,6 +58,16 @@ services:
       # Creates the separate `waqar_testing` database the Pest suite uses
       # (tests/TestCase.php), on first boot of a fresh volume only.
       - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # MySQL's first boot on a fresh volume takes ~90s to initialise, and
+      # before this the app container would start immediately and every
+      # `artisan migrate` in that window failed with "Connection refused"
+      # — which reads like a broken stack rather than a slow one.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${DB_ROOT_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
     networks:
       - waqar
     # Not exposed to the host on purpose — only reachable by app/phpMyAdmin
@@ -63,10 +80,35 @@ services:
     restart: unless-stopped
     volumes:
       - waqar_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     networks:
       - waqar
     # Cache, queue, and session driver (Section 23) — internal only, same
     # "not exposed to the host" rule as mysql.
+
+  # Development SMTP sink. The point is not convenience: without it the
+  # local stack would use MAIL_MAILER=log and the *SMTP transport itself*
+  # — the thing Phase 8 is supposed to deliver — would never run until
+  # production. Here mail goes over real SMTP to a catcher with a web UI.
+  # Production points the same MAIL_* variables at the business's own
+  # server; no application code changes.
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: waqar_mailpit
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    ports:
+      # Web UI only. The SMTP port (1025) stays internal to the network.
+      - "32232:8025"
+    networks:
+      - waqar
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
