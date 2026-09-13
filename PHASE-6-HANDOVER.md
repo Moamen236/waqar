@@ -111,8 +111,11 @@ too, including mail subjects and the database-channel payload the account's Noti
 - **Arabic renders Western digits** for prices (`250.00 ج.م`). Egyptian e-commerce overwhelmingly uses
   them; Eastern Arabic numerals in a cart total read as unfamiliar rather than localised. One function to
   change if the business disagrees.
-- **Admin has no locale switcher.** Q2 ships staff Arabic-only for v1. `/en/admin/…` already works and is
-  tested — turning it on is adding a switcher, not a translation project.
+- ~~**Admin has no locale switcher.** Q2 ships staff Arabic-only for v1. `/en/admin/…` already works and
+  is tested — turning it on is adding a switcher, not a translation project.~~
+  **Superseded (2026-09-13):** the switcher was added on request, and the claim held — it was a UI
+  change, not a translation project, because this phase kept the English catalog complete. See the
+  README log entry for that date.
 - **`/fr/shop` redirects to `/ar/fr/shop`, which then 404s.** A two-hop 404 rather than a direct one. The
   first segment of an unknown path is genuinely ambiguous — it could be a legitimate route — so the
   redirect preserves the "add the missing locale" intent that makes old `/shop` links keep working.

@@ -22,10 +22,7 @@ export default function Dashboard() {
                                 </div>
                                 <div>
                                     <h4 className="mb-1">{t('admin.welcomeToWaqarAdmin')}</h4>
-                                    <p className="text-muted mb-0">
-                                        Use the sidebar to reach your department&apos;s work queue. The role-scoped
-                                        dashboard widgets (Question 18) are a follow-up design pass, not yet built here.
-                                    </p>
+                                    <p className="text-muted mb-0">{t('admin.dashboardIntro')}</p>
                                 </div>
                             </div>
                         </div>

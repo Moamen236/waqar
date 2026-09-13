@@ -2,8 +2,11 @@
 
 use App\Models\Category;
 use App\Models\Customer;
+use App\Models\Employee;
 use App\Models\Product;
+use Database\Seeders\PermissionSeeder;
 use Illuminate\Support\Facades\URL;
+use Spatie\Permission\Models\Role;
 
 // Phase 6 — i18n & RTL (WAQAR-DELIVERY-ROADMAP.html). The roadmap's bar:
 // "switching locale flips direction and every string (DB content + static
@@ -22,6 +25,26 @@ function p6Product(string $en, string $ar, string $slug): Product
         'price' => 250,
         'status' => true,
     ]);
+}
+
+/**
+ * An employee who can reach an admin page, for the locale-switcher tests
+ * below. Roles/permissions are seeded here rather than in a file-wide
+ * beforeEach so the storefront tests above stay as fast as they were.
+ *
+ * @return array{0: Employee}
+ */
+function p6Employee(string $role = 'Vice Chairman'): array
+{
+    (new PermissionSeeder)->run();
+
+    $employee = Employee::create([
+        'full_name' => $role.' User', 'email' => 'e6-'.uniqid().'@waqar.test', 'phone' => '1',
+        'password' => 'password', 'residence_address' => 'N/A', 'national_id_number' => '29001010100000',
+    ]);
+    $employee->assignRole(Role::findOrCreate($role, 'employee'));
+
+    return [$employee];
 }
 
 it('redirects a locale-less URL into the default language, preserving the rest of the path', function () {
@@ -144,4 +167,73 @@ it('keeps route() inside the visitor\'s language without being told', function (
 
     URL::defaults(['locale' => 'en']);
     expect(route('shop.index', absolute: false))->toBe('/en/shop');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Admin locale switcher — Q2's "Arabic-only for v1" turned on for staff
+|--------------------------------------------------------------------------
+|
+| Phase 6 kept the English admin catalog complete alongside the Arabic one
+| precisely so this stayed a UI change rather than a translation project.
+| These assert the switcher has something correct to point at.
+*/
+
+it('gives the admin the sibling URLs its locale switcher navigates to', function () {
+    [$employee] = p6Employee();
+
+    $this->actingAs($employee, 'employee')
+        ->get('/ar/admin/products')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('locale.current', 'ar')
+            ->where('locale.alternates.en', '/en/admin/products')
+            ->where('locale.alternates.ar', '/ar/admin/products')
+        );
+});
+
+it('keeps admin query strings across a language switch', function () {
+    [$employee] = p6Employee();
+
+    // Switching language mid-filter must keep the filter — the alternates
+    // are built by swapping the first path segment, not by re-routing.
+    $this->actingAs($employee, 'employee')
+        ->get('/ar/admin/products?q=shirt')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('locale.alternates.en', '/en/admin/products?q=shirt'));
+});
+
+it('offers the switcher on the admin login page, before anyone has signed in', function () {
+    // An employee who does not read Arabic cannot reach the topbar
+    // switcher without first getting through this page.
+    $this->get('/en/admin/login')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Auth/Login')
+            ->where('locale.current', 'en')
+            ->where('locale.alternates.ar', '/ar/admin/login')
+        );
+});
+
+it('renders the whole admin in English, not just its chrome', function () {
+    [$employee] = p6Employee();
+
+    // /en/admin has routed since Phase 6; the switcher only exposes it.
+    // This asserts the page it exposes is actually usable in English.
+    $this->actingAs($employee, 'employee')
+        ->get('/en/admin/products')
+        ->assertOk()
+        ->assertSee('<html lang="en" dir="ltr"', false)
+        ->assertSee('css/app.min.css', false)
+        ->assertDontSee('app-rtl.min.css', false);
+});
+
+it('persists a switched language so a later bare URL lands in it', function () {
+    [$employee] = p6Employee();
+
+    // SetLocale queues the preference cookie on every localised request,
+    // so choosing English once survives to the next bare-URL visit.
+    $response = $this->actingAs($employee, 'employee')->get('/en/admin/products');
+
+    $response->assertOk()->assertCookie('locale', 'en');
 });

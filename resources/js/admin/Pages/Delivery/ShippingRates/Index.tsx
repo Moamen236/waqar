@@ -97,8 +97,7 @@ export default function ShippingRatesIndex({
                                     {rates.data.length === 0 && (
                                         <tr>
                                             <td colSpan={6} className="text-center text-muted py-4">
-                                                No shipping rates yet — the storefront cannot take an order until at
-                                                least one exists.
+                                                {t('admin.noShippingRatesYet')}
                                             </td>
                                         </tr>
                                     )}

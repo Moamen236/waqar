@@ -195,10 +195,7 @@ export default function ShippingRateForm({
                                         {t('admin.active')}
                                     </label>
                                 </div>
-                                <p className="text-muted fs-13 mt-2 mb-0">
-                                    An inactive rate is skipped by the resolver, which then falls back to the next
-                                    broadest level.
-                                </p>
+                                <p className="text-muted fs-13 mt-2 mb-0">{t('admin.inactiveRateExplainer')}</p>
                             </div>
                         </div>
                         <div className="p-3 bg-light-subtle rounded border">

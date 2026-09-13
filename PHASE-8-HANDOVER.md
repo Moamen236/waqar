@@ -195,8 +195,10 @@ The roadmap's nine phases are complete. What remains is genuinely outside it:
 
 - **Deferred by the spec itself.** Dashboard widgets are Question 18's explicit follow-up, and reporting
   screens are named in the permission catalog (`reports.view`) without a UI behind them.
-- **Turn English on for staff** when the business wants it. Q2 ships Arabic-only for v1; `/en/admin/…`
-  already works and is tested — it is adding a switcher, not a translation project.
+- ~~**Turn English on for staff** when the business wants it.~~ **Done (2026-09-13)** — an admin locale
+  switcher now sits in the topbar and on the login page. This reverses Question 2's "Arabic-only for
+  v1" decision; `PROJECT-SYSTEM-DOCUMENTATION.html` still records the original and should be updated to
+  match, per the roadmap's own "specification document is the source of truth" rule.
 - **Before real traffic:** walk `DEPLOYMENT.md` §6's manual list on the production host. Nothing in this
   repository can verify DNS, TLS, a tested backup restore, or that someone other than the deployer holds
   the Super Admin credentials.

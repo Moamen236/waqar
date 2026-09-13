@@ -1,5 +1,6 @@
 import { Head, useForm } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
+import LocaleSwitcher from '../../Components/LocaleSwitcher';
 import { useTranslation } from '../../lib/useTranslation';
 
 // Ported from Admin Template/auth-signin.html's authentication-form layout.
@@ -24,6 +25,14 @@ export default function Login() {
                     <div className="card-body p-4">
                         <div className="text-center mb-4">
                             <span className="fw-bold fs-4">WAQAR Admin</span>
+                        </div>
+
+                        {/* Before sign-in, not only after: an employee who
+                            does not read Arabic cannot reach the topbar
+                            switcher without first getting through this
+                            page. */}
+                        <div className="d-flex justify-content-center mb-3">
+                            <LocaleSwitcher />
                         </div>
 
                         <h2 className="fw-bold fs-20 text-center">{t('admin.signIn')}</h2>

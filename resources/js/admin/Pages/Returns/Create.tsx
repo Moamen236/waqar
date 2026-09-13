@@ -98,10 +98,7 @@ export default function ReturnsCreate({
                                 </button>
                             </form>
                             {orderNumber && !order && (
-                                <div className="text-danger fs-13 mt-2">
-                                    No Delivered order found with that number — a return can only be filed against a
-                                    Delivered order.
-                                </div>
+                                <div className="text-danger fs-13 mt-2">{t('admin.noDeliveredOrderFound')}</div>
                             )}
                         </div>
                     </div>

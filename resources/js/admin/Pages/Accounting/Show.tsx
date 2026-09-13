@@ -146,7 +146,7 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                         </div>
                         <div className="card-body">
                             {!canAct ? (
-                                <p className="text-muted mb-0">This order isn&apos;t out for delivery.</p>
+                                <p className="text-muted mb-0">{t('admin.orderNotOutForDelivery')}</p>
                             ) : (
                                 <Tabs defaultActiveKey="delivered" className="nav-tabs-custom mb-3">
                                     <Tab eventKey="delivered" title={t('admin.delivered')}>
@@ -168,10 +168,7 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                                         </button>
                                     </Tab>
                                     <Tab eventKey="returned" title={t('admin.returned')}>
-                                        <p className="text-muted fs-13">
-                                            Customer refused the entire order at the door — the reservation is released,
-                                            nothing was ever deducted.
-                                        </p>
+                                        <p className="text-muted fs-13">{t('admin.fullyRefusedExplainer')}</p>
                                         <button
                                             type="button"
                                             className="btn btn-danger w-100"

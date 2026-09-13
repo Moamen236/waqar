@@ -179,10 +179,7 @@ export default function ReturnsShow({
                         <div className="card-body">
                             {needsShippingFeeConsent && (
                                 <>
-                                    <p className="fs-13 text-muted">
-                                        Record the return-shipping fee the customer agreed to (Question 6) — deducted
-                                        from their refund.
-                                    </p>
+                                    <p className="fs-13 text-muted">{t('admin.returnShippingFeeExplainer')}</p>
                                     <div className="mb-2">
                                         <label className="form-label fs-13">{t('admin.returnShippingFee')}</label>
                                         <input

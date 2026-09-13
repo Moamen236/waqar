@@ -511,8 +511,7 @@ export default function ProductForm({
                                                     </select>
                                                     {productType === 'advertisement' && (
                                                         <div className="form-text">
-                                                            Checkout skips the stock check entirely for this product
-                                                            until it&apos;s converted to Real.
+                                                            {t('admin.advertisementStockExplainer')}
                                                         </div>
                                                     )}
                                                 </div>

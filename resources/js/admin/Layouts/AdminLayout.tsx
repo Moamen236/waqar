@@ -3,6 +3,7 @@ import { Fragment, type PropsWithChildren, useEffect, useState } from 'react';
 import Dropdown from 'react-bootstrap/Dropdown';
 import SimpleBar from 'simplebar-react';
 import 'simplebar-react/dist/simplebar.min.css';
+import LocaleSwitcher from '../Components/LocaleSwitcher';
 import { usePermissions } from '../Hooks/usePermissions';
 import { notifyError, notifySuccess } from '../lib/confirm';
 import type { SharedProps } from '../types';
@@ -237,6 +238,8 @@ export default function AdminLayout({ title, children }: PropsWithChildren<{ tit
                         </div>
 
                         <div className="d-flex align-items-center gap-1">
+                            <LocaleSwitcher />
+
                             {employee && (
                                 <Dropdown align="end" className="topbar-item">
                                     <Dropdown.Toggle

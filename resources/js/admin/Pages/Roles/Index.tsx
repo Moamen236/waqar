@@ -19,10 +19,7 @@ export default function RolesIndex({ roles }: { roles: RoleRecord[] }) {
                     <div className="card">
                         <div className="card-header">
                             <h4 className="card-title">{t('admin.roles')}</h4>
-                            <p className="text-muted mb-0 fs-13">
-                                Every screen or action is gated by a granular permission, never by role name directly —
-                                this is where a Super Admin adjusts what each role can actually do.
-                            </p>
+                            <p className="text-muted mb-0 fs-13">{t('admin.permissionMatrixExplainer')}</p>
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-hover table-centered">
