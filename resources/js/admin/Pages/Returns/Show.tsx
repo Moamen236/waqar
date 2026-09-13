@@ -69,12 +69,12 @@ export default function ReturnsShow({
     const canRefund = ret.status === 'inspected';
 
     async function acceptFee() {
-        if (!(await confirmAction({ title: 'Record the accepted return shipping fee?' }))) return;
+        if (!(await confirmAction({ title: t('admin.recordAcceptedReturnFee') }))) return;
         router.post(route('admin.returns.accept-shipping-fee', ret.id), { return_shipping_fee: shippingFee });
     }
 
     async function approve() {
-        if (!(await confirmAction({ title: 'Approve this return?' }))) return;
+        if (!(await confirmAction({ title: t('admin.approveThisReturn') }))) return;
         router.post(route('admin.returns.approve', ret.id));
     }
 
@@ -82,8 +82,8 @@ export default function ReturnsShow({
         if (!warehouseId) return;
         if (
             !(await confirmAction({
-                title: 'Confirm items received?',
-                text: 'Sellable items are restocked at this warehouse.',
+                title: t('admin.confirmItemsReceived'),
+                text: t('admin.sellableItemsRestocked'),
             }))
         )
             return;
@@ -92,7 +92,7 @@ export default function ReturnsShow({
 
     async function refund() {
         if (!treasuryId || !reference) return;
-        if (!(await confirmAction({ title: 'Record this refund?' }))) return;
+        if (!(await confirmAction({ title: t('admin.recordThisRefund') }))) return;
         router.post(route('admin.returns.refund', ret.id), {
             treasury_id: treasuryId,
             method,
@@ -101,7 +101,10 @@ export default function ReturnsShow({
     }
 
     return (
-        <AdminLayout title={`Return for Order #${ret.order.order_number}`}>
+        <AdminLayout
+            title={t('admin.returnForOrder', { number: ret.order.order_number })}
+            breadcrumbs={[{ label: t('admin.returnsRefunds'), href: route('admin.returns.index') }]}
+        >
             <Head title={t('admin.returnForOrder', { number: ret.order.order_number })} />
 
             <div className="row">

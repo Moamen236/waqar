@@ -80,7 +80,10 @@ export default function ShippingRateForm({
     };
 
     return (
-        <AdminLayout title={rate ? 'Edit Shipping Rate' : 'New Shipping Rate'}>
+        <AdminLayout
+            title={rate ? t('admin.editShippingRate') : t('admin.newShippingRate')}
+            breadcrumbs={[{ label: t('admin.shippingRates'), href: route('admin.delivery.shipping-rates.index') }]}
+        >
             <Head title={rate ? t('admin.editShippingRate') : t('admin.addShippingRate')} />
             <form onSubmit={submit}>
                 <div className="row">

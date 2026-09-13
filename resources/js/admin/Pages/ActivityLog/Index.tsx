@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
-import Pagination from '../../Components/Pagination';
+import { PaginationFooter } from '../../Components/Pagination';
+import SearchFilter from '../../Components/SearchFilter';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { useTranslation } from '../../lib/useTranslation';
 import type { PaginatedData } from '../../types';
@@ -36,13 +37,12 @@ export default function ActivityLogIndex({
     filters: { log: string; event: string; search: string };
 }) {
     const { t } = useTranslation();
-    const [search, setSearch] = useState(filters.search ?? '');
     const [expanded, setExpanded] = useState<number | null>(null);
 
     const apply = (next: Partial<{ log: string; event: string; search: string }>) => {
         router.get(
             route('admin.activity-log.index'),
-            { log: filters.log, event: filters.event, search, ...next },
+            { log: filters.log, event: filters.event, search: filters.search ?? '', ...next },
             { preserveState: true, replace: true },
         );
     };
@@ -57,46 +57,39 @@ export default function ActivityLogIndex({
                         <div className="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
                             <h4 className="card-title flex-grow-1">{t('admin.auditTrail')}</h4>
 
-                            <select
-                                className="form-select form-select-sm w-auto"
-                                value={filters.log}
-                                onChange={(event) => apply({ log: event.target.value })}
+                            <SearchFilter
+                                value={filters.search ?? ''}
+                                placeholder={t('admin.searchSubject')}
+                                onSubmit={(term) => apply({ search: term })}
                             >
-                                <option value="">{t('admin.allDomains')}</option>
-                                {logs.map((log) => (
-                                    <option key={log} value={log}>
-                                        {t(`activity.log.${log}`)}
-                                    </option>
-                                ))}
-                            </select>
+                                <select
+                                    className="form-select form-select-sm w-auto"
+                                    aria-label={t('admin.allDomains')}
+                                    value={filters.log}
+                                    onChange={(event) => apply({ log: event.target.value })}
+                                >
+                                    <option value="">{t('admin.allDomains')}</option>
+                                    {logs.map((log) => (
+                                        <option key={log} value={log}>
+                                            {t(`activity.log.${log}`)}
+                                        </option>
+                                    ))}
+                                </select>
 
-                            <select
-                                className="form-select form-select-sm w-auto"
-                                value={filters.event}
-                                onChange={(event) => apply({ event: event.target.value })}
-                            >
-                                <option value="">{t('admin.allEvents')}</option>
-                                {events.map((event) => (
-                                    <option key={event} value={event}>
-                                        {t(`activity.event.${event}`)}
-                                    </option>
-                                ))}
-                            </select>
-
-                            <form
-                                onSubmit={(event) => {
-                                    event.preventDefault();
-                                    apply({ search });
-                                }}
-                            >
-                                <input
-                                    type="search"
-                                    className="form-control form-control-sm"
-                                    placeholder={t('admin.searchSubject')}
-                                    value={search}
-                                    onChange={(event) => setSearch(event.target.value)}
-                                />
-                            </form>
+                                <select
+                                    className="form-select form-select-sm w-auto"
+                                    aria-label={t('admin.allEvents')}
+                                    value={filters.event}
+                                    onChange={(event) => apply({ event: event.target.value })}
+                                >
+                                    <option value="">{t('admin.allEvents')}</option>
+                                    {events.map((event) => (
+                                        <option key={event} value={event}>
+                                            {t(`activity.event.${event}`)}
+                                        </option>
+                                    ))}
+                                </select>
+                            </SearchFilter>
                         </div>
 
                         <div className="table-responsive">
@@ -184,11 +177,7 @@ export default function ActivityLogIndex({
                                 </tbody>
                             </table>
                         </div>
-                        {activities.data.length > 0 && (
-                            <div className="card-footer border-top">
-                                <Pagination data={activities} />
-                            </div>
-                        )}
+                        <PaginationFooter data={activities} />
                     </div>
                 </div>
             </div>

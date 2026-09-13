@@ -52,7 +52,10 @@ export default function EmployeeForm({
     const needsTeamLeader = data.role === 'Customer Service';
 
     return (
-        <AdminLayout title={employee ? t('admin.editEmployee') : t('admin.newEmployee')}>
+        <AdminLayout
+            title={employee ? t('admin.editEmployee') : t('admin.newEmployee')}
+            breadcrumbs={[{ label: t('admin.employees'), href: route('admin.employees.index') }]}
+        >
             <Head title={employee ? t('admin.editEmployee') : t('admin.newEmployee')} />
             <form onSubmit={submit}>
                 <div className="row">
@@ -103,7 +106,7 @@ export default function EmployeeForm({
                                     <div className="col-lg-6">
                                         <div className="mb-3">
                                             <label className="form-label">
-                                                {employee ? 'New Password (optional)' : 'Password'}
+                                                {employee ? t('admin.newPasswordOptional') : t('admin.password')}
                                             </label>
                                             <input
                                                 type="password"
@@ -126,7 +129,7 @@ export default function EmployeeForm({
                                     <div className="col-lg-6">
                                         <div className="mb-3">
                                             <label className="form-label">
-                                                {employee ? 'New National ID (optional)' : 'National ID'}
+                                                {employee ? t('admin.newNationalIdOptional') : t('admin.nationalId')}
                                             </label>
                                             <input
                                                 className="form-control"

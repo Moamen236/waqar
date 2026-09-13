@@ -49,6 +49,29 @@ Route::middleware('auth:employee')->group(function () {
         Route::post('orders', [OrderController::class, 'store'])->name('orders.store');
     });
 
+    // The whole order book. Every other order screen below is a role's work
+    // queue filtered to the statuses that role acts on — Checking sees New
+    // through Backorder, Delivery sees Confirmed, Accounting sees what is
+    // out for delivery — so until now no screen could answer "where is
+    // order #2003" without knowing which department held it. These two are
+    // read-only: the status-changing actions stay on the department screens
+    // that own them.
+    //
+    // orders/{order} is registered after orders/create for the usual
+    // reason: both are two-segment GETs and Laravel matches in
+    // registration order, so the wildcard first would swallow
+    // /orders/create as order="create".
+    Route::middleware('permission:orders.view')->group(function () {
+        Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
+        Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
+    });
+
+    // Removing an order from the book. Soft delete, and only reachable once
+    // the order is already Cancelled — see OrderController::destroy().
+    Route::middleware('permission:orders.delete')->group(function () {
+        Route::delete('orders/{order}', [OrderController::class, 'destroy'])->name('orders.destroy');
+    });
+
     // Checking — work queue + single-order confirm/postpone/cancel/backorder.
     Route::middleware('permission:orders.view')->group(function () {
         Route::get('checking', [CheckingController::class, 'index'])->name('checking.index');
@@ -140,6 +163,15 @@ Route::middleware('auth:employee')->group(function () {
     Route::middleware('permission:products.create')->group(function () {
         Route::get('products/create', [ProductController::class, 'create'])->name('products.create');
         Route::post('products', [ProductController::class, 'store'])->name('products.store');
+    });
+    // Registered *after* products/create, not with products.index above it:
+    // both are two-segment GET routes, and Laravel matches in registration
+    // order, so a wildcard placed first swallows /products/create as
+    // product="create" and 404s on the model lookup. Same shape as the
+    // accounting/{order} vs accounting/reconciliation collision fixed in
+    // Phase 4 — see PHASE-4-HANDOVER.md.
+    Route::middleware('permission:products.view')->group(function () {
+        Route::get('products/{product}', [ProductController::class, 'show'])->name('products.show');
     });
     Route::middleware('permission:products.update')->group(function () {
         Route::get('products/{product}/edit', [ProductController::class, 'edit'])->name('products.edit');

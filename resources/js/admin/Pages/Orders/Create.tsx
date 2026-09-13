@@ -40,7 +40,7 @@ export default function OrdersCreate({
     warehouses: Warehouse[];
     geoTree: GeoTree;
 }) {
-    const { t } = useTranslation();
+    const { t, price } = useTranslation();
     const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
 
     const { register, control, handleSubmit, watch, setValue } = useForm<FormValues>({
@@ -105,11 +105,10 @@ export default function OrdersCreate({
                                     <div className="text-danger fs-13 mt-1">{serverErrors.customer_id}</div>
                                 )}
                                 <div className="form-text">
-                                    Customer not found?{' '}
+                                    {t('admin.customerNotFound')}{' '}
                                     <a href={route('admin.customers.create')} target="_blank" rel="noreferrer">
                                         {t('admin.createOne')}
-                                    </a>{' '}
-                                    first.
+                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -178,7 +177,10 @@ export default function OrdersCreate({
                                     <div className="text-danger fs-13 mt-2">{serverErrors.items}</div>
                                 )}
                                 <div className="text-end fw-bold mt-3">
-                                    Subtotal (before shipping/coupon): {subtotal.toFixed(2)}
+                                    {t('admin.subtotalBeforeExtras')}:{' '}
+                                    <span dir="ltr" className="text-nowrap">
+                                        {price(subtotal)}
+                                    </span>
                                 </div>
                             </div>
                         </div>

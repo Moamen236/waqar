@@ -48,6 +48,11 @@ class PermissionSeeder extends Seeder
         'orders.status.update',
         'orders.assign',
         'orders.confirm_delivery',
+        // Deliberately *not* granted alongside orders.status.update:
+        // cancelling an order is Checking's daily work, removing one from
+        // the book is not. See OrderController::destroy() for why the two
+        // are sequenced rather than alternatives.
+        'orders.delete',
         // Split in two: .create is filing a return on a customer's behalf
         // and recording their shipping-fee consent (Customer Service's
         // job, same convention as orders.create) — .manage is the actual
@@ -91,7 +96,7 @@ class PermissionSeeder extends Seeder
             'products.view', 'products.create', 'products.update', 'products.delete',
             'categories.manage', 'collections.manage',
             'treasury.view', 'treasury.manage',
-            'orders.view', 'employees.view', 'customers.view',
+            'orders.view', 'orders.delete', 'employees.view', 'customers.view',
             'reports.view', 'activity.view',
         ],
         'Vice Chairman' => [

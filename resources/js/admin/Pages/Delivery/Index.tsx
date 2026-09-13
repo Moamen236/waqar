@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
-import Pagination from '../../Components/Pagination';
+import { PaginationFooter } from '../../Components/Pagination';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { confirmAction } from '../../lib/confirm';
@@ -30,7 +30,7 @@ export default function DeliveryIndex({
         const value = choice[orderId];
         if (!value) return;
         const [type, id] = value.split(':');
-        if (!(await confirmAction({ title: 'Assign this order?' }))) return;
+        if (!(await confirmAction({ title: t('admin.assignThisOrder') }))) return;
         router.post(route('admin.delivery.assign', orderId), { assignment_type: type, assignee_id: Number(id) });
     }
 
@@ -68,7 +68,7 @@ export default function DeliveryIndex({
                                                     }
                                                 >
                                                     <option value="">{t('admin.select')}</option>
-                                                    <optgroup label="Representatives">
+                                                    <optgroup label={t('admin.representatives')}>
                                                         {representatives.map((rep) => (
                                                             <option
                                                                 key={`rep-${rep.id}`}
@@ -78,7 +78,7 @@ export default function DeliveryIndex({
                                                             </option>
                                                         ))}
                                                     </optgroup>
-                                                    <optgroup label="Shipping Companies">
+                                                    <optgroup label={t('admin.shippingCompanies')}>
                                                         {shippingCompanies.map((company) => (
                                                             <option
                                                                 key={`co-${company.id}`}
@@ -112,11 +112,7 @@ export default function DeliveryIndex({
                                 </tbody>
                             </table>
                         </div>
-                        {ready.data.length > 0 && (
-                            <div className="card-footer border-top">
-                                <Pagination data={ready} />
-                            </div>
-                        )}
+                        <PaginationFooter data={ready} />
                     </div>
                 </div>
 
@@ -158,11 +154,7 @@ export default function DeliveryIndex({
                                 </tbody>
                             </table>
                         </div>
-                        {active.data.length > 0 && (
-                            <div className="card-footer border-top">
-                                <Pagination data={active} />
-                            </div>
-                        )}
+                        <PaginationFooter data={active} />
                     </div>
                 </div>
             </div>

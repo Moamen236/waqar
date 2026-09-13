@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ShippingRate extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = ['geo_type', 'geo_id', 'price', 'free_shipping_threshold', 'is_active'];
 
     protected function casts(): array

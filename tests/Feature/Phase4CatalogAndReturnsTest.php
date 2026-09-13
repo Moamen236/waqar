@@ -88,7 +88,6 @@ it('lets Vice Chairman create a product with variants, categories, and the type-
 
     $response = $this->actingAs($viceChairman, 'employee')->post(route('admin.products.store'), [
         'name' => ['en' => 'Test Shirt'],
-        'sku' => 'TSHIRT-001',
         'price' => 199.99,
         'status' => true,
         'is_featured' => false,
@@ -103,7 +102,10 @@ it('lets Vice Chairman create a product with variants, categories, and the type-
     ]);
 
     $response->assertRedirect();
-    $product = Product::where('sku', 'TSHIRT-001')->firstOrFail();
+    // Looked up by slug, not SKU: the create form's SKU field is disabled
+    // and store() assigns the value itself (SkuGenerator), so the request
+    // has no say in what it ends up being.
+    $product = Product::where('slug', 'test-shirt')->firstOrFail();
     expect($product->product_type->value)->toBe('real')
         ->and($product->inventory_tracking_enabled)->toBeTrue() // derived, not client-supplied
         ->and($product->categories()->pluck('categories.id'))->toContain($category->id)
@@ -160,7 +162,6 @@ it('never lets a client set inventory_tracking_enabled directly — it always fo
     // the derived value must be false to match the Advertisement type.
     $this->actingAs($viceChairman, 'employee')->post(route('admin.products.store'), [
         'name' => ['en' => 'Preorder Item'],
-        'sku' => 'PRE-001',
         'price' => 500,
         'status' => true, 'is_featured' => false, 'is_new' => false, 'is_on_sale' => false, 'sort_order' => 0,
         'product_type' => 'advertisement',
@@ -169,7 +170,7 @@ it('never lets a client set inventory_tracking_enabled directly — it always fo
         ],
     ])->assertRedirect();
 
-    expect(Product::where('sku', 'PRE-001')->firstOrFail()->inventory_tracking_enabled)->toBeFalse();
+    expect(Product::where('slug', 'preorder-item')->firstOrFail()->inventory_tracking_enabled)->toBeFalse();
 });
 
 it('lets Vice Chairman manage categories with parent nesting and attributes with values', function () {

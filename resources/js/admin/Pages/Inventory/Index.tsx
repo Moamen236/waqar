@@ -1,6 +1,7 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
-import Pagination from '../../Components/Pagination';
+import { PaginationFooter } from '../../Components/Pagination';
+import SearchFilter from '../../Components/SearchFilter';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { usePermissions } from '../../Hooks/usePermissions';
 import { useTranslation } from '../../lib/useTranslation';
@@ -45,7 +46,6 @@ export default function InventoryIndex({
     const { t } = useTranslation();
     const { can } = usePermissions();
     const [adjusting, setAdjusting] = useState<StockRow | null>(null);
-    const [search, setSearch] = useState(filters.search ?? '');
 
     const form = useForm({
         product_variant_id: 0,
@@ -82,7 +82,7 @@ export default function InventoryIndex({
             route('admin.inventory.index'),
             {
                 warehouse: next.warehouse ?? filters.warehouse ?? '',
-                search: next.search ?? search,
+                search: next.search ?? filters.search ?? '',
             },
             { preserveState: true, replace: true },
         );
@@ -97,32 +97,25 @@ export default function InventoryIndex({
                     <div className="card">
                         <div className="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
                             <h4 className="card-title flex-grow-1">{t('admin.stockOnHand')}</h4>
-                            <select
-                                className="form-select form-select-sm w-auto"
-                                value={filters.warehouse ?? ''}
-                                onChange={(event) => applyFilters({ warehouse: event.target.value })}
+                            <SearchFilter
+                                value={filters.search ?? ''}
+                                placeholder={t('admin.searchBySku')}
+                                onSubmit={(term) => applyFilters({ search: term })}
                             >
-                                <option value="">{t('admin.allWarehouses')}</option>
-                                {warehouses.map((warehouse) => (
-                                    <option key={warehouse.id} value={warehouse.id}>
-                                        {warehouse.name}
-                                    </option>
-                                ))}
-                            </select>
-                            <form
-                                onSubmit={(event) => {
-                                    event.preventDefault();
-                                    applyFilters({ search });
-                                }}
-                            >
-                                <input
-                                    type="search"
-                                    className="form-control form-control-sm"
-                                    placeholder={t('admin.searchBySku')}
-                                    value={search}
-                                    onChange={(event) => setSearch(event.target.value)}
-                                />
-                            </form>
+                                <select
+                                    className="form-select form-select-sm w-auto"
+                                    aria-label={t('admin.allWarehouses')}
+                                    value={filters.warehouse ?? ''}
+                                    onChange={(event) => applyFilters({ warehouse: event.target.value })}
+                                >
+                                    <option value="">{t('admin.allWarehouses')}</option>
+                                    {warehouses.map((warehouse) => (
+                                        <option key={warehouse.id} value={warehouse.id}>
+                                            {warehouse.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </SearchFilter>
                         </div>
 
                         <div className="table-responsive">
@@ -172,11 +165,7 @@ export default function InventoryIndex({
                                 </tbody>
                             </table>
                         </div>
-                        {stock.data.length > 0 && (
-                            <div className="card-footer border-top">
-                                <Pagination data={stock} />
-                            </div>
-                        )}
+                        <PaginationFooter data={stock} />
                     </div>
                 </div>
             </div>

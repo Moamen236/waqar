@@ -1,9 +1,11 @@
 import { Link, router, usePage } from '@inertiajs/react';
-import { Fragment, type PropsWithChildren, useEffect, useState } from 'react';
+import { Fragment, type PropsWithChildren, type ReactNode, useCallback, useEffect, useState } from 'react';
 import Dropdown from 'react-bootstrap/Dropdown';
 import SimpleBar from 'simplebar-react';
 import 'simplebar-react/dist/simplebar.min.css';
+import Breadcrumb, { type Crumb } from '../Components/Breadcrumb';
 import LocaleSwitcher from '../Components/LocaleSwitcher';
+import ThemeToggle from '../Components/ThemeToggle';
 import { usePermissions } from '../Hooks/usePermissions';
 import { notifyError, notifySuccess } from '../lib/confirm';
 import type { SharedProps } from '../types';
@@ -21,6 +23,25 @@ interface NavGroup {
     items: NavItem[];
 }
 
+/** The width below which Larkon switches its sidebar to off-canvas. */
+const LARKON_MENU_BREAKPOINT = 1140;
+
+/**
+ * The sidebar sizes app.min.css actually defines, minus `hidden` (which is
+ * derived from the viewport, never chosen).
+ *
+ * `sm-hover-active` is **Larkon's own shipped default** — `config.js`'s
+ * `defaultConfig.menu.size` — not `default`. That matters for more than
+ * fidelity: `.button-sm-hover`, the chevron in the sidebar header that
+ * collapses it, is `display:none` in every mode *except* `sm-hover-active`
+ * and a hovered `sm-hover`. Running with `default` is why the collapse
+ * control was invisible.
+ */
+type DesktopMenuSize = 'sm-hover-active' | 'sm-hover' | 'condensed';
+
+const DEFAULT_MENU_SIZE: DesktopMenuSize = 'sm-hover-active';
+const MENU_SIZE_KEY = 'waqar.admin.menuSize';
+
 // Icon classes are Boxicons (`bx bx-*` / the solid `bxs-*` family) — the
 // icon font Larkon's own icons.min.css actually ships, not the
 // iconify-icon web component the raw template markup uses (that needs an
@@ -34,6 +55,12 @@ const NAV: NavGroup[] = [
     {
         label: 'admin.navOrders',
         items: [
+            {
+                label: 'admin.navAllOrders',
+                href: route('admin.orders.index'),
+                icon: 'bx-receipt',
+                permission: 'orders.view',
+            },
             {
                 label: 'admin.navCreateOrder',
                 href: route('admin.orders.create'),
@@ -194,50 +221,160 @@ const NAV: NavGroup[] = [
     },
 ];
 
-export default function AdminLayout({ title, children }: PropsWithChildren<{ title: string }>) {
+export default function AdminLayout({
+    title,
+    breadcrumbs,
+    actions,
+    children,
+}: PropsWithChildren<{
+    title: string;
+    /** Trail shown opposite the title in Larkon's `page-title-box`. The
+     *  current page is appended automatically, so callers pass ancestors
+     *  only (usually none, or the module's list page from a form). */
+    breadcrumbs?: Crumb[];
+    /** Page-level buttons, rendered in the same flex row as the title —
+     *  which is what Larkon's `page-title-box` is laid out for. */
+    actions?: ReactNode;
+}>) {
     const { t } = useTranslation();
     const { flash } = usePage<SharedProps>().props;
     const { employee, can } = usePermissions();
     const currentUrl = usePage().url;
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    // The desktop menu size, in Larkon's own vocabulary. Read in the
+    // initialiser rather than an effect so the sidebar does not paint at one
+    // size and snap to another on the next frame. Safe to touch localStorage
+    // here because the admin bundle is client-rendered (no Inertia SSR
+    // entry), and the read is guarded anyway — a browser with site data
+    // blocked throws on access rather than returning null.
+    const [narrow, setNarrow] = useState(false);
+    const [menuSize, setMenuSize] = useState<DesktopMenuSize>(() => {
+        try {
+            const stored = window.localStorage.getItem(MENU_SIZE_KEY);
+
+            return stored === 'sm-hover' || stored === 'condensed' ? stored : DEFAULT_MENU_SIZE;
+        } catch {
+            return DEFAULT_MENU_SIZE;
+        }
+    });
+
+    // The dashboard is both the breadcrumb root and a real page, so on the
+    // dashboard itself the root crumb *is* the current page — emitting both
+    // rendered "Dashboard › Dashboard".
+    const root: Crumb = { label: t('admin.navDashboard'), href: route('admin.dashboard') };
+    const ancestors = breadcrumbs ?? [];
+    const trail: Crumb[] =
+        ancestors.length === 0 && title === root.label ? [{ label: title }] : [root, ...ancestors, { label: title }];
 
     useEffect(() => {
         if (flash.success) notifySuccess(flash.success);
         if (flash.error) notifyError(flash.error);
     }, [flash.success, flash.error]);
 
-    // Mirrors Larkon's own app.js: html.sidebar-enable is the class its
-    // CSS keys the mobile off-canvas sidebar's visibility on. The
-    // desktop condensed/hover-collapse menu sizes app.js also supports
-    // aren't ported — the sidebar just stays full-width on desktop,
-    // which is a perfectly fine default, not a missing feature. Closing
-    // it on navigation happens directly in each nav Link's onClick
-    // below, not via an effect reacting to the URL — setting state
-    // unconditionally inside an effect is the anti-pattern
-    // react-hooks/set-state-in-effect flags.
+    // Larkon's sidebar sizes are driven by `data-menu-size` on <html>, and
+    // the breakpoint that picks one is **JavaScript, not CSS** — app.min.css
+    // has no media query for the sidebar at all, only attribute selectors.
+    // Its own config.js/app.js set `hidden` below 1140px and re-evaluate on
+    // resize; without that the fixed-position sidebar stayed on screen at
+    // every width, overlapping the content on tablets and phones. Porting
+    // the shell's markup without this rule is what left that broken.
+    //
+    // `sidebar-enable` (the off-canvas open state) is likewise only
+    // meaningful under `data-menu-size=hidden` — that is the one selector
+    // app.min.css scopes it to — so the topbar toggle only does anything
+    // once the layout is in its narrow mode, exactly as in the template.
+    useEffect(() => {
+        const apply = () => setNarrow(window.innerWidth <= LARKON_MENU_BREAKPOINT);
+
+        apply();
+        window.addEventListener('resize', apply);
+
+        return () => window.removeEventListener('resize', apply);
+    }, []);
+
+    useEffect(() => {
+        document.documentElement.setAttribute('data-menu-size', narrow ? 'hidden' : menuSize);
+    }, [narrow, menuSize]);
+
+    // Only the *desktop* choice is persisted — `hidden` is derived from the
+    // viewport every load, never remembered, or a phone-sized visit would
+    // leave the sidebar collapsed on the next desktop one.
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(MENU_SIZE_KEY, menuSize);
+        } catch {
+            // Preference is a convenience; a browser refusing storage just
+            // means the choice does not survive the next full page load.
+        }
+    }, [menuSize]);
+
+    // Larkon's app.js wires its two controls differently, and the difference
+    // is the point:
+    //
+    // - `.button-sm-hover` (the chevron in the sidebar header) flips between
+    //   the full sidebar and the icon-only rail that widens on hover. On
+    //   desktop this is *the* collapse control, which is why the template
+    //   hides the topbar hamburger outright in both those modes
+    //   (`html[data-menu-size=sm-hover…] .button-toggle-menu{display:none}`).
+    // - `.button-toggle-menu` (the topbar hamburger) toggles `condensed`
+    //   while the sidebar is on screen, and opens the off-canvas drawer once
+    //   the viewport has put it in `hidden`.
+    const toggleSmHover = useCallback(
+        () => setMenuSize((size) => (size === 'sm-hover' ? 'sm-hover-active' : 'sm-hover')),
+        [],
+    );
+
+    const toggleMenu = useCallback(() => {
+        if (narrow) {
+            setSidebarOpen((open) => !open);
+
+            return;
+        }
+
+        setMenuSize((size) => (size === 'condensed' ? DEFAULT_MENU_SIZE : 'condensed'));
+    }, [narrow]);
+
+    // Closing on navigation happens in each nav Link's onClick below, not in
+    // an effect reacting to the URL — setting state unconditionally inside an
+    // effect is the anti-pattern react-hooks/set-state-in-effect flags.
     useEffect(() => {
         document.documentElement.classList.toggle('sidebar-enable', sidebarOpen);
     }, [sidebarOpen]);
+
+    const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
     return (
         <div className="wrapper">
             <header className="topbar">
                 <div className="container-fluid">
                     <div className="navbar-header">
-                        <div className="d-flex align-items-center gap-2">
-                            <button
-                                type="button"
-                                className="button-toggle-menu"
-                                onClick={() => setSidebarOpen((v) => !v)}
-                            >
-                                <i className="bx bx-menu fs-24 align-middle" />
-                            </button>
-                            <h4 className="fw-bold topbar-button pe-none text-uppercase mb-0 d-none d-sm-block">
-                                WAQAR Admin
-                            </h4>
+                        <div className="d-flex align-items-center">
+                            {/* The `.topbar-item` wrapper is load-bearing, not
+                                decoration: app.min.css styles this button only
+                                as `.topbar .topbar-item .button-toggle-menu`,
+                                so outside it the element kept the browser's
+                                default `2px outset` button border and rendered
+                                as a boxed control instead of a bare glyph. */}
+                            <div className="topbar-item">
+                                <button type="button" className="button-toggle-menu me-2" onClick={toggleMenu}>
+                                    <i className="bx bx-menu fs-24 align-middle" />
+                                </button>
+                            </div>
+
+                            <div className="topbar-item">
+                                <h4 className="fw-bold topbar-button pe-none text-uppercase mb-0 d-none d-sm-block">
+                                    WAQAR Admin
+                                </h4>
+                            </div>
                         </div>
 
                         <div className="d-flex align-items-center gap-1">
+                            {/* Template order: the light/dark switch is the
+                                leftmost of the topbar's right-hand controls
+                                (index.html's "Theme Color (Light/Dark)"
+                                block), ahead of everything else. */}
+                            <ThemeToggle />
+
                             <LocaleSwitcher />
 
                             {employee && (
@@ -271,11 +408,47 @@ export default function AdminLayout({ title, children }: PropsWithChildren<{ tit
             </header>
 
             <div className="main-nav">
+                {/* Larkon's logo box carries *two* links, not one:
+                    `.logo-dark` for a light sidebar and `.logo-light` for a
+                    dark one, with app.min.css showing exactly one —
+                    `html[data-menu-color=dark] … .logo-dark{display:none}`.
+                    admin.blade.php sets `data-menu-color="dark"`, so shipping
+                    only the `.logo-dark` half meant the rule hid it and the
+                    sidebar had **no logo at all** (a `.logo-box` measuring
+                    0px tall) since the shell was first ported.
+
+                    Each carries the wordmark twice, because the condensed and
+                    hover rails are ~70px wide and swap `logo-lg` for
+                    `logo-sm`. The template's own image files are
+                    Larkon-branded, so these are WAQAR's wordmark in the same
+                    two sizes rather than the shipped PNGs. */}
                 <div className="logo-box">
                     <Link href={route('admin.dashboard')} className="logo-dark">
+                        <span className="logo-sm fw-bold fs-4 text-dark">W</span>
+                        <span className="logo-lg fw-bold fs-4 text-dark">WAQAR</span>
+                    </Link>
+
+                    <Link href={route('admin.dashboard')} className="logo-light">
+                        <span className="logo-sm fw-bold fs-4 text-white">W</span>
                         <span className="logo-lg fw-bold fs-4 text-white">WAQAR</span>
                     </Link>
                 </div>
+
+                {/* Rendered unconditionally, exactly as the template does:
+                    app.min.css decides when it is visible (always under
+                    `sm-hover-active`, on sidebar hover under `sm-hover`,
+                    never otherwise) and rotates the glyph 180° for the
+                    collapsed direction, so React must not second-guess it
+                    with its own `display` logic. */}
+                <button
+                    type="button"
+                    className="button-sm-hover"
+                    aria-label={t(menuSize === 'sm-hover' ? 'admin.expandSidebar' : 'admin.collapseSidebar')}
+                    aria-pressed={menuSize === 'sm-hover'}
+                    onClick={toggleSmHover}
+                >
+                    <i className="bx bx-chevrons-right button-sm-hover-icon align-middle" />
+                </button>
 
                 <SimpleBar className="scrollbar">
                     <ul className="navbar-nav" id="navbar-nav">
@@ -290,7 +463,7 @@ export default function AdminLayout({ title, children }: PropsWithChildren<{ tit
                                         <li className="nav-item" key={item.href}>
                                             <Link
                                                 href={item.href}
-                                                onClick={() => setSidebarOpen(false)}
+                                                onClick={closeSidebar}
                                                 className={`nav-link ${currentUrl.startsWith(new URL(item.href).pathname) ? 'active' : ''}`}
                                             >
                                                 <span className="nav-icon">
@@ -307,12 +480,28 @@ export default function AdminLayout({ title, children }: PropsWithChildren<{ tit
                 </SimpleBar>
             </div>
 
+            {narrow && sidebarOpen && (
+                <div
+                    className="offcanvas-backdrop fade show"
+                    role="presentation"
+                    onClick={closeSidebar}
+                    aria-hidden="true"
+                />
+            )}
+
             <div className="page-content">
                 <div className="container-fluid">
                     <div className="row">
                         <div className="col-12">
+                            {/* `page-title-box` is a flex space-between row in
+                                app.min.css — it was carrying only the title,
+                                so the half it was laid out for sat empty. */}
                             <div className="page-title-box">
                                 <h4 className="page-title">{title}</h4>
+                                <div className="d-flex align-items-center flex-wrap gap-2">
+                                    {actions}
+                                    <Breadcrumb items={trail} />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -322,7 +511,10 @@ export default function AdminLayout({ title, children }: PropsWithChildren<{ tit
                 <footer className="footer">
                     <div className="container-fluid">
                         <div className="row">
-                            <div className="col-12 text-center">WAQAR Admin</div>
+                            <div className="col-12 text-center">
+                                <span dir="ltr">© {new Date().getFullYear()}</span> WAQAR —{' '}
+                                {t('admin.allRightsReserved')}
+                            </div>
                         </div>
                     </div>
                 </footer>

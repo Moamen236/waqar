@@ -55,7 +55,10 @@ export default function CategoryForm({
     };
 
     return (
-        <AdminLayout title={category ? t('admin.editCategory') : t('admin.newCategory')}>
+        <AdminLayout
+            title={category ? t('admin.editCategory') : t('admin.newCategory')}
+            breadcrumbs={[{ label: t('admin.categories'), href: route('admin.categories.index') }]}
+        >
             <Head title={category ? t('admin.editCategory') : t('admin.newCategory')} />
             <form onSubmit={submit}>
                 <div className="row">

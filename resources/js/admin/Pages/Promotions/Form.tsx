@@ -236,7 +236,10 @@ export default function PromotionForm({
     }
 
     return (
-        <AdminLayout title={promotion ? t('admin.editPromotion') : t('admin.newPromotion')}>
+        <AdminLayout
+            title={promotion ? t('admin.editPromotion') : t('admin.newPromotion')}
+            breadcrumbs={[{ label: t('admin.promotions'), href: route('admin.promotions.index') }]}
+        >
             <Head title={promotion ? t('admin.editPromotion') : t('admin.newPromotion')} />
             <form onSubmit={handleSubmit(onSubmit)}>
                 <div className="row">

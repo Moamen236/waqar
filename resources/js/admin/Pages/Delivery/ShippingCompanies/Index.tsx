@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import Pagination from '../../../Components/Pagination';
+import { PaginationFooter } from '../../../Components/Pagination';
 import RowActions from '../../../Components/RowActions';
 import StatusBadge from '../../../Components/StatusBadge';
 import AdminLayout from '../../../Layouts/AdminLayout';
@@ -78,11 +78,7 @@ export default function ShippingCompaniesIndex({
                                 </tbody>
                             </table>
                         </div>
-                        {shippingCompanies.data.length > 0 && (
-                            <div className="card-footer border-top">
-                                <Pagination data={shippingCompanies} />
-                            </div>
-                        )}
+                        <PaginationFooter data={shippingCompanies} />
                     </div>
                 </div>
             </div>

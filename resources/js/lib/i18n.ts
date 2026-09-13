@@ -70,3 +70,41 @@ export function formatMoney(value: number | null | undefined, locale: Locale): s
 
     return locale === 'ar' ? `${amount} ج.م` : `EGP ${amount}`;
 }
+
+/**
+ * Dates rendered through the browser's *default* locale were reordering
+ * under the bidi algorithm in the Arabic admin — `9/13/2026, 7:08:08 PM`
+ * came out as `PM 7:08:08 ,9/13/2026`, which is not a different format
+ * but a genuinely misread one. Formatting against the active locale
+ * fixes the glyphs; callers still wrap the output in `dir="ltr"` so the
+ * separators keep their order inside an RTL paragraph.
+ *
+ * Arabic uses the `ar-EG-u-nu-latn` locale: Egyptian conventions with
+ * Western digits, the same call formatMoney above already makes and for
+ * the same reason.
+ */
+const dateLocale = (locale: Locale): string => (locale === 'ar' ? 'ar-EG-u-nu-latn' : 'en-GB');
+
+export function formatDate(value: string | null | undefined, locale: Locale): string {
+    if (!value) return '—';
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+
+    return date.toLocaleDateString(dateLocale(locale), { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+export function formatDateTime(value: string | null | undefined, locale: Locale): string {
+    if (!value) return '—';
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+
+    return date.toLocaleString(dateLocale(locale), {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}

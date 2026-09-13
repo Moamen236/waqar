@@ -66,13 +66,36 @@ class ShippingRateController extends Controller
         ]);
     }
 
+    /**
+     * `shipping_rates` carries UNIQUE (geo_type, geo_id) — one rate per
+     * place — and a soft-deleted row keeps occupying that pair. So a plain
+     * insert after a delete fails on the constraint, and since checkout
+     * refuses any order to an address with no rate (Phase 5), that would
+     * take delivery to a whole governorate offline with a SQL error as the
+     * only clue.
+     *
+     * Reviving the trashed row is the fix the index leaves available:
+     * widening it to include `deleted_at` would stop constraining live rows
+     * at all, because MySQL treats NULL as distinct in a unique index.
+     */
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validated($request);
 
-        ShippingRate::create($data);
+        $trashed = ShippingRate::onlyTrashed()
+            ->where('geo_type', $data['geo_type'])
+            ->where('geo_id', $data['geo_id'])
+            ->first();
 
-        return redirect()->route('admin.delivery.shipping-rates.index')->with('success', 'Shipping rate created.');
+        if ($trashed !== null) {
+            $trashed->restore();
+            $trashed->update($data);
+        } else {
+            ShippingRate::create($data);
+        }
+
+        return redirect()->route('admin.delivery.shipping-rates.index')
+            ->with('success', __('Shipping rate created.'));
     }
 
     public function edit(ShippingRate $shippingRate): Response

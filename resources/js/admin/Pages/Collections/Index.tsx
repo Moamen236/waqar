@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import Pagination from '../../Components/Pagination';
+import { PaginationFooter } from '../../Components/Pagination';
 import RowActions from '../../Components/RowActions';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
@@ -63,11 +63,7 @@ export default function CollectionsIndex({ collections }: { collections: Paginat
                                 </tbody>
                             </table>
                         </div>
-                        {collections.data.length > 0 && (
-                            <div className="card-footer border-top">
-                                <Pagination data={collections} />
-                            </div>
-                        )}
+                        <PaginationFooter data={collections} />
                     </div>
                 </div>
             </div>

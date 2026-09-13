@@ -76,7 +76,10 @@ export default function ReturnsCreate({
     }
 
     return (
-        <AdminLayout title={t('admin.fileAReturn')}>
+        <AdminLayout
+            title={t('admin.fileAReturn')}
+            breadcrumbs={[{ label: t('admin.returnsRefunds'), href: route('admin.returns.index') }]}
+        >
             <Head title={t('admin.fileAReturn')} />
 
             <div className="row">

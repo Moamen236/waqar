@@ -74,7 +74,7 @@ export default function ReconciliationShow({
     async function recordTransfer(statement: Statement) {
         const amount = transferAmount[statement.id];
         if (!amount || !transferTreasury) return;
-        if (!(await confirmAction({ title: 'Record this transfer?' }))) return;
+        if (!(await confirmAction({ title: t('admin.recordThisTransfer') }))) return;
         router.post(route('admin.accounting.reconciliation.transfer', statement.id), {
             treasury_id: transferTreasury,
             amount,
@@ -82,7 +82,15 @@ export default function ReconciliationShow({
     }
 
     return (
-        <AdminLayout title={t('admin.reconciliationFor', { company: shippingCompany.name })}>
+        <AdminLayout
+            title={t('admin.reconciliationFor', { company: shippingCompany.name })}
+            breadcrumbs={[
+                {
+                    label: t('admin.shippingCompanyReconciliation'),
+                    href: route('admin.accounting.reconciliation.index'),
+                },
+            ]}
+        >
             <Head title={t('admin.reconciliationFor', { company: shippingCompany.name })} />
 
             <div className="card">

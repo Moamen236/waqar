@@ -1,7 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { type FormEvent, useState } from 'react';
 import RowActions from '../../Components/RowActions';
-import Pagination from '../../Components/Pagination';
+import { PaginationFooter } from '../../Components/Pagination';
+import SearchFilter from '../../Components/SearchFilter';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
 import type { Customer, PaginatedData } from '../../types';
@@ -10,11 +10,9 @@ import { useTranslation } from '../../lib/useTranslation';
 // Ported from Admin Template/customer-list.html's table structure.
 export default function CustomersIndex({ customers, q }: { customers: PaginatedData<Customer>; q: string | null }) {
     const { t } = useTranslation();
-    const [search, setSearch] = useState(q ?? '');
 
-    function submitSearch(e: FormEvent) {
-        e.preventDefault();
-        router.get(route('admin.customers.index'), { q: search }, { preserveState: true });
+    function submitSearch(term: string) {
+        router.get(route('admin.customers.index'), { q: term }, { preserveState: true });
     }
 
     return (
@@ -25,15 +23,16 @@ export default function CustomersIndex({ customers, q }: { customers: PaginatedD
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center gap-1">
                             <h4 className="card-title flex-grow-1">{t('admin.allCustomers')}</h4>
-                            <form onSubmit={submitSearch} className="d-flex gap-2">
-                                <input
-                                    className="form-control form-control-sm"
-                                    placeholder={t('admin.searchNameEmailPhone')}
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                />
-                            </form>
-                            <Link href={route('admin.customers.create')} className="btn btn-sm btn-primary">
+                            <SearchFilter
+                                value={q ?? ''}
+                                placeholder={t('admin.searchNameEmailPhone')}
+                                onSubmit={submitSearch}
+                            />
+                            <Link
+                                href={route('admin.customers.create')}
+                                className="btn btn-sm btn-primary d-flex align-items-center"
+                            >
+                                <i className="bx bx-plus me-1" />
                                 {t('admin.addCustomer')}
                             </Link>
                         </div>
@@ -74,11 +73,7 @@ export default function CustomersIndex({ customers, q }: { customers: PaginatedD
                                 </tbody>
                             </table>
                         </div>
-                        {customers.data.length > 0 && (
-                            <div className="card-footer border-top">
-                                <Pagination data={customers} />
-                            </div>
-                        )}
+                        <PaginationFooter data={customers} />
                     </div>
                 </div>
             </div>

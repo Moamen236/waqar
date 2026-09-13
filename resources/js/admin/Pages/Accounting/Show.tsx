@@ -53,8 +53,8 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
         if (!treasuryId) return;
         if (
             !(await confirmAction({
-                title: 'Confirm Delivered?',
-                text: 'This deducts physical stock and records the cash collection.',
+                title: t('admin.confirmDeliveredQ'),
+                text: t('admin.confirmDeliveredHint'),
             }))
         )
             return;
@@ -68,8 +68,8 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
     async function confirmReturned() {
         if (
             !(await confirmAction({
-                title: 'Confirm Returned at delivery?',
-                text: 'Stock reservation is released — nothing was deducted.',
+                title: t('admin.confirmReturnedQ'),
+                text: t('admin.confirmReturnedHint'),
             }))
         )
             return;
@@ -80,8 +80,8 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
         if (!treasuryId) return;
         if (
             !(await confirmAction({
-                title: 'Confirm Partially Returned?',
-                text: 'Kept items deduct stock, returned items release it.',
+                title: t('admin.confirmPartiallyReturnedQ'),
+                text: t('admin.confirmPartiallyReturnedHint'),
             }))
         )
             return;
@@ -94,7 +94,10 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
     }
 
     return (
-        <AdminLayout title={`Order #${order.order_number} — Accounting`}>
+        <AdminLayout
+            title={t('admin.accountingForOrder', { number: order.order_number })}
+            breadcrumbs={[{ label: t('admin.accountingDeliveryConfirmation'), href: route('admin.accounting.index') }]}
+        >
             <Head title={t('admin.orderNumber', { number: order.order_number })} />
 
             <div className="row">

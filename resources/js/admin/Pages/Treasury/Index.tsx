@@ -1,7 +1,8 @@
 import { Head, router } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import Chart from 'react-apexcharts';
-import Pagination from '../../Components/Pagination';
+import EmptyState, { EmptyRow } from '../../Components/EmptyState';
+import { PaginationFooter } from '../../Components/Pagination';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { confirmAction } from '../../lib/confirm';
 import type { PaginatedData } from '../../types';
@@ -33,7 +34,7 @@ export default function TreasuryIndex({
     selected: TreasuryRecord | null;
     transactions: PaginatedData<TransactionRecord> | null;
 }) {
-    const { t } = useTranslation();
+    const { t, price, date, dateTime } = useTranslation();
     const [txType, setTxType] = useState('income');
     const [txAmount, setTxAmount] = useState('');
     const [txDescription, setTxDescription] = useState('');
@@ -49,7 +50,7 @@ export default function TreasuryIndex({
 
     async function recordTransaction() {
         if (!selected || !txAmount) return;
-        if (!(await confirmAction({ title: 'Record this transaction?' }))) return;
+        if (!(await confirmAction({ title: t('admin.recordThisTransaction') }))) return;
         router.post(
             route('admin.treasury.transactions.store'),
             { treasury_id: selected.id, type: txType, amount: txAmount, description: txDescription || undefined },
@@ -59,7 +60,7 @@ export default function TreasuryIndex({
 
     async function transfer() {
         if (!selected || !transferTo || !transferAmount) return;
-        if (!(await confirmAction({ title: 'Record this transfer?' }))) return;
+        if (!(await confirmAction({ title: t('admin.recordThisTransfer') }))) return;
         router.post(
             route('admin.treasury.transfer'),
             { from_treasury_id: selected.id, to_treasury_id: transferTo, amount: transferAmount },
@@ -79,10 +80,10 @@ export default function TreasuryIndex({
     const chartData = useMemo(() => {
         const rows = transactions?.data.slice(0, 15).reverse() ?? [];
         return {
-            categories: rows.map((r) => new Date(r.created_at).toLocaleDateString()),
+            categories: rows.map((r) => date(r.created_at)),
             series: rows.map((r) => Number(r.amount)),
         };
-    }, [transactions]);
+    }, [transactions, date]);
 
     return (
         <AdminLayout title={t('admin.treasury')}>
@@ -109,9 +110,16 @@ export default function TreasuryIndex({
                                                 {t(`treasury.type.${treasury.type}`)}
                                             </div>
                                         </td>
-                                        <td className="text-end">{treasury.current_balance}</td>
+                                        <td className="text-end">
+                                            <span dir="ltr" className="text-nowrap">
+                                                {price(Number(treasury.current_balance))}
+                                            </span>
+                                        </td>
                                     </tr>
                                 ))}
+                                {treasuries.length === 0 && (
+                                    <EmptyRow colSpan={2} message={t('admin.noTreasuryAccounts')} icon="bx-money" />
+                                )}
                             </tbody>
                         </table>
                     </div>
@@ -128,7 +136,7 @@ export default function TreasuryIndex({
                                 onChange={(e) => setNewName(e.target.value)}
                             />
                             <select
-                                className="form-control mb-2"
+                                className="form-select mb-2"
                                 value={newType}
                                 onChange={(e) => setNewType(e.target.value)}
                             >
@@ -167,14 +175,16 @@ export default function TreasuryIndex({
                                             {t(`treasury.type.${selected.type}`)}
                                         </span>
                                     </div>
-                                    <h3 className="mb-0">{selected.current_balance}</h3>
+                                    <h3 className="mb-0" dir="ltr">
+                                        {price(Number(selected.current_balance))}
+                                    </h3>
                                 </div>
                                 {chartData.series.length > 1 && (
                                     <div className="card-body pt-0">
                                         <Chart
                                             type="bar"
                                             height={220}
-                                            series={[{ name: 'Amount', data: chartData.series }]}
+                                            series={[{ name: t('admin.amount'), data: chartData.series }]}
                                             options={{
                                                 chart: { toolbar: { show: false } },
                                                 xaxis: { categories: chartData.categories },
@@ -193,7 +203,7 @@ export default function TreasuryIndex({
                                         </div>
                                         <div className="card-body">
                                             <select
-                                                className="form-control mb-2"
+                                                className="form-select mb-2"
                                                 value={txType}
                                                 onChange={(e) => setTxType(e.target.value)}
                                             >
@@ -232,7 +242,7 @@ export default function TreasuryIndex({
                                         </div>
                                         <div className="card-body">
                                             <select
-                                                className="form-control mb-2"
+                                                className="form-select mb-2"
                                                 value={transferTo}
                                                 onChange={(e) => setTransferTo(Number(e.target.value))}
                                             >
@@ -291,24 +301,43 @@ export default function TreasuryIndex({
                                                             {t(`treasury.tx.${tx.type}`)}
                                                         </span>
                                                     </td>
-                                                    <td>{tx.amount}</td>
+                                                    <td>
+                                                        <span dir="ltr" className="text-nowrap">
+                                                            {price(Number(tx.amount))}
+                                                        </span>
+                                                    </td>
                                                     <td>{tx.description}</td>
                                                     <td>{tx.created_by?.full_name}</td>
-                                                    <td>{new Date(tx.created_at).toLocaleString()}</td>
+                                                    <td>
+                                                        <span dir="ltr" className="text-nowrap">
+                                                            {dateTime(tx.created_at)}
+                                                        </span>
+                                                    </td>
                                                 </tr>
                                             ))}
+                                            {transactions?.data.length === 0 && (
+                                                <EmptyRow
+                                                    colSpan={5}
+                                                    message={t('admin.noTransactionsYet')}
+                                                    icon="bx-receipt"
+                                                />
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
-                                {transactions && (
-                                    <div className="card-footer border-top">
-                                        <Pagination data={transactions} />
-                                    </div>
-                                )}
+                                {transactions && <PaginationFooter data={transactions} />}
                             </div>
                         </>
                     )}
-                    {!selected && <p className="text-muted">{t('admin.createATreasuryAccountToGet')}</p>}
+                    {!selected && (
+                        <div className="card">
+                            <EmptyState
+                                title={t('admin.noTreasuryAccounts')}
+                                description={t('admin.createATreasuryAccountToGet')}
+                                icon="bx-money"
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
         </AdminLayout>

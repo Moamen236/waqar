@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import Pagination from '../../Components/Pagination';
+import { PaginationFooter } from '../../Components/Pagination';
 import RowActions from '../../Components/RowActions';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
@@ -64,11 +64,7 @@ export default function CategoriesIndex({ categories }: { categories: PaginatedD
                                 </tbody>
                             </table>
                         </div>
-                        {categories.data.length > 0 && (
-                            <div className="card-footer border-top">
-                                <Pagination data={categories} />
-                            </div>
-                        )}
+                        <PaginationFooter data={categories} />
                     </div>
                 </div>
             </div>

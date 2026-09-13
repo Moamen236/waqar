@@ -42,7 +42,12 @@ export default function ShippingCompanyForm({ shippingCompany }: { shippingCompa
     };
 
     return (
-        <AdminLayout title={shippingCompany ? t('admin.editShippingCompany') : t('admin.newShippingCompany')}>
+        <AdminLayout
+            title={shippingCompany ? t('admin.editShippingCompany') : t('admin.newShippingCompany')}
+            breadcrumbs={[
+                { label: t('admin.shippingCompanies'), href: route('admin.delivery.shipping-companies.index') },
+            ]}
+        >
             <Head title={shippingCompany ? t('admin.editShippingCompany') : t('admin.newShippingCompany')} />
             <form onSubmit={submit}>
                 <div className="row">

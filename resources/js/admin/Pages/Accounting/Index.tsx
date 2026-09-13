@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import Pagination from '../../Components/Pagination';
+import { PaginationFooter } from '../../Components/Pagination';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
 import type { OrderSummary, PaginatedData } from '../../types';
@@ -62,11 +62,7 @@ export default function AccountingIndex({ orders }: { orders: PaginatedData<Orde
                                 </tbody>
                             </table>
                         </div>
-                        {orders.data.length > 0 && (
-                            <div className="card-footer border-top">
-                                <Pagination data={orders} />
-                            </div>
-                        )}
+                        <PaginationFooter data={orders} />
                     </div>
                 </div>
             </div>

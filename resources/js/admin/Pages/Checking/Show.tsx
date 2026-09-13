@@ -48,18 +48,18 @@ type ReasonAction = 'postpone' | 'cancel' | 'backorder';
 // Details card, plus an Actions card for this department's slice of the
 // order lifecycle.
 export default function CheckingShow({ order, warehouses }: { order: OrderDetail; warehouses: Warehouse[] }) {
-    const { t } = useTranslation();
+    const { t, price, dateTime, isRtl } = useTranslation();
     const [reason, setReason] = useState('');
     const [warehouseId, setWarehouseId] = useState<number | ''>(warehouses[0]?.id ?? '');
 
     async function confirm() {
-        if (!(await confirmAction({ title: 'Confirm this order?' }))) return;
+        if (!(await confirmAction({ title: t('admin.confirmThisOrder') }))) return;
         router.post(route('admin.checking.confirm', order.id), { notes: reason || undefined });
     }
 
     async function act(action: ReasonAction) {
         if (!reason.trim()) {
-            await confirmAction({ title: 'A reason is required', text: 'Enter a reason before continuing.' });
+            await confirmAction({ title: 'A reason is required', text: t('admin.enterAReasonFirst') });
             return;
         }
         if (
@@ -74,14 +74,18 @@ export default function CheckingShow({ order, warehouses }: { order: OrderDetail
 
     async function resume() {
         if (!warehouseId) return;
-        if (!(await confirmAction({ title: 'Resume from backorder?', text: 'Stock will be reserved now.' }))) return;
+        if (!(await confirmAction({ title: t('admin.resumeFromBackorder'), text: t('admin.stockWillBeReservedNow') })))
+            return;
         router.post(route('admin.checking.resume', order.id), { warehouse_id: warehouseId });
     }
 
     const canAct = ['New', 'Checking', 'Postponed', 'Confirmed', 'Backorder'].includes(order.status);
 
     return (
-        <AdminLayout title={`Order #${order.order_number}`}>
+        <AdminLayout
+            title={t('admin.orderTitle', { number: order.order_number })}
+            breadcrumbs={[{ label: t('admin.checkingWorkQueue'), href: route('admin.checking.index') }]}
+        >
             <Head title={t('admin.orderNumber', { number: order.order_number })} />
 
             <div className="row">
@@ -106,7 +110,11 @@ export default function CheckingShow({ order, warehouses }: { order: OrderDetail
                                             <td>{item.product_name_snapshot}</td>
                                             <td className="text-muted">{item.variant_sku_snapshot}</td>
                                             <td>{item.quantity}</td>
-                                            <td>{item.unit_price}</td>
+                                            <td>
+                                                <span dir="ltr" className="text-nowrap">
+                                                    {price(Number(item.unit_price))}
+                                                </span>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -133,14 +141,35 @@ export default function CheckingShow({ order, warehouses }: { order: OrderDetail
                                                 <i className="bx bx-check text-success fs-18" />
                                             </span>
                                             <div className="ms-2">
-                                                <h5 className="mb-1 text-dark fw-medium fs-15">
-                                                    {h.from_status ?? '—'} → {h.to_status}
+                                                {/* Statuses go through StatusBadge so the timeline reads
+                                                    in the same language as every other status in the
+                                                    admin — these were rendering the server's raw enum
+                                                    values. The separator is a Boxicons chevron rather
+                                                    than a literal "→": neither Cairo nor Larkon's own
+                                                    faces carry U+2192, so it drew as a tofu box, and an
+                                                    icon can be pointed the right way for the direction. */}
+                                                <h5 className="mb-1 d-flex align-items-center gap-1 flex-wrap fs-15">
+                                                    {h.from_status ? (
+                                                        <StatusBadge status={h.from_status} />
+                                                    ) : (
+                                                        <span className="text-muted">—</span>
+                                                    )}
+                                                    <i
+                                                        className={`bx ${isRtl ? 'bx-left-arrow-alt' : 'bx-right-arrow-alt'} text-muted`}
+                                                    />
+                                                    <StatusBadge status={h.to_status} />
                                                 </h5>
                                                 <p className="mb-0 text-muted">
-                                                    {h.reason ?? h.notes} — by {h.changed_by?.full_name ?? 'system'}
+                                                    {h.reason ?? h.notes}
+                                                    {' — '}
+                                                    {t('admin.byPerson', {
+                                                        name: h.changed_by?.full_name ?? t('admin.system'),
+                                                    })}
                                                 </p>
                                                 <p className="mb-0 text-muted fs-13">
-                                                    {new Date(h.created_at).toLocaleString()}
+                                                    <span dir="ltr" className="text-nowrap">
+                                                        {dateTime(h.created_at)}
+                                                    </span>
                                                 </p>
                                             </div>
                                         </div>

@@ -30,3 +30,24 @@ export default function Pagination<T>({ data }: { data: PaginatedData<T> }) {
         </BsPagination>
     );
 }
+
+/**
+ * The pagination strip in its Larkon placement: a `card-footer border-top`
+ * at the bottom of the list card.
+ *
+ * The wrapper is part of this component rather than each page's markup
+ * because the condition for showing it belongs with it. Pages had been
+ * writing `{rows.data.length > 0 && <div className="card-footer …">}`,
+ * which is the wrong test — a listing with rows but only one page still
+ * rendered the footer, and it came out as a bare grey band with nothing
+ * in it.
+ */
+export function PaginationFooter<T>({ data }: { data: PaginatedData<T> }) {
+    if (data.last_page <= 1) return null;
+
+    return (
+        <div className="card-footer border-top">
+            <Pagination data={data} />
+        </div>
+    );
+}

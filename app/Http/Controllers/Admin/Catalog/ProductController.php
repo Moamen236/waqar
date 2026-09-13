@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Catalog;
 
+use App\Enums\OrderStatus;
 use App\Enums\ProductType;
 use App\Http\Controllers\Controller;
 use App\Models\Attribute;
@@ -11,6 +12,9 @@ use App\Models\InventoryMovement;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\Review;
+use App\Models\WarehouseInventory;
+use App\Services\Catalog\SkuGenerator;
 use App\Services\Content\RichTextSanitizer;
 use App\Support\ImageUpload;
 use Illuminate\Http\RedirectResponse;
@@ -32,7 +36,10 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  */
 class ProductController extends Controller
 {
-    public function __construct(private readonly RichTextSanitizer $sanitizer) {}
+    public function __construct(
+        private readonly RichTextSanitizer $sanitizer,
+        private readonly SkuGenerator $skus,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -41,18 +48,37 @@ class ProductController extends Controller
                 $term = "%{$request->query('q')}%";
                 $query->where('sku', 'like', $term)->orWhere('name->en', 'like', $term);
             })
-            ->with('categories:id,name')
+            ->with(['categories:id,name', 'media'])
             ->withCount('variants')
             ->latest('id')
             ->paginate(20)
             ->withQueryString();
+
+        // Larkon's product-list.html leads each row with the product's own
+        // thumbnail. Adding it is presentation only: the query, its filter,
+        // its ordering and its pagination are untouched — `media` is eager
+        // loaded so the per-row URL lookup is not N+1, and the URL is
+        // appended to each row rather than replacing anything already
+        // serialised, so every existing prop the page reads is still there.
+        $products->getCollection()->each(function (Product $product): void {
+            $product->setAttribute('thumbnail', $product->getFirstMediaUrl('product_images') ?: null);
+        });
 
         return Inertia::render('Products/Index', ['products' => $products, 'q' => $request->query('q')]);
     }
 
     public function create(): Response
     {
-        return Inertia::render('Products/Form', ['product' => null, ...$this->pickerOptions()]);
+        return Inertia::render('Products/Form', [
+            'product' => null,
+            // Shown in the form's disabled SKU field so the operator can
+            // see what the product will be called before saving — and so
+            // the variant SKUs they type on the same screen can be based
+            // on it. store() generates its own rather than trusting this
+            // one, so a stale value here can never become a duplicate.
+            'nextSku' => $this->skus->nextProductSku(),
+            ...$this->pickerOptions(),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -60,6 +86,15 @@ class ProductController extends Controller
         $data = $this->validated($request);
 
         $product = DB::transaction(function () use ($data, $request) {
+            // Generated here, not read from the request: the form's SKU
+            // field is disabled, and a disabled field is a UI affordance,
+            // not a guarantee — anything can still POST a `sku`. Doing it
+            // inside the transaction also means the sequence is read at
+            // the moment of the insert rather than when the page was
+            // opened, so two operators who opened the form together do
+            // not both save the same number.
+            $data['sku'] = $this->skus->nextProductSku();
+
             $product = Product::create($this->productFields($data));
             $product->categories()->sync($data['category_ids'] ?? []);
             $product->collections()->sync($data['collection_ids'] ?? []);
@@ -70,6 +105,139 @@ class ProductController extends Controller
         });
 
         return redirect()->route('admin.products.edit', $product)->with('success', 'Product created.');
+    }
+
+    /**
+     * /admin/products/{product} — the read-only detail view, ported from
+     * Admin Template/product-details.html.
+     *
+     * Everything here is a read: no Action is invoked and nothing is
+     * written. The template's page is a *storefront* product page (Add to
+     * Cart, Buy Now, a quantity stepper), so the parts that only make
+     * sense to a shopper are replaced with what an operator actually needs
+     * on the same layout — stock per variant per warehouse where the
+     * quantity stepper sat, and the catalog record's own fields in the
+     * "Items Detail" spec list.
+     */
+    public function show(Request $request, Product $product): Response
+    {
+        $product->load([
+            'categories:id,name',
+            'collections:id,name',
+            'variants.attributeValues.attribute',
+            'media',
+        ]);
+
+        $variantIds = $product->variants->pluck('id');
+
+        // Queried here rather than through a relation on ProductVariant —
+        // the model has none, and a detail screen is no reason to add one.
+        $stock = WarehouseInventory::query()
+            ->whereIn('product_variant_id', $variantIds)
+            ->with('warehouse:id,name')
+            ->get()
+            ->groupBy('product_variant_id');
+
+        // Units sold is Delivered-only, matching the dashboard and the
+        // rule that stock deducts on Accounting-confirmed delivery
+        // (Section 07) — a pending order is not a sale.
+        $sold = OrderItem::query()
+            ->whereIn('product_variant_id', $variantIds)
+            ->whereHas('order', fn ($order) => $order->where('status', OrderStatus::Delivered))
+            ->selectRaw('product_variant_id, SUM(quantity) as units')
+            ->groupBy('product_variant_id')
+            ->pluck('units', 'product_variant_id');
+
+        return Inertia::render('Products/Show', [
+            'product' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'slug' => $product->slug,
+                'sku' => $product->sku,
+                'description' => $product->description,
+                'short_description' => $product->short_description,
+                'price' => $product->price,
+                'sale_price' => $product->sale_price,
+                'cost_price' => $request->user('employee')->can('products.update') ? $product->cost_price : null,
+                'status' => $product->status,
+                'is_featured' => $product->is_featured,
+                'is_new' => $product->is_new,
+                'is_on_sale' => $product->is_on_sale,
+                'sort_order' => $product->sort_order,
+                'product_type' => $product->product_type,
+                'inventory_tracking_enabled' => $product->inventory_tracking_enabled,
+                'created_at' => $product->created_at?->toIso8601String(),
+                'updated_at' => $product->updated_at?->toIso8601String(),
+                'categories' => $product->categories->map(fn ($c) => ['id' => $c->id, 'name' => $c->name])->values()->all(),
+                'collections' => $product->collections->map(fn ($c) => ['id' => $c->id, 'name' => $c->name])->values()->all(),
+                'images' => $product->getMedia('product_images')
+                    ->map(fn (Media $media) => ['id' => $media->id, 'url' => $media->getUrl()])
+                    ->values()
+                    ->all(),
+                'variants' => $product->variants
+                    ->map(fn (ProductVariant $variant) => $this->variantDetail(
+                        $variant,
+                        $stock->get($variant->id)?->all() ?? [],
+                        (int) ($sold[$variant->id] ?? 0),
+                    ))
+                    ->values()
+                    ->all(),
+            ],
+            'reviews' => Review::query()
+                ->where('product_id', $product->id)
+                ->with('customer:id,name')
+                ->latest('id')
+                ->limit(6)
+                ->get()
+                ->map(fn (Review $review) => [
+                    'id' => $review->id,
+                    // Nullable in practice even though the relation is typed
+                    // non-null: a review outlives a deleted customer.
+                    'customer' => $review->customer->name ?? null,
+                    'rating' => $review->rating,
+                    'title' => $review->title,
+                    'comment' => $review->comment,
+                    'status' => $review->status,
+                    'created_at' => $review->created_at?->toIso8601String(),
+                ]),
+            'reviewSummary' => [
+                'count' => $product->reviews()->count(),
+                'average' => round((float) $product->reviews()->avg('rating'), 1),
+            ],
+        ]);
+    }
+
+    /**
+     * One variant row on the detail screen: what it is, what is on hand
+     * for it in each warehouse, and how many have actually shipped.
+     *
+     * @param  list<WarehouseInventory>  $stock
+     * @return array<string, mixed>
+     */
+    private function variantDetail(ProductVariant $variant, array $stock, int $unitsSold): array
+    {
+        return [
+            'id' => $variant->id,
+            'sku' => $variant->sku,
+            'status' => $variant->status,
+            'price' => $variant->price,
+            'sale_price' => $variant->sale_price,
+            'attributes' => $variant->attributeValues
+                ->map(fn ($value) => [
+                    'attribute' => $value->attribute->name,
+                    'value' => $value->value,
+                    'color_hex' => $value->color_hex,
+                ])
+                ->values()
+                ->all(),
+            'stock' => array_map(fn (WarehouseInventory $row) => [
+                'warehouse' => $row->warehouse?->name,
+                'quantity' => $row->quantity,
+                'reserved_quantity' => $row->reserved_quantity,
+                'available' => $row->available,
+            ], $stock),
+            'units_sold' => $unitsSold,
+        ];
     }
 
     public function edit(Product $product): Response
@@ -137,7 +305,13 @@ class ProductController extends Controller
             'name.en' => ['required', 'string', 'max:255'],
             'name.ar' => ['nullable', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255'],
-            'sku' => ['required', 'string', 'max:100', Rule::unique('products', 'sku')->ignore($product?->id)],
+            // Only on update. On create the SKU is assigned by
+            // SkuGenerator in store(), so requiring one from the request
+            // would reject the very form that deliberately does not send
+            // it.
+            'sku' => $product === null
+                ? ['nullable']
+                : ['required', 'string', 'max:100', Rule::unique('products', 'sku')->ignore($product->id)],
             'description' => ['nullable', 'array'],
             'description.en' => ['nullable', 'string'],
             'description.ar' => ['nullable', 'string'],

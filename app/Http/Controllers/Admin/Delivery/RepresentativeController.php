@@ -68,9 +68,26 @@ class RepresentativeController extends Controller
             'geo_id' => ['required', 'integer'],
         ]);
 
-        $representative->areas()->create($data);
+        // Coverage rows are soft-deleted, so re-adding an area a rep used to
+        // cover would otherwise stack a second live row behind an invisible
+        // trashed one. Revive instead — there is no unique index forcing
+        // this, but two rows meaning the same coverage is still wrong.
+        // Queried off the model rather than the relation: onlyTrashed() lives
+        // on the SoftDeletes builder, which a HasMany only forwards to at
+        // runtime — Larastan cannot see through it.
+        $trashed = DeliveryRepresentativeArea::onlyTrashed()
+            ->where('delivery_representative_id', $representative->id)
+            ->where('geo_type', $data['geo_type'])
+            ->where('geo_id', $data['geo_id'])
+            ->first();
 
-        return back()->with('success', 'Coverage area added.');
+        if ($trashed !== null) {
+            $trashed->restore();
+        } else {
+            $representative->areas()->create($data);
+        }
+
+        return back()->with('success', __('Coverage area added.'));
     }
 
     public function destroyArea(DeliveryRepresentative $representative, DeliveryRepresentativeArea $area): RedirectResponse
@@ -79,7 +96,7 @@ class RepresentativeController extends Controller
 
         $area->delete();
 
-        return back()->with('success', 'Coverage area removed.');
+        return back()->with('success', __('Coverage area removed.'));
     }
 
     /**

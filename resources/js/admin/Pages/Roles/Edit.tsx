@@ -57,7 +57,10 @@ export default function RoleEdit({
     }
 
     return (
-        <AdminLayout title={t('admin.permissionsFor', { role: role.name })}>
+        <AdminLayout
+            title={t('admin.permissionsFor', { role: role.name })}
+            breadcrumbs={[{ label: t('admin.rolesPermissions'), href: route('admin.roles.index') }]}
+        >
             <Head title={t('admin.permissionsFor', { role: role.name })} />
             <form onSubmit={handleSubmit(onSubmit)}>
                 <div className="row">

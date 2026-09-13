@@ -53,13 +53,45 @@
     --bs-link-hover-color-rgb: 2, 58, 99;
 }
 
-/* Sidebar (Larkon's own custom --bs-main-nav-* variables, scoped to the
- * data-menu-color=dark attribute set on <html> above) — navy background,
- * cream highlight on the active/hovered item, matching the brand pair. */
-[data-menu-color='dark'] {
+/* Sidebar (Larkon's own custom --bs-main-nav-* variables) — navy
+ * background, cream highlight on the active/hovered item.
+ *
+ * The selector must be `html[data-menu-color='dark']`, not the bare
+ * attribute selector this block used to carry. Larkon declares these
+ * variables as `html[data-menu-color=dark]` — an element *plus* an
+ * attribute, specificity (0,1,1) — which outranks a bare `[attr]` at
+ * (0,1,0) no matter which stylesheet loads last. The override silently
+ * lost every cascade it entered, so the sidebar rendered Larkon's stock
+ * #262d34 grey and its hover/active text stayed white; matching the
+ * selector is what actually applies the brand pair. (The :root block
+ * above was never affected — nothing else declares --bs-primary at
+ * higher specificity, which is why the buttons were right while the
+ * sidebar was not.) */
+html[data-menu-color='dark'] {
     --bs-main-nav-bg: #012c4e;
     --bs-main-nav-item-hover-color: #efddb7;
     --bs-main-nav-border-color: #073a5f;
+}
+
+/* The active nav item, in the brand secondary.
+ *
+ * Larkon paints the active item's icon and its 3px indicator bar with
+ * `var(--bs-primary)`. That works against its own grey sidebar, but
+ * --bs-primary here *is* the sidebar background — navy on navy, so both
+ * were invisible. Pointing them at the secondary is what makes the
+ * current page readable at a glance.
+ *
+ * Specificity is matched to Larkon's own selectors exactly (six classes),
+ * so these win on source order rather than needing !important. The border
+ * uses the logical `inline-start` edge: the LTR build puts the bar on
+ * border-left and the RTL build on border-right, and one logical property
+ * covers both without a direction-specific rule. */
+.wrapper .main-nav .navbar-nav .nav-item .nav-link.active {
+    border-inline-start-color: #efddb7;
+}
+
+.wrapper .main-nav .navbar-nav .nav-item .nav-link.active .nav-icon {
+    color: #efddb7;
 }
 
 .btn-primary {
@@ -145,6 +177,155 @@
 }
 .nav-link.active .nav-icon {
     color: #012c4e;
+}
+
+/* ── Dark colour mode ──────────────────────────────────────────────────
+ *
+ * app.min.css compiles the whole theme twice, under
+ * `:root,[data-bs-theme=light]` and `[data-bs-theme=dark]`, so the topbar
+ * toggle only has to flip that one attribute and every Larkon component
+ * follows. The brand palette does not follow for free, and for two
+ * separate reasons:
+ *
+ * 1. The `:root` block above is (0,1,0) and loads *after* app.min.css, so
+ *    it outranks Bootstrap's own `[data-bs-theme=dark]` block at the same
+ *    specificity — the light-mode link and emphasis colours would carry
+ *    straight into dark mode. Everything below is scoped
+ *    `html[data-bs-theme='dark']` (0,1,1) to take that back.
+ * 2. The primary *is* a very dark navy. #012c4e against Larkon's dark
+ *    body (#22282e) measures 1.04:1 — a primary button would be a
+ *    navy rectangle on a near-identical background, effectively
+ *    invisible, and navy link text on it unreadable.
+ *
+ * So dark mode keeps the brand hue (207°) and raises the lightness,
+ * rather than substituting an unrelated colour: #0c6fc0 for filled
+ * surfaces (2.9:1 against the body, and white text on it 5.2:1) and
+ * #5eaded for text and links (6.1:1 against the body — AA at body size).
+ * Bootstrap's own dark theme does the same thing to its orange, by
+ * tinting it 40% toward white; a straight 40% tint of navy lands at
+ * #678095, which measures 3.9:1 and fails AA for text, so the tint is
+ * taken further here.
+ *
+ * The secondary needs none of this — cream is already a light colour, so
+ * only the *derived* dark-on-light variants (text-emphasis, bg-subtle)
+ * have to be inverted. */
+html[data-bs-theme='dark'] {
+    --bs-primary: #0c6fc0;
+    --bs-primary-rgb: 12, 111, 192;
+    --bs-primary-text-emphasis: #5eaded;
+    --bs-primary-bg-subtle: rgba(94, 173, 237, 0.15);
+    --bs-primary-border-subtle: #38688e;
+
+    --bs-secondary-text-emphasis: #efddb7;
+    --bs-secondary-bg-subtle: rgba(239, 221, 183, 0.15);
+    --bs-secondary-border-subtle: #8a7746;
+
+    --bs-link-color: #5eaded;
+    --bs-link-color-rgb: 94, 173, 237;
+    --bs-link-hover-color: #7cbdf2;
+    --bs-link-hover-color-rgb: 124, 189, 242;
+}
+
+/* Two values rather than one, because no single colour can do both jobs
+ * at AA: text on the dark card (#282f36) needs a relative luminance above
+ * ~0.30 to clear 4.5:1, and white text *on* a fill needs it below ~0.18.
+ * Bootstrap splits the same way — `--bs-primary` for fills,
+ * `--bs-primary-text-emphasis` for text — so #0c6fc0 fills and #5eaded
+ * writes.
+ *
+ * Redefining --bs-primary-rgb above carries the fill value to every
+ * utility that chains through it (.bg-primary, .border-primary). The
+ * components below can't chain: app.min.css bakes the resolved hex into
+ * each one at SASS-build time, which is the same reason the light-mode
+ * rules further up are per-component. Each is that rule prefixed with
+ * `html[data-bs-theme='dark']`, so it wins on specificity, not order. */
+html[data-bs-theme='dark'] .btn-primary {
+    --bs-btn-color: #ffffff;
+    --bs-btn-bg: #0c6fc0;
+    --bs-btn-border-color: #0c6fc0;
+    --bs-btn-hover-color: #ffffff;
+    --bs-btn-hover-bg: #1a80d4;
+    --bs-btn-hover-border-color: #1a80d4;
+    --bs-btn-active-color: #ffffff;
+    --bs-btn-active-bg: #0a5c9f;
+    --bs-btn-active-border-color: #0a5c9f;
+    --bs-btn-disabled-color: #ffffff;
+    --bs-btn-disabled-bg: #0c6fc0;
+    --bs-btn-disabled-border-color: #0c6fc0;
+    --bs-btn-focus-shadow-rgb: 12, 111, 192;
+}
+
+html[data-bs-theme='dark'] .btn-soft-primary {
+    --bs-btn-color: #5eaded;
+    --bs-btn-bg: rgba(94, 173, 237, 0.12);
+    --bs-btn-border-color: transparent;
+    --bs-btn-hover-color: #ffffff;
+    --bs-btn-hover-bg: #0c6fc0;
+    --bs-btn-hover-border-color: #0c6fc0;
+    --bs-btn-active-color: #ffffff;
+    --bs-btn-active-bg: #0a5c9f;
+    --bs-btn-active-border-color: #0a5c9f;
+    --bs-btn-disabled-color: #ffffff;
+    --bs-btn-disabled-bg: #0c6fc0;
+    --bs-btn-disabled-border-color: #0c6fc0;
+}
+
+/* .text-primary is the one utility that has to be restated rather than
+ * inherited from the variable: it resolves --bs-primary-rgb, which is now
+ * the *fill* value, and at 2.6:1 on a dark card that is unreadable — it
+ * is what left the dashboard's tile icons navy-on-navy. Bootstrap writes
+ * its colour utilities with !important, so this needs one too;
+ * specificity alone cannot outrank them. */
+html[data-bs-theme='dark'] .text-primary {
+    color: #5eaded !important;
+}
+
+html[data-bs-theme='dark'] .nav-pills {
+    --bs-nav-pills-link-active-bg: #0c6fc0;
+}
+
+html[data-bs-theme='dark'] .list-group {
+    --bs-list-group-active-bg: #0c6fc0;
+    --bs-list-group-active-border-color: #0c6fc0;
+}
+
+html[data-bs-theme='dark'] .pagination {
+    --bs-pagination-active-bg: #0c6fc0;
+    --bs-pagination-active-border-color: #0c6fc0;
+}
+
+html[data-bs-theme='dark'] .progress-bar {
+    background-color: #0c6fc0;
+}
+
+html[data-bs-theme='dark'] .form-check-input:checked {
+    background-color: #0c6fc0;
+    border-color: #0c6fc0;
+}
+
+/* The in-page tab accent (Products/Form.tsx, Accounting's delivery-result
+ * tabs) — not the sidebar, which keeps its cream active state in both
+ * modes because the sidebar stays navy either way. */
+html[data-bs-theme='dark'] .nav-link.active {
+    border-left-color: #5eaded;
+}
+
+html[data-bs-theme='dark'] .nav-link.active .nav-icon {
+    color: #5eaded;
+}
+
+/* …except inside the sidebar, where the rule above would undo the cream
+ * active state. The sidebar's own selector is six classes deep and so
+ * already outranks the plain `.nav-link.active` above in light mode; in
+ * dark mode the prefixed rule has overtaken it, so it is restated at the
+ * matching specificity. The sidebar is unaffected by the colour mode
+ * itself — `html[data-menu-color=dark]` keeps it brand navy in both. */
+html[data-bs-theme='dark'] .wrapper .main-nav .navbar-nav .nav-item .nav-link.active {
+    border-inline-start-color: #efddb7;
+}
+
+html[data-bs-theme='dark'] .wrapper .main-nav .navbar-nav .nav-item .nav-link.active .nav-icon {
+    color: #efddb7;
 }
 
 /* The theme sets font-family on body *and* separately on every heading

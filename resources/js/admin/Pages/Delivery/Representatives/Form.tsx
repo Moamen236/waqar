@@ -30,7 +30,12 @@ export default function RepresentativeForm({ representative }: { representative:
     };
 
     return (
-        <AdminLayout title={representative ? t('admin.editRepresentative') : t('admin.newRepresentative')}>
+        <AdminLayout
+            title={representative ? t('admin.editRepresentative') : t('admin.newRepresentative')}
+            breadcrumbs={[
+                { label: t('admin.deliveryRepresentatives'), href: route('admin.delivery.representatives.index') },
+            ]}
+        >
             <Head title={representative ? t('admin.editRepresentative') : t('admin.newRepresentative')} />
             <form onSubmit={submit}>
                 <div className="row">

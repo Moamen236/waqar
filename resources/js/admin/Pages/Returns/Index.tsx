@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import Pagination from '../../Components/Pagination';
+import { PaginationFooter } from '../../Components/Pagination';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
 import type { PaginatedData } from '../../types';
@@ -100,11 +100,7 @@ export default function ReturnsIndex({
                                 </tbody>
                             </table>
                         </div>
-                        {returns.data.length > 0 && (
-                            <div className="card-footer border-top">
-                                <Pagination data={returns} />
-                            </div>
-                        )}
+                        <PaginationFooter data={returns} />
                     </div>
                 </div>
             </div>

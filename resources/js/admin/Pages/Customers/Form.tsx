@@ -33,7 +33,10 @@ export default function CustomerForm({ customer }: { customer: CustomerRecord | 
     };
 
     return (
-        <AdminLayout title={customer ? t('admin.editCustomer') : t('admin.newCustomer')}>
+        <AdminLayout
+            title={customer ? t('admin.editCustomer') : t('admin.newCustomer')}
+            breadcrumbs={[{ label: t('admin.customers'), href: route('admin.customers.index') }]}
+        >
             <Head title={customer ? t('admin.editCustomer') : t('admin.newCustomer')} />
             <form onSubmit={submit}>
                 <div className="row">

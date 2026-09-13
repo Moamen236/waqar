@@ -31,7 +31,7 @@
  * Exit code 1 if any page fails, so it can gate a build.
  */
 
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 const args = Object.fromEntries(
     process.argv.slice(2).reduce((pairs, arg, i, all) => {
@@ -46,6 +46,13 @@ const LOCALE = args.locale || 'ar';
 const EMAIL = args.email;
 const PASSWORD = args.password;
 const ROUTES = args.routes;
+// --shots <dir> also writes a full-page PNG per route, which is the only
+// way to judge template fidelity (a page can render perfectly and still
+// look nothing like Larkon).
+const SHOTS = typeof args.shots === 'string' ? args.shots : null;
+// --width narrows the emulated viewport, to check the template's own
+// responsive behaviour rather than only the desktop layout.
+const WIDTH = Number(args.width) || 1440;
 
 if (!EMAIL || !PASSWORD) {
     console.error('usage: render-check.js --email <employee> --password <password> [--base URL] [--cdp URL] [--routes file]');
@@ -88,7 +95,7 @@ class Session {
 
         for (const domain of ['Page', 'Runtime', 'Network']) await this.send(`${domain}.enable`);
         await this.send('Emulation.setDeviceMetricsOverride', {
-            width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false,
+            width: WIDTH, height: 1000, deviceScaleFactor: 1, mobile: WIDTH < 768,
         });
     }
 
@@ -135,6 +142,20 @@ class Session {
             if (painted === true) break;
             await new Promise((resolve) => setTimeout(resolve, 150));
         }
+    }
+
+    /** Full-page PNG, captured past the fold rather than just the viewport. */
+    async screenshot(file) {
+        const { cssContentSize } = await this.send('Page.getLayoutMetrics');
+        const height = Math.min(Math.ceil(cssContentSize?.height || 1000), 8000);
+        await this.send('Emulation.setDeviceMetricsOverride', {
+            width: WIDTH, height, deviceScaleFactor: 1, mobile: WIDTH < 768,
+        });
+        const { data } = await this.send('Page.captureScreenshot', { format: 'png' });
+        writeFileSync(file, Buffer.from(data, 'base64'));
+        await this.send('Emulation.setDeviceMetricsOverride', {
+            width: WIDTH, height: 1000, deviceScaleFactor: 1, mobile: WIDTH < 768,
+        });
     }
 
     async evaluate(expression) {
@@ -186,8 +207,14 @@ async function main() {
 
     let failed = 0;
 
+    if (SHOTS) mkdirSync(SHOTS, { recursive: true });
+
     for (const path of routes) {
         await page.goto(BASE + path);
+
+        if (SHOTS) {
+            await page.screenshot(`${SHOTS}/${path.replace(/^\/+|\/+$/g, '').replace(/\//g, '_') || 'root'}.png`);
+        }
 
         const observed = await page.evaluate(`JSON.stringify({
             text: (document.body.innerText || '').trim().length,

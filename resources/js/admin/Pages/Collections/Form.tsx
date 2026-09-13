@@ -68,7 +68,10 @@ export default function CollectionForm({ collection }: { collection: CollectionR
     };
 
     return (
-        <AdminLayout title={collection ? t('admin.editCollection') : t('admin.newCollection')}>
+        <AdminLayout
+            title={collection ? t('admin.editCollection') : t('admin.newCollection')}
+            breadcrumbs={[{ label: t('admin.collections'), href: route('admin.collections.index') }]}
+        >
             <Head title={collection ? t('admin.editCollection') : t('admin.newCollection')} />
             <form onSubmit={submit}>
                 <div className="row">

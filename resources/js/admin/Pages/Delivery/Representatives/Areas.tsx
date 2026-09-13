@@ -62,14 +62,19 @@ export default function RepresentativeAreas({
     }
 
     async function removeArea(area: Area) {
-        if (!(await confirmAction({ title: 'Remove this coverage area?', danger: true }))) return;
+        if (!(await confirmAction({ title: t('admin.removeThisCoverageArea'), danger: true }))) return;
         router.delete(route('admin.delivery.representatives.areas.destroy', [representative.id, area.id]), {
             preserveScroll: true,
         });
     }
 
     return (
-        <AdminLayout title={`Coverage Areas — ${representative.name}`}>
+        <AdminLayout
+            title={t('admin.coverageAreasFor', { name: representative.name })}
+            breadcrumbs={[
+                { label: t('admin.deliveryRepresentatives'), href: route('admin.delivery.representatives.index') },
+            ]}
+        >
             <Head title={t('admin.coverageAreas')} />
             <div className="row">
                 <div className="col-lg-6">

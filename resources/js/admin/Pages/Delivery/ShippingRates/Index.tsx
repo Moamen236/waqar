@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import Pagination from '../../../Components/Pagination';
+import { PaginationFooter } from '../../../Components/Pagination';
 import RowActions from '../../../Components/RowActions';
 import StatusBadge from '../../../Components/StatusBadge';
 import AdminLayout from '../../../Layouts/AdminLayout';
@@ -27,9 +27,9 @@ export default function ShippingRatesIndex({
     const { t } = useTranslation();
     const remove = async (id: number) => {
         const confirmed = await confirmAction({
-            title: 'Remove this shipping rate?',
-            text: 'Addresses at this level fall back to the next-broadest rate, or checkout refuses them if there is none.',
-            confirmText: 'Remove',
+            title: t('admin.removeThisShippingRate'),
+            text: t('admin.shippingRateFallbackWarning'),
+            confirmText: t('admin.remove'),
             danger: true,
         });
 
@@ -104,11 +104,7 @@ export default function ShippingRatesIndex({
                                 </tbody>
                             </table>
                         </div>
-                        {rates.data.length > 0 && (
-                            <div className="card-footer border-top">
-                                <Pagination data={rates} />
-                            </div>
-                        )}
+                        <PaginationFooter data={rates} />
                     </div>
                 </div>
             </div>

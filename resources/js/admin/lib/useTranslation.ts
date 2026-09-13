@@ -2,7 +2,15 @@ import { usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
 import ar from '../locales/ar.json';
 import en from '../locales/en.json';
-import { createTranslator, formatMoney, type Catalog, type Locale, type Translator } from '../../lib/i18n';
+import {
+    createTranslator,
+    formatDate,
+    formatDateTime,
+    formatMoney,
+    type Catalog,
+    type Locale,
+    type Translator,
+} from '../../lib/i18n';
 import type { SharedProps } from '../types';
 
 const catalogs: Record<Locale, Catalog> = { ar, en };
@@ -22,6 +30,8 @@ export function useTranslation(): {
     direction: 'rtl' | 'ltr';
     isRtl: boolean;
     price: (value: number | null | undefined) => string;
+    date: (value: string | null | undefined) => string;
+    dateTime: (value: string | null | undefined) => string;
 } {
     const { locale } = usePage<SharedProps>().props;
     const current = locale.current;
@@ -33,6 +43,8 @@ export function useTranslation(): {
             direction: locale.direction,
             isRtl: locale.direction === 'rtl',
             price: (value: number | null | undefined) => formatMoney(value, current),
+            date: (value: string | null | undefined) => formatDate(value, current),
+            dateTime: (value: string | null | undefined) => formatDateTime(value, current),
         }),
         [current, locale.direction],
     );

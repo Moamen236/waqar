@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import { EmptyRow } from '../../../Components/EmptyState';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import { useTranslation } from '../../../lib/useTranslation';
 
@@ -11,7 +12,7 @@ interface Company {
 }
 
 export default function ReconciliationIndex({ shippingCompanies }: { shippingCompanies: Company[] }) {
-    const { t } = useTranslation();
+    const { t, price } = useTranslation();
     return (
         <AdminLayout title={t('admin.shippingCompanyReconciliation')}>
             <Head title={t('admin.reconciliation')} />
@@ -36,12 +37,20 @@ export default function ReconciliationIndex({ shippingCompanies }: { shippingCom
                                     {shippingCompanies.map((company) => (
                                         <tr key={company.id}>
                                             <td className="fw-medium">{company.name}</td>
-                                            <td>{company.delivery_fee}</td>
-                                            <td>{company.return_fee}</td>
+                                            <td>
+                                                <span dir="ltr" className="text-nowrap">
+                                                    {price(Number(company.delivery_fee))}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span dir="ltr" className="text-nowrap">
+                                                    {price(Number(company.return_fee))}
+                                                </span>
+                                            </td>
                                             <td>
                                                 {company.open_statements_count > 0 ? (
                                                     <span className="badge bg-warning-subtle text-warning px-2 py-1">
-                                                        {company.open_statements_count} open
+                                                        {company.open_statements_count} {t('admin.open')}
                                                     </span>
                                                 ) : (
                                                     <span className="badge bg-success-subtle text-success px-2 py-1">
@@ -59,6 +68,13 @@ export default function ReconciliationIndex({ shippingCompanies }: { shippingCom
                                             </td>
                                         </tr>
                                     ))}
+                                    {shippingCompanies.length === 0 && (
+                                        <EmptyRow
+                                            colSpan={5}
+                                            message={t('admin.noShippingCompaniesYet')}
+                                            icon="bx-buildings"
+                                        />
+                                    )}
                                 </tbody>
                             </table>
                         </div>
