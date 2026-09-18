@@ -22,6 +22,7 @@ use Database\Seeders\WarehouseSeeder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 
 /*
@@ -651,4 +652,230 @@ it('does not reissue the SKU of a soft-deleted product', function () {
     ])->delete();
 
     expect(app(SkuGenerator::class)->nextProductSku())->toBe('PRD-002');
+});
+
+/**
+ * A complete /admin/products payload — every field the controller's
+ * validator insists on, with the one variant `variants.min:1` requires.
+ * Callers override only the part their case is about.
+ *
+ * No `sku` key: on create there is nothing to send (store() assigns it),
+ * and the cases that *do* send one are making a point by adding it.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function adtProductPayload(array $overrides = []): array
+{
+    return [
+        'name' => ['en' => 'Linen Shirt', 'ar' => 'قميص كتان'],
+        'price' => '250',
+        'status' => true,
+        'is_featured' => false,
+        'is_new' => false,
+        'is_on_sale' => false,
+        'sort_order' => 0,
+        'product_type' => 'real',
+        'variants' => [['sku' => 'LINEN-RED-S', 'status' => true]],
+        ...$overrides,
+    ];
+}
+
+/**
+ * A catalogue row that exists only to occupy a SKU.
+ */
+function adtProductWithSku(string $sku): Product
+{
+    return Product::create([
+        'name' => ['en' => $sku, 'ar' => $sku],
+        'slug' => Str::slug($sku).'-'.uniqid(),
+        'sku' => $sku,
+        'price' => 100,
+    ]);
+}
+
+it('continues from the highest number in the catalogue rather than counting rows', function () {
+    // Two rows, but the sequence is at 7 — `count() + 1` would return
+    // PRD-003 here, and products.sku is UNIQUE, so the first time a gap
+    // exists (a hard delete, a hand-entered SKU) that would collide.
+    adtProductWithSku('PRD-001');
+    adtProductWithSku('PRD-007');
+
+    expect(app(SkuGenerator::class)->nextProductSku())->toBe('PRD-008');
+});
+
+it('reads the number off any prefix, not just its own', function () {
+    // The seeded catalogue's prefixes are hand-picked mnemonics
+    // (MSH = Mesh Shirt) and generated ones are PRD — the sequence is
+    // shared, so the next number has to clear the mnemonics too.
+    adtProductWithSku('MSH-021');
+
+    expect(app(SkuGenerator::class)->nextProductSku())->toBe('PRD-022');
+});
+
+it('leaves the sequence where it is for a SKU that does not end in a number', function () {
+    // Nothing requires a SKU to be `<PREFIX>-<NNN>` — the column is a
+    // plain string and the edit form lets one be typed by hand. A SKU
+    // with no trailing number contributes nothing rather than breaking
+    // generation.
+    adtProductWithSku('PRD-003');
+    adtProductWithSku('LEGACY-SHIRT');
+    adtProductWithSku('ARCHIVE');
+    adtProductWithSku('PRD-009-CLEARANCE');
+
+    // Four rows and the answer is still 4 — the number comes off the
+    // highest SKU, not the row count.
+    expect(app(SkuGenerator::class)->nextProductSku())->toBe('PRD-004');
+});
+
+it('starts the sequence at 001 on an empty catalogue', function () {
+    expect(app(SkuGenerator::class)->nextProductSku())->toBe('PRD-001');
+});
+
+it('grows past the seeded three-digit width instead of wrapping', function () {
+    adtProductWithSku('PRD-999');
+
+    expect(app(SkuGenerator::class)->nextProductSku())->toBe('PRD-1000');
+});
+
+it('gives back-to-back creates different SKUs', function () {
+    $this->seed([WarehouseSeeder::class, ProductSeeder::class]);
+    $viceChairman = adtEmployee('Vice Chairman');
+
+    // product_variants.sku is UNIQUE too, so each create brings its own.
+    foreach (['Linen Shirt' => 'LINEN-RED-S', 'Denim Jacket' => 'DENIM-BLUE-M'] as $name => $variantSku) {
+        $this->actingAs($viceChairman, 'employee')
+            ->post(route('admin.products.store'), adtProductPayload([
+                'name' => ['en' => $name, 'ar' => $name],
+                'variants' => [['sku' => $variantSku, 'status' => true]],
+            ]))
+            ->assertRedirect();
+    }
+
+    expect(Product::query()->where('name->en', 'Linen Shirt')->value('sku'))->toBe('PRD-015')
+        ->and(Product::query()->where('name->en', 'Denim Jacket')->value('sku'))->toBe('PRD-016');
+});
+
+it('shows two operators who open the create form together the same SKU', function () {
+    $this->seed([WarehouseSeeder::class, ProductSeeder::class]);
+
+    // Opening the form reads the sequence; it does not reserve anything.
+    // Both operators are told PRD-015 because neither has saved yet —
+    // which is why the form's value is a preview and store() generates
+    // its own rather than trusting it.
+    foreach ([adtEmployee('Vice Chairman'), adtEmployee('Chairman')] as $operator) {
+        $this->actingAs($operator, 'employee')
+            ->get(route('admin.products.create'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('nextSku', 'PRD-015')->etc());
+    }
+});
+
+it('does not save the stale SKU a form was opened with when another product took it first', function () {
+    $this->seed([WarehouseSeeder::class, ProductSeeder::class]);
+    $first = adtEmployee('Vice Chairman');
+    $second = adtEmployee('Chairman');
+
+    // Both operators opened the form on PRD-015 (the case above). The
+    // first one saves, taking it.
+    $this->actingAs($first, 'employee')
+        ->post(route('admin.products.store'), adtProductPayload(['name' => ['en' => 'Linen Shirt', 'ar' => 'قميص كتان']]))
+        ->assertRedirect();
+
+    // The second saves afterwards, still carrying PRD-015 in the form it
+    // opened. Because store() regenerates inside the transaction rather
+    // than reading the request, this is the next number and not a UNIQUE
+    // violation on products.sku.
+    $this->actingAs($second, 'employee')
+        ->post(route('admin.products.store'), adtProductPayload([
+            'name' => ['en' => 'Denim Jacket', 'ar' => 'جاكيت دنيم'],
+            'sku' => 'PRD-015',
+            'variants' => [['sku' => 'DENIM-BLUE-M', 'status' => true]],
+        ]))
+        ->assertRedirect();
+
+    expect(Product::query()->where('name->en', 'Linen Shirt')->value('sku'))->toBe('PRD-015')
+        ->and(Product::query()->where('name->en', 'Denim Jacket')->value('sku'))->toBe('PRD-016')
+        ->and(Product::query()->where('sku', 'PRD-015')->count())->toBe(1);
+});
+
+it('sends a next SKU to the create form and none to the edit form', function () {
+    // This prop is the whole of the field's create-versus-edit behaviour:
+    // Products/Form disables the input when `product` is null and fills
+    // it from `nextSku`, and enables it otherwise. Asserted here rather
+    // than in the component because the disabling is downstream of what
+    // the controller sends.
+    $viceChairman = adtEmployee('Vice Chairman');
+    $product = adtProductWithSku('PRD-001');
+
+    $this->actingAs($viceChairman, 'employee')
+        ->get(route('admin.products.create'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Products/Form')
+            ->where('product', null)
+            ->where('nextSku', 'PRD-002')
+            ->etc());
+
+    $this->actingAs($viceChairman, 'employee')
+        ->get(route('admin.products.edit', $product))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Products/Form')
+            ->missing('nextSku')
+            ->where('product.sku', 'PRD-001')
+            ->etc());
+});
+
+it('lets an assigned SKU be corrected on edit', function () {
+    // An assigned SKU is a starting value, not a permanent one — unlike
+    // create, update() takes the SKU from the request.
+    $viceChairman = adtEmployee('Vice Chairman');
+    $product = adtProductWithSku('PRD-001');
+
+    $this->actingAs($viceChairman, 'employee')
+        ->put(route('admin.products.update', $product), adtProductPayload(['sku' => 'MSH-001']))
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($product->fresh()->sku)->toBe('MSH-001');
+});
+
+it('accepts an edit that leaves the SKU as it is', function () {
+    // The unique rule ignores the row being edited, so resaving a product
+    // without touching its SKU is not a duplicate of itself.
+    $viceChairman = adtEmployee('Vice Chairman');
+    $product = adtProductWithSku('PRD-001');
+
+    $this->actingAs($viceChairman, 'employee')
+        ->put(route('admin.products.update', $product), adtProductPayload(['sku' => 'PRD-001', 'price' => '999']))
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($product->fresh()->sku)->toBe('PRD-001');
+});
+
+it('rejects an edited SKU another product already owns', function () {
+    $viceChairman = adtEmployee('Vice Chairman');
+    $product = adtProductWithSku('PRD-001');
+    adtProductWithSku('PRD-002');
+
+    $this->actingAs($viceChairman, 'employee')
+        ->put(route('admin.products.update', $product), adtProductPayload(['sku' => 'PRD-002']))
+        ->assertSessionHasErrors('sku');
+
+    expect($product->fresh()->sku)->toBe('PRD-001');
+});
+
+it('requires a SKU on edit even though create assigns its own', function () {
+    // The field is only nullable on the create request, where store()
+    // supplies the value itself. On edit there is nothing to fall back to.
+    $viceChairman = adtEmployee('Vice Chairman');
+    $product = adtProductWithSku('PRD-001');
+
+    $this->actingAs($viceChairman, 'employee')
+        ->put(route('admin.products.update', $product), adtProductPayload(['sku' => '']))
+        ->assertSessionHasErrors('sku');
+
+    expect($product->fresh()->sku)->toBe('PRD-001');
 });
