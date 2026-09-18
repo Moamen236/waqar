@@ -205,7 +205,7 @@ export default function ShippingRateForm({
                             <div className="row g-2">
                                 <div className="col-lg-6">
                                     <button type="submit" className="btn btn-primary w-100" disabled={processing}>
-                                        {rate ? 'Save Rate' : 'Create Rate'}
+                                        {rate ? t('admin.saveRate') : t('admin.createRate')}
                                     </button>
                                 </div>
                                 <div className="col-lg-6">

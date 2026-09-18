@@ -1,18 +1,35 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { confirmAction } from '../../lib/confirm';
 import RowActions from '../../Components/RowActions';
 import { PaginationFooter } from '../../Components/Pagination';
 import SearchFilter from '../../Components/SearchFilter';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { usePermissions } from '../../Hooks/usePermissions';
 import type { Customer, PaginatedData } from '../../types';
 import { useTranslation } from '../../lib/useTranslation';
 
 // Ported from Admin Template/customer-list.html's table structure.
 export default function CustomersIndex({ customers, q }: { customers: PaginatedData<Customer>; q: string | null }) {
     const { t } = useTranslation();
+    const { can } = usePermissions();
 
     function submitSearch(term: string) {
         router.get(route('admin.customers.index'), { q: term }, { preserveState: true });
+    }
+
+    async function remove(id: number, name: string) {
+        if (
+            !(await confirmAction({
+                title: t('admin.deleteConfirmQ', { name }),
+                confirmText: t('admin.delete'),
+                danger: true,
+            }))
+        ) {
+            return;
+        }
+
+        router.delete(route('admin.customers.destroy', id), { preserveScroll: true });
     }
 
     return (
@@ -28,13 +45,15 @@ export default function CustomersIndex({ customers, q }: { customers: PaginatedD
                                 placeholder={t('admin.searchNameEmailPhone')}
                                 onSubmit={submitSearch}
                             />
-                            <Link
-                                href={route('admin.customers.create')}
-                                className="btn btn-sm btn-primary d-flex align-items-center"
-                            >
-                                <i className="bx bx-plus me-1" />
-                                {t('admin.addCustomer')}
-                            </Link>
+                            {can('customers.create') && (
+                                <Link
+                                    href={route('admin.customers.create')}
+                                    className="btn btn-sm btn-primary d-flex align-items-center"
+                                >
+                                    <i className="bx bx-plus me-1" />
+                                    {t('admin.addCustomer')}
+                                </Link>
+                            )}
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-hover table-centered">
@@ -59,7 +78,18 @@ export default function CustomersIndex({ customers, q }: { customers: PaginatedD
                                                 <StatusBadge status={customer.is_active ? 'active' : 'inactive'} />
                                             </td>
                                             <td>
-                                                <RowActions editHref={route('admin.customers.edit', customer.id)} />
+                                                <RowActions
+                                                    editHref={
+                                                        can('customers.update')
+                                                            ? route('admin.customers.edit', customer.id)
+                                                            : undefined
+                                                    }
+                                                    onDelete={
+                                                        can('customers.delete')
+                                                            ? () => remove(customer.id, customer.name)
+                                                            : undefined
+                                                    }
+                                                />
                                             </td>
                                         </tr>
                                     ))}

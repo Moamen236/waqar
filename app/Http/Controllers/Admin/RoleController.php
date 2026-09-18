@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Permission;
@@ -17,8 +19,16 @@ use Spatie\Permission\Models\Role;
  * only sets day-one defaults; this is how a Super Admin changes them
  * afterward, and how a genuinely new role gets its own grants.
  */
-class RoleController extends Controller
+class RoleController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:roles.view', only: ['index', 'edit']),
+            new Middleware('permission:roles.update', only: ['update']),
+        ];
+    }
+
     public function index(): Response
     {
         return Inertia::render('Roles/Index', [
@@ -44,6 +54,6 @@ class RoleController extends Controller
 
         $role->syncPermissions($data['permissions'] ?? []);
 
-        return redirect()->route('admin.roles.index')->with('success', "Permissions updated for {$role->name}.");
+        return redirect()->route('admin.roles.index')->with('success', __('Permissions updated for :role.', ['role' => $role->name]));
     }
 }

@@ -210,10 +210,10 @@ it('lets a Super Admin edit a role permission matrix via /admin/roles', function
         ->toEqualCanonicalizing(['orders.view', 'orders.status.update', 'orders.assign']);
 });
 
-it('never lets a non-Super-Admin employee assign the Super Admin role, even with employees.manage granted', function () {
-    // Grant employees.manage to Checking specifically to test the worst
+it('never lets a non-Super-Admin employee assign the Super Admin role, even with employees.create granted', function () {
+    // Grant employees.create to Checking specifically to test the worst
     // case: a role that was never meant to touch this at all.
-    Role::where('name', 'Checking')->where('guard_name', 'employee')->first()->givePermissionTo('employees.manage');
+    Role::where('name', 'Checking')->where('guard_name', 'employee')->first()->givePermissionTo('employees.create');
     [$checker] = p4Employee('Checking');
 
     $this->actingAs($checker, 'employee')

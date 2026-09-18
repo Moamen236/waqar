@@ -183,7 +183,7 @@ class InventoryService
         }
 
         if ($signedQuantity === 0) {
-            throw new InvalidArgumentException('A stock adjustment must move a non-zero quantity.');
+            throw new InvalidArgumentException(__('A stock adjustment must move a non-zero quantity.'));
         }
 
         return DB::transaction(function () use ($variant, $warehouse, $signedQuantity, $type, $reason, $employee) {

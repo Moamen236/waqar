@@ -77,7 +77,7 @@ it('addresses a customer against all four base geo levels', function () {
         ->and($customer->addresses)->toHaveCount(1);
 });
 
-it('seeds the 9 base roles on the employee guard and assigns one', function () {
+it('seeds the 9 base roles plus Store Orders on the employee guard and assigns one', function () {
     $this->seed(RoleSeeder::class);
 
     $employee = Employee::create([
@@ -90,7 +90,7 @@ it('seeds the 9 base roles on the employee guard and assigns one', function () {
     ]);
     $employee->assignRole('Customer Service Team Leader');
 
-    expect(Role::where('guard_name', 'employee')->count())->toBe(9)
+    expect(Role::where('guard_name', 'employee')->count())->toBe(10)
         ->and($employee->hasRole('Customer Service Team Leader'))->toBeTrue();
 });
 

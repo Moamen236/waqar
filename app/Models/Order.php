@@ -117,21 +117,50 @@ class Order extends Model
     }
 
     /**
-     * Customer Service Team Leader sees only their own team's CS-sourced
-     * orders (Section 15, Question 16); every other role is unscoped —
-     * same rule the Dashboard Index (Question 18) applies to its widgets,
-     * reused here for any order-listing screen (Phase 4).
+     * Customer Service data scoping (Section 15, Question 16), two tiers:
+     *
+     * - A **Team Leader** sees their own team's CS-sourced orders — their
+     *   agents' and their own.
+     * - A plain **Customer Service** agent sees only the CS-sourced orders
+     *   they created themselves.
+     * - **Store Orders** sees every storefront order, and nothing else —
+     *   the role that exists because the agent tier below leaves website
+     *   orders unattended.
+     *
+     * Every other role stays unscoped. The Dashboard (Question 18) reads
+     * its order widgets through this same scope, so both tiers' totals
+     * match the rows the listing screens show them.
+     *
+     * Note: narrowing the individual agent is a deliberate divergence from
+     * Q16 as written ("nothing above narrows an individual agent's
+     * visibility") — the business asked for per-agent scoping after the
+     * spec was resolved. An agent therefore no longer sees storefront
+     * orders at all, only their own phone orders.
      */
     public function scopeVisibleTo(Builder $query, Employee $employee): Builder
     {
-        if (! $employee->hasRole('Customer Service Team Leader')) {
-            return $query;
+        // Checked before the agent role: a leader normally holds both, and
+        // the wider team scope is the one that should win.
+        if ($employee->hasRole('Customer Service Team Leader')) {
+            $teamIds = $employee->teamMembers()->pluck('id')->push($employee->id);
+
+            return $query->where('order_source', OrderSource::CustomerService->value)
+                ->whereIn('created_by_employee_id', $teamIds);
         }
 
-        $teamIds = $employee->teamMembers()->pluck('id')->push($employee->id);
+        if ($employee->hasRole('Customer Service')) {
+            return $query->where('order_source', OrderSource::CustomerService->value)
+                ->where('created_by_employee_id', $employee->id);
+        }
 
-        return $query->where('order_source', OrderSource::CustomerService->value)
-            ->whereIn('created_by_employee_id', $teamIds);
+        // Store Orders is the mirror image of the agent tier: every
+        // website order, and only those. Together the two tiers cover the
+        // whole book without overlapping.
+        if ($employee->hasRole('Store Orders')) {
+            return $query->where('order_source', OrderSource::Website->value);
+        }
+
+        return $query;
     }
 
     /**

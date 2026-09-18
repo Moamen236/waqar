@@ -39,6 +39,7 @@ use App\Models\WarehouseInventory;
 use App\Policies\OrderPolicy;
 use App\Services\Inventory\InventoryService;
 use App\Services\Shipping\ShippingRateResolver;
+use Database\Seeders\PermissionSeeder;
 use Database\Seeders\ReturnReasonSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Database\Eloquent\Builder;
@@ -288,6 +289,77 @@ it('scopes a Customer Service Team Leader to only their own team\'s orders (Ques
     $accounting = makeEmployee();
     $accounting->assignRole('Accounting');
     expect(Order::visibleTo($accounting)->count())->toBe(2);
+});
+
+it('scopes a Customer Service agent to the orders they placed themselves, and their leader to the whole team', function () {
+    // PermissionSeeder too: OrderPolicy::viewAsEmployee() gates on
+    // orders.view before it ever reaches the scoping rule below.
+    $this->seed([RoleSeeder::class, PermissionSeeder::class]);
+    $geo = setUpGeoAndShipping();
+    [$product, $variant] = makeTrackedVariant(10);
+    WarehouseInventory::create(['warehouse_id' => $geo['warehouse']->id, 'product_variant_id' => $variant->id, 'quantity' => 10, 'reserved_quantity' => 0]);
+    $customer = makeCustomer();
+
+    $leader = makeEmployee();
+    $leader->assignRole('Customer Service Team Leader');
+
+    $mine = makeEmployee();
+    $mine->assignRole('Customer Service');
+    $mine->update(['team_leader_id' => $leader->id]);
+
+    $teammate = makeEmployee();
+    $teammate->assignRole('Customer Service');
+    $teammate->update(['team_leader_id' => $leader->id]);
+
+    $action = app(CreateOrderAction::class);
+    $line = [['product_variant_id' => $variant->id, 'quantity' => 1]];
+    $args = [$geo['governorate']->id, $geo['city']->id, null, $geo['area']->id, 'Line', 'Test', '1'];
+
+    $ownOrder = $action->execute($customer, $line, $geo['warehouse'], ...$args, orderSource: OrderSource::CustomerService, createdByEmployee: $mine);
+    $teammateOrder = $action->execute($customer, $line, $geo['warehouse'], ...$args, orderSource: OrderSource::CustomerService, createdByEmployee: $teammate);
+    // A storefront order belongs to no agent at all.
+    $webOrder = $action->execute($customer, $line, $geo['warehouse'], ...$args);
+
+    expect(Order::visibleTo($mine)->pluck('id')->all())->toBe([$ownOrder->id]);
+
+    // The leader above them still sees both agents' orders, and no more.
+    expect(Order::visibleTo($leader)->pluck('id')->sort()->values()->all())
+        ->toBe(collect([$ownOrder->id, $teammateOrder->id])->sort()->values()->all());
+
+    // Neither tier sees the storefront order, which no employee created.
+    expect(Order::visibleTo($mine)->pluck('id'))->not->toContain($webOrder->id)
+        ->and(Order::visibleTo($leader)->pluck('id'))->not->toContain($webOrder->id);
+
+    // Row level, not just the listing: the policy refuses a teammate's
+    // order to an agent who could otherwise reach it by id.
+    $policy = new OrderPolicy;
+    expect($policy->viewAsEmployee($mine, $ownOrder))->toBeTrue()
+        ->and($policy->viewAsEmployee($mine, $teammateOrder))->toBeFalse()
+        ->and($policy->viewAsEmployee($leader, $teammateOrder))->toBeTrue();
+
+    // Store Orders is the other half of the split: the storefront order
+    // no Customer Service tier can reach, and none of their phone orders.
+    $storeOrders = makeEmployee();
+    $storeOrders->assignRole('Store Orders');
+
+    expect(Order::visibleTo($storeOrders)->pluck('id')->all())->toBe([$webOrder->id])
+        ->and($policy->viewAsEmployee($storeOrders, $webOrder))->toBeTrue()
+        ->and($policy->viewAsEmployee($storeOrders, $ownOrder))->toBeFalse();
+});
+
+it('gives Store Orders the storefront order book and nothing it could edit', function () {
+    $this->seed([RoleSeeder::class, PermissionSeeder::class]);
+
+    $employee = makeEmployee();
+    $employee->assignRole('Store Orders');
+
+    expect($employee->can('orders.view'))->toBeTrue()
+        // Read-only: no order creation, no customer edits, no returns.
+        ->and($employee->can('orders.create'))->toBeFalse()
+        ->and($employee->can('orders.status.update'))->toBeFalse()
+        ->and($employee->can('customers.update'))->toBeFalse()
+        ->and($employee->can('returns.create'))->toBeFalse()
+        ->and($employee->can('orders.export'))->toBeFalse();
 });
 
 it('runs the full return → refund workflow: restocks on receipt, deducts the accepted shipping fee, and records a treasury outflow', function () {

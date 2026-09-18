@@ -47,10 +47,10 @@ export default function AccountOrderShow({ order, timeline }: { order: OrderDeta
 
     return (
         <StorefrontLayout>
-            <Head title={`Order #${order.order_number}`} />
+            <Head title={t(`account.orderTitle`, { number: order.order_number })} />
             <Breadcrumb
-                title={`Order #${order.order_number}`}
-                parent={{ label: 'My Orders', href: route('account.orders') }}
+                title={t(`account.orderTitle`, { number: order.order_number })}
+                parent={{ label: t('account.myOrders'), href: route('account.orders') }}
             />
 
             <div className="my-account-block md:py-20 py-10">

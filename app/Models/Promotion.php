@@ -5,11 +5,12 @@ namespace App\Models;
 use App\Models\Concerns\SerializesTranslations;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Translatable\HasTranslations;
 
 class Promotion extends Model
 {
-    use HasTranslations, SerializesTranslations;
+    use HasTranslations, SerializesTranslations, SoftDeletes;
 
     public array $translatable = ['name', 'description'];
 

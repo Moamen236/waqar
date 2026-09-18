@@ -232,22 +232,30 @@ export default function CartIndex({
                                                     <div className="caption1">{t('cart.discounts')}</div>
                                                     <div className="caption1 font-bold">
                                                         {voucher.type === 'percentage'
-                                                            ? `${Number(voucher.value)}% OFF`
+                                                            ? t('cart.voucherPercentOff', {
+                                                                  percent: Number(voucher.value),
+                                                              })
                                                             : voucher.type === 'free_shipping'
-                                                              ? 'FREE SHIPPING'
-                                                              : `${price(Number(voucher.value))} OFF`}
+                                                              ? t('cart.voucherFreeShipping')
+                                                              : t('cart.voucherOff', {
+                                                                    amount: price(Number(voucher.value)),
+                                                                })}
                                                     </div>
                                                 </div>
                                                 <div className="right">
                                                     <div className="caption1">
                                                         {voucher.minimum_order_amount
-                                                            ? `For orders from ${price(Number(voucher.minimum_order_amount))}`
-                                                            : 'For all orders'}
+                                                            ? t('cart.voucherForOrdersFrom', {
+                                                                  amount: price(Number(voucher.minimum_order_amount)),
+                                                              })
+                                                            : t('cart.voucherForAllOrders')}
                                                     </div>
                                                 </div>
                                             </div>
                                             <div className="bottom gap-6 items-center flex justify-between px-3 pt-2">
-                                                <div className="text-button-uppercase">Code: {voucher.code}</div>
+                                                <div className="text-button-uppercase">
+                                                    {t('cart.voucherCode', { code: voucher.code })}
+                                                </div>
                                                 <button
                                                     type="button"
                                                     className="button-main py-1 px-2.5 capitalize text-xs"

@@ -7,6 +7,8 @@ use App\Models\Collection;
 use App\Support\ImageUpload;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -15,8 +17,18 @@ use Inertia\Response;
  * /admin/collections (Vice Chairman, Section 20 #23) — no template
  * counterpart at all, built from scratch.
  */
-class CollectionController extends Controller
+class CollectionController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:collections.view', only: ['index']),
+            new Middleware('permission:collections.create', only: ['create', 'store']),
+            new Middleware('permission:collections.update', only: ['edit', 'update']),
+            new Middleware('permission:collections.delete', only: ['destroy']),
+        ];
+    }
+
     public function index(): Response
     {
         return Inertia::render('Collections/Index', [
@@ -37,7 +49,7 @@ class CollectionController extends Controller
 
         Collection::create($data);
 
-        return redirect()->route('admin.collections.index')->with('success', 'Collection created.');
+        return redirect()->route('admin.collections.index')->with('success', __('Collection created.'));
     }
 
     public function edit(Collection $collection): Response
@@ -63,7 +75,14 @@ class CollectionController extends Controller
 
         $collection->update($data);
 
-        return redirect()->route('admin.collections.index')->with('success', 'Collection updated.');
+        return redirect()->route('admin.collections.index')->with('success', __('Collection updated.'));
+    }
+
+    public function destroy(Collection $collection): RedirectResponse
+    {
+        $collection->delete();
+
+        return redirect()->route('admin.collections.index')->with('success', __('Collection deleted.'));
     }
 
     /**

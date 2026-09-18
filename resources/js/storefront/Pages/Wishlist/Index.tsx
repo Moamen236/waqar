@@ -28,7 +28,7 @@ export default function WishlistIndex({ products }: { products: ProductCardData[
                                 <h6 className="heading6">{t('wishlist.title')}</h6>
                                 {products.length === 0 && (
                                     <div className="caption1 text-secondary mt-4">
-                                        Nothing saved yet.{' '}
+                                        {t('wishlist.emptyLead')}{' '}
                                         <Link href={route('shop.index')} className="text-black underline">
                                             {t('wishlist.browse')}
                                         </Link>

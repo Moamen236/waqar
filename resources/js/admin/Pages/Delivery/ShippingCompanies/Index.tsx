@@ -1,8 +1,10 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
+import { confirmAction } from '../../../lib/confirm';
 import { PaginationFooter } from '../../../Components/Pagination';
 import RowActions from '../../../Components/RowActions';
 import StatusBadge from '../../../Components/StatusBadge';
 import AdminLayout from '../../../Layouts/AdminLayout';
+import { usePermissions } from '../../../Hooks/usePermissions';
 import type { PaginatedData } from '../../../types';
 import { useTranslation } from '../../../lib/useTranslation';
 
@@ -21,6 +23,22 @@ export default function ShippingCompaniesIndex({
     shippingCompanies: PaginatedData<ShippingCompany>;
 }) {
     const { t } = useTranslation();
+    const { can } = usePermissions();
+
+    async function remove(id: number, name: string) {
+        if (
+            !(await confirmAction({
+                title: t('admin.deleteConfirmQ', { name }),
+                confirmText: t('admin.delete'),
+                danger: true,
+            }))
+        ) {
+            return;
+        }
+
+        router.delete(route('admin.delivery.shipping-companies.destroy', id), { preserveScroll: true });
+    }
+
     return (
         <AdminLayout title={t('admin.shippingCompanies')}>
             <Head title={t('admin.shippingCompanies')} />
@@ -29,12 +47,14 @@ export default function ShippingCompaniesIndex({
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center gap-1">
                             <h4 className="card-title flex-grow-1">{t('admin.allShippingCompanies')}</h4>
-                            <Link
-                                href={route('admin.delivery.shipping-companies.create')}
-                                className="btn btn-sm btn-primary"
-                            >
-                                {t('admin.addShippingCompany')}
-                            </Link>
+                            {can('delivery.companies.create') && (
+                                <Link
+                                    href={route('admin.delivery.shipping-companies.create')}
+                                    className="btn btn-sm btn-primary"
+                                >
+                                    {t('admin.addShippingCompany')}
+                                </Link>
+                            )}
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-hover table-centered">
@@ -60,10 +80,19 @@ export default function ShippingCompaniesIndex({
                                             </td>
                                             <td>
                                                 <RowActions
-                                                    editHref={route(
-                                                        'admin.delivery.shipping-companies.edit',
-                                                        company.id,
-                                                    )}
+                                                    editHref={
+                                                        can('delivery.companies.update')
+                                                            ? route(
+                                                                  'admin.delivery.shipping-companies.edit',
+                                                                  company.id,
+                                                              )
+                                                            : undefined
+                                                    }
+                                                    onDelete={
+                                                        can('delivery.companies.delete')
+                                                            ? () => remove(company.id, company.name)
+                                                            : undefined
+                                                    }
                                                 />
                                             </td>
                                         </tr>

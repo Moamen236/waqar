@@ -20,7 +20,7 @@ export default function Contact() {
 
     return (
         <StorefrontLayout>
-            <Head title="Contact" />
+            <Head title={t('contact.pageTitle')} />
             <Breadcrumb title={t('nav.contactUs')} />
 
             <div className="contact-us md:py-20 py-10">

@@ -11,6 +11,8 @@ use App\Models\Order;
 use App\Models\ShippingCompany;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -20,8 +22,16 @@ use Inertia\Response;
  * ready to hand off to a representative or shipping company, plus what's
  * already out.
  */
-class DeliveryController extends Controller
+class DeliveryController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:orders.view', only: ['index']),
+            new Middleware('permission:orders.assign', only: ['assign']),
+        ];
+    }
+
     public function index(Request $request): Response
     {
         $ready = Order::query()
@@ -62,6 +72,6 @@ class DeliveryController extends Controller
 
         $action->execute($order, $request->user('employee'), $type, $assignee);
 
-        return back()->with('success', "Order #{$order->order_number} assigned.");
+        return back()->with('success', __('Order #:number assigned.', ['number' => $order->order_number]));
     }
 }

@@ -8,6 +8,8 @@ use App\Models\DeliveryRepresentativeArea;
 use App\Support\GeoTree;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -17,8 +19,21 @@ use Inertia\Response;
  * dedicated Action needed (no cross-cutting business rule beyond what
  * validation already covers).
  */
-class RepresentativeController extends Controller
+class RepresentativeController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:delivery.representatives.view', only: ['index', 'areas']),
+            new Middleware('permission:delivery.representatives.create', only: ['create', 'store']),
+            // Coverage-area add/remove folds into .update rather than getting
+            // its own permission — it isn't a separate screen, just part of
+            // editing what a representative covers.
+            new Middleware('permission:delivery.representatives.update', only: ['edit', 'update', 'storeArea', 'destroyArea']),
+            new Middleware('permission:delivery.representatives.delete', only: ['destroy']),
+        ];
+    }
+
     public function index(): Response
     {
         return Inertia::render('Delivery/Representatives/Index', [
@@ -37,7 +52,7 @@ class RepresentativeController extends Controller
 
         DeliveryRepresentative::create($data);
 
-        return redirect()->route('admin.delivery.representatives.index')->with('success', 'Representative created.');
+        return redirect()->route('admin.delivery.representatives.index')->with('success', __('Representative created.'));
     }
 
     public function edit(DeliveryRepresentative $representative): Response
@@ -49,7 +64,14 @@ class RepresentativeController extends Controller
     {
         $representative->update($this->validated($request));
 
-        return redirect()->route('admin.delivery.representatives.index')->with('success', 'Representative updated.');
+        return redirect()->route('admin.delivery.representatives.index')->with('success', __('Representative updated.'));
+    }
+
+    public function destroy(DeliveryRepresentative $representative): RedirectResponse
+    {
+        $representative->delete();
+
+        return redirect()->route('admin.delivery.representatives.index')->with('success', __('Representative deleted.'));
     }
 
     public function areas(DeliveryRepresentative $representative): Response

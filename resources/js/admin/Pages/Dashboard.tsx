@@ -69,7 +69,7 @@ export default function Dashboard({
         <AdminLayout title={t('admin.dashboard')}>
             <Head title={t('admin.dashboard')} />
 
-            <div className="row">
+            <div className="row g-4">
                 {stats.orders && (
                     <>
                         <div className="col-md-6 col-xl-3">
@@ -163,7 +163,7 @@ export default function Dashboard({
                 )}
             </div>
 
-            <div className="row">
+            <div className="row mt-4">
                 {latestOrders && (
                     <div className={lowestStock ? 'col-xl-8' : 'col-12'}>
                         <div className="card">
@@ -289,7 +289,7 @@ export default function Dashboard({
                 deferred role-scoped widgets (Q18) are what would eventually
                 fill this — still gets a real screen rather than a blank one. */}
             {!stats.orders && !stats.catalog && stats.customers === null && stats.treasury === null && (
-                <div className="row">
+                <div className="row g-4">
                     <div className="col-12">
                         <div className="card">
                             <EmptyState

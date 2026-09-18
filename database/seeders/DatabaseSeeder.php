@@ -2,35 +2,47 @@
 
 namespace Database\Seeders;
 
-use App\Models\Employee;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
+/**
+ * Deliberately does NOT use WithoutModelEvents: that trait wraps this
+ * entire run() — including every nested $this->call() — in
+ * Model::withoutEvents(), which would silently disable Order's own
+ * `creating` hook that assigns order_number (Order::booted()). Several
+ * seeders below create orders through the real CreateOrderAction rather
+ * than setting order_number by hand, so those events have to stay live.
+ */
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     public function run(): void
     {
         $this->call([
+            // Access control and the people who use it.
             RoleSeeder::class,
             PermissionSeeder::class,
+            EmployeeSeeder::class,
+
+            // Operational baseline data other seeders/Actions depend on.
             GeoSeeder::class,
             ReturnReasonSeeder::class,
             WarehouseSeeder::class,
-            ProductSeeder::class,
-            ShippingRateSeeder::class,
-            StorefrontDemoSeeder::class,
-        ]);
+            DeliverySeeder::class,
+            TreasurySeeder::class,
+            CouponSeeder::class,
 
-        $superAdmin = Employee::create([
-            'full_name' => 'Super Admin',
-            'email' => 'admin@waqar.test',
-            'phone' => '+201000000000',
-            'password' => 'password', // local dev only — hashed via the model's casts()
-            'residence_address' => 'N/A',
-            'national_id_number' => 'N/A',
+            // Catalogue, then the marketing data that references it.
+            ProductSeeder::class,
+            PromotionSeeder::class,
+            ShippingRateSeeder::class,
+
+            // Demo content — customers, orders, returns and everything
+            // else that walks the real Actions through every flow.
+            StorefrontDemoSeeder::class,
+            OrderOperationsDemoSeeder::class,
+            ReturnDemoSeeder::class,
+            StockTransferSeeder::class,
+            ExpenseSeeder::class,
+            CartSeeder::class,
         ]);
-        $superAdmin->assignRole('Super Admin');
     }
 }

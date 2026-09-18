@@ -1,8 +1,10 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
+import { confirmAction } from '../../lib/confirm';
 import { PaginationFooter } from '../../Components/Pagination';
 import RowActions from '../../Components/RowActions';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { usePermissions } from '../../Hooks/usePermissions';
 import type { PaginatedData } from '../../types';
 import { useTranslation } from '../../lib/useTranslation';
 
@@ -17,6 +19,22 @@ interface CategoryRecord {
 // Ported from Admin Template/category-list.html's table structure.
 export default function CategoriesIndex({ categories }: { categories: PaginatedData<CategoryRecord> }) {
     const { t } = useTranslation();
+    const { can } = usePermissions();
+
+    async function remove(id: number, name: string) {
+        if (
+            !(await confirmAction({
+                title: t('admin.deleteConfirmQ', { name }),
+                confirmText: t('admin.delete'),
+                danger: true,
+            }))
+        ) {
+            return;
+        }
+
+        router.delete(route('admin.categories.destroy', id), { preserveScroll: true });
+    }
+
     return (
         <AdminLayout title={t('admin.categories')}>
             <Head title={t('admin.categories')} />
@@ -25,9 +43,11 @@ export default function CategoriesIndex({ categories }: { categories: PaginatedD
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center gap-1">
                             <h4 className="card-title flex-grow-1">{t('admin.allCategories')}</h4>
-                            <Link href={route('admin.categories.create')} className="btn btn-sm btn-primary">
-                                {t('admin.addCategory')}
-                            </Link>
+                            {can('categories.create') && (
+                                <Link href={route('admin.categories.create')} className="btn btn-sm btn-primary">
+                                    {t('admin.addCategory')}
+                                </Link>
+                            )}
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-hover table-centered">
@@ -50,7 +70,18 @@ export default function CategoriesIndex({ categories }: { categories: PaginatedD
                                                 <StatusBadge status={category.status ? 'active' : 'inactive'} />
                                             </td>
                                             <td>
-                                                <RowActions editHref={route('admin.categories.edit', category.id)} />
+                                                <RowActions
+                                                    editHref={
+                                                        can('categories.update')
+                                                            ? route('admin.categories.edit', category.id)
+                                                            : undefined
+                                                    }
+                                                    onDelete={
+                                                        can('categories.delete')
+                                                            ? () => remove(category.id, category.name)
+                                                            : undefined
+                                                    }
+                                                />
                                             </td>
                                         </tr>
                                     ))}

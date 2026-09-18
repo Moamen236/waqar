@@ -1,8 +1,10 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
+import { confirmAction } from '../../../lib/confirm';
 import { PaginationFooter } from '../../../Components/Pagination';
 import RowActions from '../../../Components/RowActions';
 import StatusBadge from '../../../Components/StatusBadge';
 import AdminLayout from '../../../Layouts/AdminLayout';
+import { usePermissions } from '../../../Hooks/usePermissions';
 import type { PaginatedData } from '../../../types';
 import { useTranslation } from '../../../lib/useTranslation';
 
@@ -16,6 +18,22 @@ interface Representative {
 
 export default function RepresentativesIndex({ representatives }: { representatives: PaginatedData<Representative> }) {
     const { t } = useTranslation();
+    const { can } = usePermissions();
+
+    async function remove(id: number, name: string) {
+        if (
+            !(await confirmAction({
+                title: t('admin.deleteConfirmQ', { name }),
+                confirmText: t('admin.delete'),
+                danger: true,
+            }))
+        ) {
+            return;
+        }
+
+        router.delete(route('admin.delivery.representatives.destroy', id), { preserveScroll: true });
+    }
+
     return (
         <AdminLayout title={t('admin.deliveryRepresentatives')}>
             <Head title={t('admin.representatives')} />
@@ -24,12 +42,14 @@ export default function RepresentativesIndex({ representatives }: { representati
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center gap-1">
                             <h4 className="card-title flex-grow-1">{t('admin.allRepresentatives')}</h4>
-                            <Link
-                                href={route('admin.delivery.representatives.create')}
-                                className="btn btn-sm btn-primary"
-                            >
-                                {t('admin.addRepresentative')}
-                            </Link>
+                            {can('delivery.representatives.create') && (
+                                <Link
+                                    href={route('admin.delivery.representatives.create')}
+                                    className="btn btn-sm btn-primary"
+                                >
+                                    {t('admin.addRepresentative')}
+                                </Link>
+                            )}
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-hover table-centered">
@@ -60,7 +80,16 @@ export default function RepresentativesIndex({ representatives }: { representati
                                                         <i className="bx bx-map align-middle fs-18" />
                                                     </Link>
                                                     <RowActions
-                                                        editHref={route('admin.delivery.representatives.edit', rep.id)}
+                                                        editHref={
+                                                            can('delivery.representatives.update')
+                                                                ? route('admin.delivery.representatives.edit', rep.id)
+                                                                : undefined
+                                                        }
+                                                        onDelete={
+                                                            can('delivery.representatives.delete')
+                                                                ? () => remove(rep.id, rep.name)
+                                                                : undefined
+                                                        }
                                                     />
                                                 </div>
                                             </td>

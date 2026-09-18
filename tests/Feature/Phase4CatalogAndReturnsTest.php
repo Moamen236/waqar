@@ -6,6 +6,7 @@ use App\Actions\Orders\ConfirmDeliveryResultAction;
 use App\Actions\Orders\ConfirmOrderAction;
 use App\Enums\CollectedMethod;
 use App\Enums\DeliveryAssignmentType;
+use App\Enums\OrderSource;
 use App\Models\Area;
 use App\Models\Attribute;
 use App\Models\Category;
@@ -203,6 +204,81 @@ it('blocks a Checking employee from the catalog screens (no products.view)', fun
     $this->actingAs($checker, 'employee')->get(route('admin.products.index'))->assertForbidden();
 });
 
+it('scopes the returns screens to the agent who placed the order, and opens them to their Team Leader', function () {
+    $geo = p4cGeo();
+    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '1']);
+    ShippingRate::create(['geo_type' => 'governorate', 'geo_id' => $geo['governorate']->id, 'price' => 0]);
+    $variant = p4cVariant($warehouse->id, stock: 5);
+    $customer = p4cCustomer();
+    $this->seed(ReturnReasonSeeder::class);
+    $reason = ReturnReason::first();
+
+    [$leader] = p4cEmployee('Customer Service Team Leader');
+    [$mine] = p4cEmployee('Customer Service');
+    [$other] = p4cEmployee('Customer Service');
+    $mine->update(['team_leader_id' => $leader->id]);
+    $other->update(['team_leader_id' => $leader->id]);
+    [$checker] = p4cEmployee('Checking');
+    [$deliveryManager] = p4cEmployee('Delivery Manager');
+    [$accountant] = p4cEmployee('Accounting');
+
+    // One delivered order per agent, so each has a return of their own.
+    $deliver = function (Employee $agent) use ($customer, $variant, $warehouse, $geo, $checker, $deliveryManager, $accountant) {
+        $order = app(CreateOrderAction::class)->execute(
+            $customer, [['product_variant_id' => $variant->id, 'quantity' => 1]], $warehouse,
+            $geo['governorate']->id, $geo['city']->id, null, $geo['area']->id,
+            '1 Test St', $customer->name, $customer->phone,
+            OrderSource::CustomerService, $agent,
+        );
+        app(ConfirmOrderAction::class)->execute($order, $checker);
+        $rep = DeliveryRepresentative::create(['name' => 'Ahmed', 'phone' => '1']);
+        app(AssignDeliveryAction::class)->execute($order, $deliveryManager, DeliveryAssignmentType::Representative, $rep);
+        $treasury = Treasury::firstOrCreate(['name' => 'Cash'], ['type' => 'cash', 'current_balance' => 0]);
+        app(ConfirmDeliveryResultAction::class)->confirmDelivered($order, $accountant, $treasury, CollectedMethod::Cash);
+
+        return $order->fresh();
+    };
+
+    $myOrder = $deliver($mine);
+    $otherOrder = $deliver($other);
+
+    $file = fn (Employee $agent, Order $order) => $this->actingAs($agent, 'employee')
+        ->post(route('admin.returns.store'), [
+            'order_id' => $order->id,
+            'primary_reason_id' => $reason->id,
+            'items' => [['order_item_id' => $order->items()->firstOrFail()->id, 'quantity' => 1]],
+        ]);
+
+    $file($mine, $myOrder)->assertRedirect();
+    $file($other, $otherOrder)->assertRedirect();
+
+    // Filing against somebody else's order is refused outright, even
+    // though the order_id passes `exists:orders,id`.
+    $file($mine, $otherOrder)->assertNotFound();
+
+    $myReturn = OrderReturn::where('order_id', $myOrder->id)->firstOrFail();
+    $otherReturn = OrderReturn::where('order_id', $otherOrder->id)->firstOrFail();
+
+    // The list shows an agent only their own return…
+    $this->actingAs($mine, 'employee')->get(route('admin.returns.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->has('returns.data', 1)
+            ->where('returns.data.0.id', $myReturn->id));
+
+    // …and the detail screen refuses the other agent's by id.
+    $this->actingAs($mine, 'employee')->get(route('admin.returns.show', $myReturn))->assertOk();
+    $this->actingAs($mine, 'employee')->get(route('admin.returns.show', $otherReturn))->assertForbidden();
+
+    // Their Team Leader sees both.
+    $this->actingAs($leader, 'employee')->get(route('admin.returns.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->has('returns.data', 2));
+
+    // A role outside Customer Service stays unscoped.
+    [$warehouseManager] = p4cEmployee('Warehouse Manager');
+    expect(OrderReturn::visibleTo($warehouseManager)->count())->toBe(2);
+});
+
 it('walks a post-delivery return through the full admin workflow — approve, receive (restocks), refund', function () {
     $geo = p4cGeo();
     $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '1']);
@@ -216,14 +292,20 @@ it('walks a post-delivery return through the full admin workflow — approve, re
     [$deliveryManager] = p4cEmployee('Delivery Manager');
     [$accountant] = p4cEmployee('Accounting');
     [$warehouseManager] = p4cEmployee('Warehouse Manager');
+    [$csAgent] = p4cEmployee('Customer Service');
 
     // Get one order all the way to Delivered via the Actions directly
     // (already covered end-to-end via HTTP in Phase4AdminOperationsTest;
     // here it's just fixture setup for the return flow under test).
+    //
+    // Placed *by the agent who files the return below*: a Customer
+    // Service agent is scoped to their own orders (Order::scopeVisibleTo),
+    // so a storefront order would be out of their reach entirely.
     $order = app(CreateOrderAction::class)->execute(
         $customer, [['product_variant_id' => $variant->id, 'quantity' => 1]], $warehouse,
         $geo['governorate']->id, $geo['city']->id, null, $geo['area']->id,
         '1 Test St', $customer->name, $customer->phone,
+        OrderSource::CustomerService, $csAgent,
     );
     app(ConfirmOrderAction::class)->execute($order, $checker);
     $rep = DeliveryRepresentative::create(['name' => 'Ahmed', 'phone' => '1']);
@@ -237,7 +319,6 @@ it('walks a post-delivery return through the full admin workflow — approve, re
     $orderItem = $order->items()->firstOrFail();
 
     // File the return on the customer's behalf (Customer Service, phone call).
-    [$csAgent] = p4cEmployee('Customer Service');
     $this->actingAs($csAgent, 'employee')
         ->post(route('admin.returns.store'), [
             'order_id' => $order->id,

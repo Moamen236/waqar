@@ -23,13 +23,13 @@ class RequestReturnAction
     public function execute(Order $order, Customer $customer, array $items, int $primaryReasonId, ?string $customerNotes = null): OrderReturn
     {
         if ($order->customer_id !== $customer->id) {
-            throw new InvalidArgumentException('This order does not belong to this customer.');
+            throw new InvalidArgumentException(__('This order does not belong to this customer.'));
         }
         if ($order->status !== OrderStatus::Delivered) {
-            throw new InvalidArgumentException('Only a delivered order can be returned this way — an at-delivery refusal is handled by Accounting instead.');
+            throw new InvalidArgumentException(__('Only a delivered order can be returned this way — an at-delivery refusal is handled by Accounting instead.'));
         }
         if (empty($items)) {
-            throw new InvalidArgumentException('A return needs at least one item.');
+            throw new InvalidArgumentException(__('A return needs at least one item.'));
         }
 
         return DB::transaction(function () use ($order, $customer, $items, $primaryReasonId, $customerNotes) {

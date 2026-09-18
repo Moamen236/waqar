@@ -143,7 +143,7 @@ class PreflightCommand extends Command
         $group = 'Access control';
 
         $this->assert($group, 'Roles seeded', Role::where('guard_name', 'employee')->count() >= 8,
-            'Expected the 9 base roles (Section 15) — run `php artisan db:seed --class=RoleSeeder`.');
+            'Expected the 9 base roles (Section 15) plus Store Orders — run `php artisan db:seed --class=RoleSeeder`.');
 
         $this->assert($group, 'Permissions seeded', Permission::where('guard_name', 'employee')->count() >= 30,
             'Run `php artisan db:seed --class=PermissionSeeder` — every admin route is permission-gated.');

@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\OrderSource;
 use App\Models\Customer;
 use App\Models\Employee;
 use App\Models\Order;
@@ -31,6 +32,17 @@ class OrderPolicy
 
             return $order->created_by_employee_id !== null
                 && $teamIds->contains($order->created_by_employee_id);
+        }
+
+        // A plain agent only reaches the orders they placed themselves —
+        // the row-level half of Order::scopeVisibleTo()'s agent tier.
+        if ($employee->hasRole('Customer Service')) {
+            return $order->created_by_employee_id === $employee->id;
+        }
+
+        // Store Orders: storefront orders only, same as its query tier.
+        if ($employee->hasRole('Store Orders')) {
+            return $order->order_source === OrderSource::Website;
         }
 
         return true;

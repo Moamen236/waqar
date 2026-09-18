@@ -1,5 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import ExportButton from '../../Components/ExportButton';
 import { PaginationFooter } from '../../Components/Pagination';
 import SearchFilter from '../../Components/SearchFilter';
 import AdminLayout from '../../Layouts/AdminLayout';
@@ -116,6 +117,14 @@ export default function InventoryIndex({
                                     ))}
                                 </select>
                             </SearchFilter>
+                            {can('inventory.export') && (
+                                <ExportButton
+                                    href={route('admin.inventory.export', {
+                                        warehouse: filters.warehouse ?? '',
+                                        search: filters.search ?? '',
+                                    })}
+                                />
+                            )}
                         </div>
 
                         <div className="table-responsive">

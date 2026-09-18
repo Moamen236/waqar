@@ -1,16 +1,13 @@
 import { Head, router } from '@inertiajs/react';
-import { useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useMemo, useState } from 'react';
+import type { FormEventHandler } from 'react';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { usePermissions } from '../../Hooks/usePermissions';
 import { useTranslation } from '../../lib/useTranslation';
 
 interface RoleRecord {
     id: number;
     name: string;
-}
-
-interface FormValues {
-    permissions: Record<string, boolean>;
 }
 
 /**
@@ -32,6 +29,17 @@ function groupByDomain(permissions: string[]): Record<string, string[]> {
 // checkbox UI at all (Section 17's own audit) — so this reuses the same
 // card grid convention every other module uses, per
 // [[admin-ui-use-larkon-template]].
+//
+// Plain useState rather than react-hook-form: every permission name is
+// itself `resource.action` (often with more than one dot —
+// delivery.representatives.view), and RHF's `register("permissions." +
+// permission)` treats each dot in the *path* as a nesting level. It was
+// reading `defaultValues.permissions.delivery.representatives.view` — a
+// four-level lookup — against a flat `permissions` object keyed by the
+// literal dotted string, so the lookup never matched and no checkbox
+// ever rendered pre-checked, however many permissions the role already
+// held. A flat Set keyed by the permission string sidesteps that path
+// parsing entirely.
 export default function RoleEdit({
     role,
     assigned,
@@ -42,33 +50,42 @@ export default function RoleEdit({
     allPermissions: string[];
 }) {
     const { t } = useTranslation();
+    const { can } = usePermissions();
+    const canSave = can('roles.update');
     const groups = useMemo(() => groupByDomain(allPermissions), [allPermissions]);
 
-    const { register, handleSubmit } = useForm<FormValues>({
-        defaultValues: { permissions: Object.fromEntries(allPermissions.map((p) => [p, assigned.includes(p)])) },
-    });
+    const [selected, setSelected] = useState<Set<string>>(() => new Set(assigned));
 
-    function onSubmit(values: FormValues) {
-        const permissions = Object.entries(values.permissions)
-            .filter(([, checked]) => checked)
-            .map(([name]) => name);
-
-        router.put(route('admin.roles.update', role.id), { permissions });
+    function toggle(permission: string) {
+        setSelected((current) => {
+            const next = new Set(current);
+            if (next.has(permission)) {
+                next.delete(permission);
+            } else {
+                next.add(permission);
+            }
+            return next;
+        });
     }
+
+    const onSubmit: FormEventHandler = (event) => {
+        event.preventDefault();
+        router.put(route('admin.roles.update', role.id), { permissions: Array.from(selected) });
+    };
 
     return (
         <AdminLayout
-            title={t('admin.permissionsFor', { role: role.name })}
+            title={t('admin.permissionsFor', { role: t(`role.${role.name}`) })}
             breadcrumbs={[{ label: t('admin.rolesPermissions'), href: route('admin.roles.index') }]}
         >
-            <Head title={t('admin.permissionsFor', { role: role.name })} />
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <Head title={t('admin.permissionsFor', { role: t(`role.${role.name}`) })} />
+            <form onSubmit={onSubmit}>
                 <div className="row">
                     {Object.entries(groups).map(([domain, permissions]) => (
                         <div className="col-lg-4" key={domain}>
                             <div className="card">
                                 <div className="card-header">
-                                    <h4 className="card-title text-capitalize">{domain}</h4>
+                                    <h4 className="card-title">{t(`permissionGroup.${domain}`)}</h4>
                                 </div>
                                 <div className="card-body">
                                     {permissions.map((permission) => (
@@ -77,10 +94,12 @@ export default function RoleEdit({
                                                 type="checkbox"
                                                 className="form-check-input"
                                                 id={`perm-${permission}`}
-                                                {...register(`permissions.${permission}`)}
+                                                checked={selected.has(permission)}
+                                                disabled={!canSave}
+                                                onChange={() => toggle(permission)}
                                             />
                                             <label className="form-check-label" htmlFor={`perm-${permission}`}>
-                                                {permission}
+                                                {t(`permission.${permission}`)}
                                             </label>
                                         </div>
                                     ))}
@@ -89,9 +108,11 @@ export default function RoleEdit({
                         </div>
                     ))}
                 </div>
-                <button type="submit" className="btn btn-primary">
-                    {t('admin.savePermissions')}
-                </button>
+                {canSave && (
+                    <button type="submit" className="btn btn-primary">
+                        {t('admin.savePermissions')}
+                    </button>
+                )}
             </form>
         </AdminLayout>
     );

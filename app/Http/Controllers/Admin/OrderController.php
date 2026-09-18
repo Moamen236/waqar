@@ -6,6 +6,7 @@ use App\Actions\Checkout\CreateOrderAction;
 use App\Enums\OrderSource;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
+use App\Exports\OrdersExport;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Order;
@@ -14,8 +15,11 @@ use App\Models\Warehouse;
 use App\Support\GeoTree;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * /admin/orders/create (Section 08 Flow 2, Section 20 #13) — Customer
@@ -24,8 +28,18 @@ use Inertia\Response;
  * call in Phase 5 — same validation, same server-side pricing, same COD
  * payment record, same stock reservation, regardless of who's placing it.
  */
-class OrderController extends Controller
+class OrderController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:orders.create', only: ['create', 'store']),
+            new Middleware('permission:orders.view', only: ['index', 'show']),
+            new Middleware('permission:orders.export', only: ['export']),
+            new Middleware('permission:orders.delete', only: ['destroy']),
+        ];
+    }
+
     /**
      * /admin/orders — every order, whatever stage it is at.
      *
@@ -87,6 +101,21 @@ class OrderController extends Controller
                 ]),
             ],
         ]);
+    }
+
+    /**
+     * The same rows index() renders — same visibleTo() scope, same
+     * status/search filters — as an .xlsx download.
+     */
+    public function export(Request $request): BinaryFileResponse
+    {
+        $export = new OrdersExport(
+            $request->user('employee'),
+            $request->string('status')->toString(),
+            trim((string) $request->string('q')),
+        );
+
+        return $export->download('orders-'.now()->format('Y-m-d_His').'.xlsx');
     }
 
     /**
@@ -192,7 +221,9 @@ class OrderController extends Controller
                     'label' => $variant->product->getTranslation('name', app()->getLocale()).' — '.$variant->sku,
                     'price' => $variant->effectivePrice(),
                 ]),
-            'warehouses' => Warehouse::query()->where('is_active', true)->get(['id', 'name']),
+            // No warehouse picker on this screen — orders always reserve
+            // against the main warehouse; it is shown read-only for context.
+            'warehouse' => Warehouse::main()?->only(['id', 'name']),
             'geoTree' => GeoTree::tree(),
         ]);
     }
@@ -201,7 +232,7 @@ class OrderController extends Controller
     {
         $data = $request->validate([
             'customer_id' => ['required', 'exists:customers,id'],
-            'warehouse_id' => ['required', 'exists:warehouses,id'],
+            'warehouse_id' => ['nullable', 'exists:warehouses,id'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_variant_id' => ['required', 'exists:product_variants,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
@@ -215,10 +246,18 @@ class OrderController extends Controller
             'coupon_code' => ['nullable', 'string', 'max:50'],
         ]);
 
+        // The form no longer offers a choice, so an absent warehouse_id
+        // falls back to the main warehouse rather than failing validation.
+        $warehouse = isset($data['warehouse_id'])
+            ? Warehouse::findOrFail($data['warehouse_id'])
+            : Warehouse::main();
+
+        abort_if($warehouse === null, 422, __('No active warehouse is configured.'));
+
         $order = $action->execute(
             customer: Customer::findOrFail($data['customer_id']),
             items: $data['items'],
-            warehouse: Warehouse::findOrFail($data['warehouse_id']),
+            warehouse: $warehouse,
             governorateId: (int) $data['governorate_id'],
             cityId: (int) $data['city_id'],
             districtId: isset($data['district_id']) ? (int) $data['district_id'] : null,
@@ -233,6 +272,6 @@ class OrderController extends Controller
 
         return redirect()
             ->route('admin.checking.index')
-            ->with('success', "Order #{$order->order_number} created for {$order->customer->name}.");
+            ->with('success', __('Order #:number created for :customer.', ['number' => $order->order_number, 'customer' => $order->customer->name]));
     }
 }

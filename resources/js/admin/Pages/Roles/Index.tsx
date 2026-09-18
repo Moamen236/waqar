@@ -33,10 +33,10 @@ export default function RolesIndex({ roles }: { roles: RoleRecord[] }) {
                                 <tbody>
                                     {roles.map((role) => (
                                         <tr key={role.id}>
-                                            <td className="fw-medium">{role.name}</td>
+                                            <td className="fw-medium">{t(`role.${role.name}`)}</td>
                                             <td>
                                                 {role.name === 'Super Admin'
-                                                    ? 'All (bypasses checks)'
+                                                    ? t('admin.allBypassesChecks')
                                                     : role.permissions_count}
                                             </td>
                                             <td>

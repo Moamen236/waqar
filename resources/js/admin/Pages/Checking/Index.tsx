@@ -1,21 +1,25 @@
 import { Head, Link } from '@inertiajs/react';
+import ExportButton from '../../Components/ExportButton';
 import { PaginationFooter } from '../../Components/Pagination';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { usePermissions } from '../../Hooks/usePermissions';
 import type { OrderSummary, PaginatedData } from '../../types';
 import { useTranslation } from '../../lib/useTranslation';
 
 // Ported from Admin Template/orders-list.html's table conventions.
 export default function CheckingIndex({ orders }: { orders: PaginatedData<OrderSummary> }) {
-    const { t } = useTranslation();
+    const { t, dateTime } = useTranslation();
+    const { can } = usePermissions();
     return (
         <AdminLayout title={t('admin.checkingWorkQueue')}>
             <Head title={t('admin.checking')} />
             <div className="row">
                 <div className="col-xl-12">
                     <div className="card">
-                        <div className="card-header">
-                            <h4 className="card-title">{t('admin.ordersAwaitingReview')}</h4>
+                        <div className="card-header d-flex justify-content-between align-items-center gap-2">
+                            <h4 className="card-title flex-grow-1">{t('admin.ordersAwaitingReview')}</h4>
+                            {can('checking.export') && <ExportButton href={route('admin.checking.export')} />}
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-hover table-centered">
@@ -38,7 +42,7 @@ export default function CheckingIndex({ orders }: { orders: PaginatedData<OrderS
                                                 <StatusBadge status={order.status} />
                                             </td>
                                             <td>{order.total}</td>
-                                            <td>{new Date(order.created_at).toLocaleString()}</td>
+                                            <td>{dateTime(order.created_at)}</td>
                                             <td>
                                                 <Link
                                                     href={route('admin.checking.show', order.id)}

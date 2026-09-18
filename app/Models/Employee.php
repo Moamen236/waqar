@@ -97,17 +97,24 @@ class Employee extends Authenticatable
     }
 
     /**
-     * Question 16's employee-visibility half of the Team Leader
-     * data-scoping rule: sees only the agents whose team_leader_id
-     * points to them, plus their own record. Every other role is
-     * unscoped — mirrors Order::scopeVisibleTo().
+     * Question 16's employee-visibility half of the Customer Service
+     * data-scoping rule, mirroring Order::scopeVisibleTo()'s two tiers: a
+     * Team Leader sees the agents whose team_leader_id points to them plus
+     * their own record, a plain agent only their own. Every other role is
+     * unscoped.
      */
     public function scopeVisibleTo(Builder $query, Employee $viewer): Builder
     {
-        if (! $viewer->hasRole('Customer Service Team Leader')) {
-            return $query;
+        if ($viewer->hasRole('Customer Service Team Leader')) {
+            return $query->where(fn ($q) => $q->where('team_leader_id', $viewer->id)->orWhere('id', $viewer->id));
         }
 
-        return $query->where(fn ($q) => $q->where('team_leader_id', $viewer->id)->orWhere('id', $viewer->id));
+        // A plain agent sees only their own record, matching the order
+        // side's agent tier (Order::scopeVisibleTo()).
+        if ($viewer->hasRole('Customer Service')) {
+            return $query->whereKey($viewer->id);
+        }
+
+        return $query;
     }
 }

@@ -15,6 +15,21 @@ class Warehouse extends Model
         return ['is_active' => 'boolean'];
     }
 
+    /**
+     * The warehouse orders default to. Admin order-create no longer lets the
+     * operator pick one, so every manually created order reserves against
+     * this: the seeded "Main Warehouse" when it exists and is active,
+     * otherwise the oldest active warehouse.
+     */
+    public static function main(): ?self
+    {
+        return static::query()
+            ->where('is_active', true)
+            ->orderByRaw("name = 'Main Warehouse' DESC")
+            ->orderBy('id')
+            ->first();
+    }
+
     public function manager(): BelongsTo
     {
         return $this->belongsTo(Employee::class, 'manager_employee_id');

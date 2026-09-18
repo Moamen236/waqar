@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Activitylog\Models\Activity;
@@ -24,7 +26,7 @@ use Spatie\Activitylog\Models\Activity;
  * snapshotted into the entry's properties at write time, so an entry
  * stays readable after its subject is gone.
  */
-class ActivityLogController extends Controller
+class ActivityLogController extends Controller implements HasMiddleware
 {
     /**
      * The audit domains, matching the `activityLogName()` each model
@@ -34,6 +36,13 @@ class ActivityLogController extends Controller
      * @var list<string>
      */
     private const LOGS = ['catalog', 'orders', 'inventory', 'treasury', 'customers', 'access'];
+
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:activity.view', only: ['index']),
+        ];
+    }
 
     public function index(Request $request): Response
     {

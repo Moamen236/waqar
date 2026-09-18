@@ -155,7 +155,7 @@ export default function AccountSettings({ profile }: { profile: { name: string; 
                                             className="button-main"
                                             disabled={passwordForm.processing}
                                         >
-                                            Change password
+                                            {t('account.changePassword')}
                                         </button>
                                     </div>
                                 </form>

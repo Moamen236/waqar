@@ -10,6 +10,8 @@ use App\Models\Order;
 use App\Models\Treasury;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -21,8 +23,16 @@ use Inertia\Response;
  * transaction (Phase 3's ConfirmDeliveryResultAction, CLAUDE.md's
  * central rule).
  */
-class AccountingController extends Controller
+class AccountingController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:orders.view', only: ['index', 'show']),
+            new Middleware('permission:orders.confirm_delivery', only: ['delivered', 'returned', 'partiallyReturned']),
+        ];
+    }
+
     public function index(Request $request): Response
     {
         $orders = Order::query()
@@ -62,14 +72,14 @@ class AccountingController extends Controller
             isset($data['collected_amount']) ? (float) $data['collected_amount'] : null,
         );
 
-        return redirect()->route('admin.accounting.index')->with('success', "Order #{$order->order_number} marked Delivered.");
+        return redirect()->route('admin.accounting.index')->with('success', __('Order #:number marked Delivered.', ['number' => $order->order_number]));
     }
 
     public function returned(Request $request, Order $order, ConfirmDeliveryResultAction $action): RedirectResponse
     {
         $action->confirmReturnedAtDelivery($order, $request->user('employee'));
 
-        return redirect()->route('admin.accounting.index')->with('success', "Order #{$order->order_number} marked Returned.");
+        return redirect()->route('admin.accounting.index')->with('success', __('Order #:number marked Returned.', ['number' => $order->order_number]));
     }
 
     public function partiallyReturned(Request $request, Order $order, ConfirmDeliveryResultAction $action): RedirectResponse
@@ -91,6 +101,6 @@ class AccountingController extends Controller
             array_map('intval', $data['kept_quantities']),
         );
 
-        return redirect()->route('admin.accounting.index')->with('success', "Order #{$order->order_number} marked Partially Returned.");
+        return redirect()->route('admin.accounting.index')->with('success', __('Order #:number marked Partially Returned.', ['number' => $order->order_number]));
     }
 }

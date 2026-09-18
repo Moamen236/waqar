@@ -21,9 +21,9 @@ export default function NotFound() {
                                 </div>
                                 <div className="heading2 mt-4">{t('errors.notFoundTitle')}</div>
                                 <div className="body1 text-secondary mt-4 pb-4">
-                                    The page you are looking for cannot be found.
+                                    {t('errors.notFoundBody')}
                                     <br className="max-xl:hidden" />
-                                    Take a break before trying again
+                                    {t('errors.notFoundHint')}
                                 </div>
                                 <Link className="flex items-center gap-3" href={route('home')}>
                                     <i className="ph ph-arrow-left"></i>

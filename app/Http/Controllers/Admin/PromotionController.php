@@ -9,6 +9,8 @@ use App\Models\ProductVariant;
 use App\Models\Promotion;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -20,8 +22,18 @@ use Inertia\Response;
  * trigger, `rewards` only populated for this type). No template
  * counterpart, built from scratch (Section 20 #23).
  */
-class PromotionController extends Controller
+class PromotionController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:promotions.view', only: ['index']),
+            new Middleware('permission:promotions.create', only: ['create', 'store']),
+            new Middleware('permission:promotions.update', only: ['edit', 'update']),
+            new Middleware('permission:promotions.delete', only: ['destroy']),
+        ];
+    }
+
     public function index(): Response
     {
         return Inertia::render('Promotions/Index', [
@@ -46,7 +58,7 @@ class PromotionController extends Controller
             }
         });
 
-        return redirect()->route('admin.promotions.index')->with('success', 'Promotion created.');
+        return redirect()->route('admin.promotions.index')->with('success', __('Promotion created.'));
     }
 
     public function edit(Promotion $promotion): Response
@@ -70,7 +82,19 @@ class PromotionController extends Controller
             }
         });
 
-        return redirect()->route('admin.promotions.index')->with('success', 'Promotion updated.');
+        return redirect()->route('admin.promotions.index')->with('success', __('Promotion updated.'));
+    }
+
+    /**
+     * Soft delete — its items/rewards rows stay (they cascadeOnDelete only
+     * on a real row delete, which a soft delete never triggers), so a
+     * restored promotion comes back with its component list intact.
+     */
+    public function destroy(Promotion $promotion): RedirectResponse
+    {
+        $promotion->delete();
+
+        return redirect()->route('admin.promotions.index')->with('success', __('Promotion deleted.'));
     }
 
     /**

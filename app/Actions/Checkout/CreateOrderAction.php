@@ -55,11 +55,11 @@ class CreateOrderAction
         ?string $couponCode = null,
     ): Order {
         if (empty($items)) {
-            throw new InvalidArgumentException('An order needs at least one item.');
+            throw new InvalidArgumentException(__('An order needs at least one item.'));
         }
 
         if ($orderSource === OrderSource::CustomerService && $createdByEmployee === null) {
-            throw new InvalidArgumentException('Customer Service orders must record which employee created them.');
+            throw new InvalidArgumentException(__('Customer Service orders must record which employee created them.'));
         }
 
         return DB::transaction(function () use (

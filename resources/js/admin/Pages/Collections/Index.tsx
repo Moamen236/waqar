@@ -1,8 +1,10 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
+import { confirmAction } from '../../lib/confirm';
 import { PaginationFooter } from '../../Components/Pagination';
 import RowActions from '../../Components/RowActions';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { usePermissions } from '../../Hooks/usePermissions';
 import type { PaginatedData } from '../../types';
 import { useTranslation } from '../../lib/useTranslation';
 
@@ -16,6 +18,22 @@ interface CollectionRecord {
 
 export default function CollectionsIndex({ collections }: { collections: PaginatedData<CollectionRecord> }) {
     const { t } = useTranslation();
+    const { can } = usePermissions();
+
+    async function remove(id: number, name: string) {
+        if (
+            !(await confirmAction({
+                title: t('admin.deleteConfirmQ', { name }),
+                confirmText: t('admin.delete'),
+                danger: true,
+            }))
+        ) {
+            return;
+        }
+
+        router.delete(route('admin.collections.destroy', id), { preserveScroll: true });
+    }
+
     return (
         <AdminLayout title={t('admin.collections')}>
             <Head title={t('admin.collections')} />
@@ -24,9 +42,11 @@ export default function CollectionsIndex({ collections }: { collections: Paginat
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center gap-1">
                             <h4 className="card-title flex-grow-1">{t('admin.allCollections')}</h4>
-                            <Link href={route('admin.collections.create')} className="btn btn-sm btn-primary">
-                                {t('admin.addCollection')}
-                            </Link>
+                            {can('collections.create') && (
+                                <Link href={route('admin.collections.create')} className="btn btn-sm btn-primary">
+                                    {t('admin.addCollection')}
+                                </Link>
+                            )}
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-hover table-centered">
@@ -49,7 +69,18 @@ export default function CollectionsIndex({ collections }: { collections: Paginat
                                                 <StatusBadge status={collection.is_active ? 'active' : 'inactive'} />
                                             </td>
                                             <td>
-                                                <RowActions editHref={route('admin.collections.edit', collection.id)} />
+                                                <RowActions
+                                                    editHref={
+                                                        can('collections.update')
+                                                            ? route('admin.collections.edit', collection.id)
+                                                            : undefined
+                                                    }
+                                                    onDelete={
+                                                        can('collections.delete')
+                                                            ? () => remove(collection.id, collection.name)
+                                                            : undefined
+                                                    }
+                                                />
                                             </td>
                                         </tr>
                                     ))}

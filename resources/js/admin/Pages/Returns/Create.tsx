@@ -114,7 +114,10 @@ export default function ReturnsCreate({
                         <div className="card">
                             <div className="card-header">
                                 <h4 className="card-title">
-                                    Order #{order.order_number} — {order.customer.name}
+                                    {t('admin.orderForCustomer', {
+                                        number: order.order_number,
+                                        name: order.customer.name,
+                                    })}
                                 </h4>
                             </div>
                             <div className="card-body">

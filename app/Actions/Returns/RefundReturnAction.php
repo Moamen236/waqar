@@ -32,7 +32,7 @@ class RefundReturnAction
         string $referenceNumber,
     ): Refund {
         if ($return->status !== ReturnStatus::Inspected) {
-            throw new RuntimeException('Only an inspected return can be refunded.');
+            throw new RuntimeException(__('Only an inspected return can be refunded.'));
         }
 
         return DB::transaction(function () use ($return, $accountant, $treasury, $method, $referenceNumber) {

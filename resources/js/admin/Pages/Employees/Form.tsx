@@ -148,7 +148,7 @@ export default function EmployeeForm({
                                             >
                                                 {roles.map((r) => (
                                                     <option key={r} value={r}>
-                                                        {r}
+                                                        {t(`role.${r}`)}
                                                     </option>
                                                 ))}
                                             </select>

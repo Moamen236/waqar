@@ -8,13 +8,17 @@ use App\Actions\Orders\MarkOrderBackorderAction;
 use App\Actions\Orders\PostponeOrderAction;
 use App\Actions\Orders\ResumeBackorderAction;
 use App\Enums\OrderStatus;
+use App\Exports\CheckingExport;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Warehouse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * /admin/checking — Checking's work queue and single-order review
@@ -22,8 +26,17 @@ use Inertia\Response;
  * Phase 3 Action; this controller's only job is request → Action →
  * Inertia redirect.
  */
-class CheckingController extends Controller
+class CheckingController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:orders.view', only: ['index', 'show']),
+            new Middleware('permission:checking.export', only: ['export']),
+            new Middleware('permission:orders.status.update', only: ['confirm', 'postpone', 'cancel', 'backorder', 'resume']),
+        ];
+    }
+
     public function index(Request $request): Response
     {
         $orders = Order::query()
@@ -35,6 +48,15 @@ class CheckingController extends Controller
             ->withQueryString();
 
         return Inertia::render('Checking/Index', ['orders' => $orders]);
+    }
+
+    /**
+     * The same work queue index() renders, as an .xlsx download.
+     */
+    public function export(Request $request): BinaryFileResponse
+    {
+        return (new CheckingExport($request->user('employee')))
+            ->download('checking-'.now()->format('Y-m-d_His').'.xlsx');
     }
 
     public function show(Request $request, Order $order): Response
@@ -53,7 +75,7 @@ class CheckingController extends Controller
 
         $action->execute($order, $request->user('employee'), $data['notes'] ?? null);
 
-        return back()->with('success', "Order #{$order->order_number} confirmed.");
+        return back()->with('success', __('Order #:number confirmed.', ['number' => $order->order_number]));
     }
 
     public function postpone(Request $request, Order $order, PostponeOrderAction $action): RedirectResponse
@@ -62,7 +84,7 @@ class CheckingController extends Controller
 
         $action->execute($order, $request->user('employee'), $data['reason']);
 
-        return back()->with('success', "Order #{$order->order_number} postponed.");
+        return back()->with('success', __('Order #:number postponed.', ['number' => $order->order_number]));
     }
 
     public function cancel(Request $request, Order $order, CancelOrderAction $action): RedirectResponse
@@ -71,7 +93,7 @@ class CheckingController extends Controller
 
         $action->execute($order, $request->user('employee'), $data['reason']);
 
-        return back()->with('success', "Order #{$order->order_number} cancelled.");
+        return back()->with('success', __('Order #:number cancelled.', ['number' => $order->order_number]));
     }
 
     public function backorder(Request $request, Order $order, MarkOrderBackorderAction $action): RedirectResponse
@@ -80,7 +102,7 @@ class CheckingController extends Controller
 
         $action->execute($order, $request->user('employee'), $data['reason']);
 
-        return back()->with('success', "Order #{$order->order_number} marked as backordered.");
+        return back()->with('success', __('Order #:number marked as backordered.', ['number' => $order->order_number]));
     }
 
     public function resume(Request $request, Order $order, ResumeBackorderAction $action): RedirectResponse
@@ -89,6 +111,6 @@ class CheckingController extends Controller
 
         $action->execute($order, $request->user('employee'), Warehouse::findOrFail($data['warehouse_id']));
 
-        return back()->with('success', "Order #{$order->order_number} resumed — stock reserved.");
+        return back()->with('success', __('Order #:number resumed — stock reserved.', ['number' => $order->order_number]));
     }
 }

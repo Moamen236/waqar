@@ -32,8 +32,10 @@ export default function CheckoutSuccess({
                         <span className="ph-fill ph-check-circle text-6xl text-success"></span>
                         <div className="heading3 mt-4">{t('checkout.thankYou')}</div>
                         <div className="body1 text-secondary mt-3">
-                            Order number <strong className="text-black">#{order.order_number}</strong>. You&apos;ll pay{' '}
-                            <strong className="text-black">{price(order.total)}</strong> in cash when it arrives.
+                            {t('checkout.successOrderLine', {
+                                number: order.order_number,
+                                total: price(order.total),
+                            })}
                         </div>
                     </div>
 

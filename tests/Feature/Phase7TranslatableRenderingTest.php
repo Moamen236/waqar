@@ -67,7 +67,13 @@ function p7rProduct(string $en = 'Linen Shirt', string $ar = 'قميص كتان'
  * An order needs a resolved shipping destination — the geography columns
  * are NOT NULL (Section 24), so a bare Order::create() cannot stand in.
  */
-function p7rOrder(Customer $customer, OrderStatus $status = OrderStatus::New): Order
+/**
+ * `$createdBy` makes the order a Customer Service one placed by that
+ * employee — needed whenever the test acts as a CS agent, who is scoped
+ * to their own orders (Order::scopeVisibleTo) and cannot see a website
+ * order at all.
+ */
+function p7rOrder(Customer $customer, OrderStatus $status = OrderStatus::New, ?Employee $createdBy = null): Order
 {
     $country = Country::firstOrCreate(['code' => 'EG'], ['name' => ['ar' => 'مصر', 'en' => 'Egypt']]);
     $governorate = Governorate::firstOrCreate(['country_id' => $country->id, 'name->en' => 'Cairo'], ['name' => ['ar' => 'القاهرة', 'en' => 'Cairo']]);
@@ -77,7 +83,8 @@ function p7rOrder(Customer $customer, OrderStatus $status = OrderStatus::New): O
     return Order::create([
         'order_number' => (string) random_int(10000, 99999),
         'customer_id' => $customer->id,
-        'order_source' => OrderSource::Website,
+        'order_source' => $createdBy === null ? OrderSource::Website : OrderSource::CustomerService,
+        'created_by_employee_id' => $createdBy?->id,
         'customer_status' => CustomerOrderStatus::Processing,
         'status' => $status,
         'subtotal' => 100, 'shipping_amount' => 0, 'discount_amount' => 0, 'total' => 100,
@@ -281,9 +288,10 @@ it('renders an order line from its snapshot so a deleted product cannot blank th
 
 it('sends the customer to the return-filing screen it is rendered on', function () {
     $customer = Customer::create(['name' => 'Nour', 'email' => 'n7r2@waqar.test', 'phone' => '1', 'password' => 'password']);
-    $order = p7rOrder($customer, OrderStatus::Delivered);
+    $agent = p7rEmployee('Customer Service');
+    $order = p7rOrder($customer, OrderStatus::Delivered, $agent);
 
-    $this->actingAs(p7rEmployee('Customer Service'), 'employee')
+    $this->actingAs($agent, 'employee')
         ->get(route('admin.returns.create', ['order_number' => $order->order_number]))
         ->assertOk()
         // Rendered as `order.customer.name`; absent, the page threw

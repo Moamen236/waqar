@@ -18,7 +18,7 @@ class AcceptReturnShippingFeeAction
     public function execute(OrderReturn $return, Customer $customer, float $returnShippingFee): OrderReturn
     {
         if ($return->customer_id !== $customer->id) {
-            throw new InvalidArgumentException('This return does not belong to this customer.');
+            throw new InvalidArgumentException(__('This return does not belong to this customer.'));
         }
 
         $return->update([

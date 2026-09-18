@@ -10,6 +10,8 @@ use App\Services\Treasury\ReconciliationService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,8 +20,23 @@ use Inertia\Response;
  * statements: what a company delivered/returned in a period, what it
  * owes in fees, and what's actually been transferred back.
  */
-class ReconciliationController extends Controller
+class ReconciliationController extends Controller implements HasMiddleware
 {
+    /**
+     * Not CRUD-shaped, so split by what each action actually does rather
+     * than forced into view/create/update/delete: .view (index/show),
+     * .create (record a new statement), .transfer (settle one) — there is
+     * no "update" of an existing statement's own fields at all.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:accounting.reconciliation.view', only: ['index', 'show']),
+            new Middleware('permission:accounting.reconciliation.create', only: ['store']),
+            new Middleware('permission:accounting.reconciliation.transfer', only: ['recordTransfer']),
+        ];
+    }
+
     public function index(): Response
     {
         return Inertia::render('Accounting/Reconciliation/Index', [
@@ -73,7 +90,7 @@ class ReconciliationController extends Controller
 
         return redirect()
             ->route('admin.accounting.reconciliation.show', $shippingCompany)
-            ->with('success', 'Statement created.');
+            ->with('success', __('Statement created.'));
     }
 
     public function recordTransfer(Request $request, ShippingCompanyStatement $statement, ReconciliationService $reconciliation): RedirectResponse
@@ -92,6 +109,6 @@ class ReconciliationController extends Controller
 
         return redirect()
             ->route('admin.accounting.reconciliation.show', $statement->shipping_company_id)
-            ->with('success', 'Transfer recorded.');
+            ->with('success', __('Transfer recorded.'));
     }
 }

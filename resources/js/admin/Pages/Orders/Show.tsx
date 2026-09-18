@@ -281,7 +281,9 @@ export default function OrderShow({
                                                 {price(Number(payment.amount))}
                                             </span>
                                             <span className="text-muted fs-13">
-                                                {payment.collected_method ?? payment.method ?? '—'}
+                                                {payment.collected_method
+                                                    ? t(`collectedMethod.${payment.collected_method}`)
+                                                    : (payment.method ?? '—')}
                                             </span>
                                         </div>
                                         <StatusBadge status={payment.status} />
@@ -324,7 +326,7 @@ export default function OrderShow({
                                 />
                                 <DetailRow
                                     label={t('admin.orderSource')}
-                                    value={order.order_source === 'website' ? 'Website' : t('admin.customerService')}
+                                    value={t(`orderSource.${order.order_source}`)}
                                 />
                                 {order.created_by_employee && (
                                     <DetailRow

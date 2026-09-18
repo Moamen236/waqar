@@ -23,7 +23,7 @@ class ReceiveReturnAction
     public function execute(OrderReturn $return, Employee $warehouseEmployee, Warehouse $warehouse): OrderReturn
     {
         if ($return->status !== ReturnStatus::Approved) {
-            throw new RuntimeException('Only an approved return can be received.');
+            throw new RuntimeException(__('Only an approved return can be received.'));
         }
 
         return DB::transaction(function () use ($return, $warehouseEmployee, $warehouse) {

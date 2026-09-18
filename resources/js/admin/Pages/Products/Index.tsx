@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { confirmAction } from '../../lib/confirm';
 import { EmptyRow } from '../../Components/EmptyState';
+import ExportButton from '../../Components/ExportButton';
 import { PaginationFooter } from '../../Components/Pagination';
 import SearchFilter from '../../Components/SearchFilter';
 import StatusBadge from '../../Components/StatusBadge';
@@ -68,6 +69,9 @@ export default function ProductsIndex({ products, q }: { products: PaginatedData
                                 placeholder={t('admin.searchNameOrSku')}
                                 onSubmit={submitSearch}
                             />
+                            {can('products.export') && (
+                                <ExportButton href={route('admin.products.export', { q: q ?? '' })} />
+                            )}
                             {can('products.create') && (
                                 <Link
                                     href={route('admin.products.create')}

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin\Catalog;
 
 use App\Enums\OrderStatus;
 use App\Enums\ProductType;
+use App\Exports\ProductsExport;
 use App\Http\Controllers\Controller;
 use App\Models\Attribute;
 use App\Models\Category;
@@ -19,12 +20,15 @@ use App\Services\Content\RichTextSanitizer;
 use App\Support\ImageUpload;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * /admin/products (Vice Chairman + Chairman, Section 15) — not in the
@@ -34,12 +38,23 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * (Color/Size), category/collection assignment, and the
  * Advertisement↔Real conversion (Section 05).
  */
-class ProductController extends Controller
+class ProductController extends Controller implements HasMiddleware
 {
     public function __construct(
         private readonly RichTextSanitizer $sanitizer,
         private readonly SkuGenerator $skus,
     ) {}
+
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:products.view', only: ['index', 'show']),
+            new Middleware('permission:products.export', only: ['export']),
+            new Middleware('permission:products.create', only: ['create', 'store']),
+            new Middleware('permission:products.update', only: ['edit', 'update', 'destroyImage']),
+            new Middleware('permission:products.delete', only: ['destroy']),
+        ];
+    }
 
     public function index(Request $request): Response
     {
@@ -65,6 +80,21 @@ class ProductController extends Controller
         });
 
         return Inertia::render('Products/Index', ['products' => $products, 'q' => $request->query('q')]);
+    }
+
+    /**
+     * The same rows index() renders — same `q` search — as an .xlsx
+     * download. cost_price rides along only for an employee who already
+     * holds products.update, the same gate show() applies to that column.
+     */
+    public function export(Request $request): BinaryFileResponse
+    {
+        $export = new ProductsExport(
+            trim((string) $request->string('q')),
+            (bool) $request->user('employee')?->can('products.update'),
+        );
+
+        return $export->download('products-'.now()->format('Y-m-d_His').'.xlsx');
     }
 
     public function create(): Response
@@ -104,7 +134,7 @@ class ProductController extends Controller
             return $product;
         });
 
-        return redirect()->route('admin.products.edit', $product)->with('success', 'Product created.');
+        return redirect()->route('admin.products.edit', $product)->with('success', __('Product created.'));
     }
 
     /**
@@ -276,14 +306,14 @@ class ProductController extends Controller
             $this->attachImages($product, $request);
         });
 
-        return redirect()->route('admin.products.edit', $product)->with('success', 'Product updated.');
+        return redirect()->route('admin.products.edit', $product)->with('success', __('Product updated.'));
     }
 
     public function destroy(Product $product): RedirectResponse
     {
         $product->delete();
 
-        return redirect()->route('admin.products.index')->with('success', 'Product deleted.');
+        return redirect()->route('admin.products.index')->with('success', __('Product deleted.'));
     }
 
     public function destroyImage(Product $product, Media $media): RedirectResponse
@@ -292,7 +322,7 @@ class ProductController extends Controller
 
         $media->delete();
 
-        return back()->with('success', 'Image removed.');
+        return back()->with('success', __('Image removed.'));
     }
 
     /**

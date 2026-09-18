@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\ReturnStage;
 use App\Enums\ReturnStatus;
 use App\Models\Concerns\RecordsActivity;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -87,6 +88,25 @@ class OrderReturn extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * Customer Service data scoping, reached through the order the return
+     * belongs to: an agent sees returns on the orders they placed, a Team
+     * Leader those on their team's orders, Store Orders those on website
+     * orders, every other role all of them.
+     *
+     * Delegating to Order::scopeVisibleTo() rather than repeating the rule
+     * keeps the two from drifting — a return is only ever as visible as
+     * its order.
+     */
+    public function scopeVisibleTo(Builder $query, Employee $employee): Builder
+    {
+        if (! $employee->hasRole(['Customer Service', 'Customer Service Team Leader', 'Store Orders'])) {
+            return $query;
+        }
+
+        return $query->whereIn('order_id', Order::query()->visibleTo($employee)->select('id'));
     }
 
     public function reason(): BelongsTo

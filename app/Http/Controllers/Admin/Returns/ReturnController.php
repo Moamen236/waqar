@@ -9,6 +9,7 @@ use App\Actions\Returns\RefundReturnAction;
 use App\Actions\Returns\RequestReturnAction;
 use App\Enums\OrderStatus;
 use App\Enums\RefundMethod;
+use App\Exports\ReturnsExport;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderReturn;
@@ -17,9 +18,12 @@ use App\Models\Treasury;
 use App\Models\Warehouse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * /admin/returns (Warehouse Manager + Accounting, both hold
@@ -30,11 +34,33 @@ use Inertia\Response;
  * exists yet for a customer to file one themselves, so "create" here is
  * staff filing a return on the customer's behalf.
  */
-class ReturnController extends Controller
+class ReturnController extends Controller implements HasMiddleware
 {
+    /**
+     * Not CRUD-shaped: approve/receive/refund are three sequential
+     * business transitions on the same return, not create/update/delete
+     * of a record, so split by transition name. returns.create covers
+     * filing one on a customer's behalf + recording their shipping-fee
+     * consent + viewing the list (Customer Service's job, same convention
+     * as orders.create).
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:returns.create', only: ['index', 'create', 'store', 'show', 'acceptShippingFee']),
+            new Middleware('permission:returns.export', only: ['export']),
+            new Middleware('permission:returns.approve', only: ['approve']),
+            new Middleware('permission:returns.receive', only: ['receive']),
+            new Middleware('permission:returns.refund', only: ['refund']),
+        ];
+    }
+
     public function index(Request $request): Response
     {
         $returns = OrderReturn::query()
+            // Same Customer Service scoping the order book uses: an agent
+            // sees returns on their own orders, a Team Leader their team's.
+            ->visibleTo($request->user('employee'))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->query('status')))
             ->with(['order:id,order_number,total', 'customer:id,name,phone'])
             ->latest('id')
@@ -44,11 +70,24 @@ class ReturnController extends Controller
         return Inertia::render('Returns/Index', ['returns' => $returns, 'status' => $request->query('status')]);
     }
 
+    /**
+     * The same rows index() renders — same optional status filter — as an
+     * .xlsx download.
+     */
+    public function export(Request $request): BinaryFileResponse
+    {
+        return (new ReturnsExport((string) $request->query('status', ''), $request->user('employee')))
+            ->download('returns-'.now()->format('Y-m-d_His').'.xlsx');
+    }
+
     public function create(Request $request): Response
     {
         $order = null;
         if ($request->filled('order_number')) {
             $order = Order::query()
+                // Scoped, so an agent cannot file a return against an
+                // order outside their own book by typing its number.
+                ->visibleTo($request->user('employee'))
                 ->where('order_number', $request->query('order_number'))
                 ->where('status', OrderStatus::Delivered)
                 // `customer` is rendered on this screen — without it the
@@ -79,7 +118,11 @@ class ReturnController extends Controller
             'items.*.reason_id' => ['nullable', 'exists:return_reasons,id'],
         ]);
 
-        $order = Order::findOrFail($data['order_id']);
+        // Same scope the create screen resolves through — a valid
+        // order_id from outside the agent's book is still refused.
+        $order = Order::query()
+            ->visibleTo($request->user('employee'))
+            ->findOrFail($data['order_id']);
 
         $return = $action->execute(
             $order,
@@ -89,11 +132,18 @@ class ReturnController extends Controller
             $data['customer_notes'] ?? null,
         );
 
-        return redirect()->route('admin.returns.show', $return)->with('success', 'Return request recorded.');
+        return redirect()->route('admin.returns.show', $return)->with('success', __('Return request recorded.'));
     }
 
-    public function show(OrderReturn $return): Response
+    public function show(Request $request, OrderReturn $return): Response
     {
+        // A guard, not a filter: without it an agent could read another
+        // agent's return by guessing its id.
+        abort_unless(
+            OrderReturn::query()->visibleTo($request->user('employee'))->whereKey($return->getKey())->exists(),
+            403,
+        );
+
         $return->load(['order.customer', 'items.orderItem.productVariant.product', 'reason', 'refund']);
 
         return Inertia::render('Returns/Show', [
@@ -113,14 +163,14 @@ class ReturnController extends Controller
         // never to approve a fee on the customer's behalf.
         $action->execute($return, $return->order->customer, (float) $data['return_shipping_fee']);
 
-        return back()->with('success', 'Return shipping fee recorded as accepted.');
+        return back()->with('success', __('Return shipping fee recorded as accepted.'));
     }
 
     public function approve(Request $request, OrderReturn $return, ApproveReturnAction $action): RedirectResponse
     {
         $action->execute($return, $request->user('employee'));
 
-        return back()->with('success', 'Return approved.');
+        return back()->with('success', __('Return approved.'));
     }
 
     public function receive(Request $request, OrderReturn $return, ReceiveReturnAction $action): RedirectResponse
@@ -129,7 +179,7 @@ class ReturnController extends Controller
 
         $action->execute($return, $request->user('employee'), Warehouse::findOrFail($data['warehouse_id']));
 
-        return back()->with('success', 'Return received and restocked.');
+        return back()->with('success', __('Return received and restocked.'));
     }
 
     public function refund(Request $request, OrderReturn $return, RefundReturnAction $action): RedirectResponse
@@ -148,6 +198,6 @@ class ReturnController extends Controller
             $data['reference_number'],
         );
 
-        return redirect()->route('admin.returns.index')->with('success', 'Refund recorded.');
+        return redirect()->route('admin.returns.index')->with('success', __('Refund recorded.'));
     }
 }

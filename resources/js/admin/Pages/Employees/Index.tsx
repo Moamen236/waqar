@@ -1,8 +1,10 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
+import { confirmAction } from '../../lib/confirm';
 import { PaginationFooter } from '../../Components/Pagination';
 import RowActions from '../../Components/RowActions';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { usePermissions } from '../../Hooks/usePermissions';
 import type { PaginatedData } from '../../types';
 import { useTranslation } from '../../lib/useTranslation';
 
@@ -18,6 +20,22 @@ interface EmployeeRecord {
 // Ported from Admin Template/role-list.html's table conventions.
 export default function EmployeesIndex({ employees }: { employees: PaginatedData<EmployeeRecord> }) {
     const { t } = useTranslation();
+    const { can, employee: currentEmployee } = usePermissions();
+
+    async function remove(id: number, name: string) {
+        if (
+            !(await confirmAction({
+                title: t('admin.deleteConfirmQ', { name }),
+                confirmText: t('admin.delete'),
+                danger: true,
+            }))
+        ) {
+            return;
+        }
+
+        router.delete(route('admin.employees.destroy', id), { preserveScroll: true });
+    }
+
     return (
         <AdminLayout title={t('admin.employees')}>
             <Head title={t('admin.employees')} />
@@ -26,9 +44,11 @@ export default function EmployeesIndex({ employees }: { employees: PaginatedData
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center gap-1">
                             <h4 className="card-title flex-grow-1">{t('admin.allEmployees')}</h4>
-                            <Link href={route('admin.employees.create')} className="btn btn-sm btn-primary">
-                                {t('admin.addEmployee')}
-                            </Link>
+                            {can('employees.create') && (
+                                <Link href={route('admin.employees.create')} className="btn btn-sm btn-primary">
+                                    {t('admin.addEmployee')}
+                                </Link>
+                            )}
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-hover table-centered">
@@ -54,7 +74,7 @@ export default function EmployeesIndex({ employees }: { employees: PaginatedData
                                                         key={r.id}
                                                         className="badge bg-primary-subtle text-primary px-2 py-1 me-1"
                                                     >
-                                                        {r.name}
+                                                        {t(`role.${r.name}`)}
                                                     </span>
                                                 ))}
                                             </td>
@@ -62,7 +82,18 @@ export default function EmployeesIndex({ employees }: { employees: PaginatedData
                                                 <StatusBadge status={employee.is_active ? 'active' : 'inactive'} />
                                             </td>
                                             <td>
-                                                <RowActions editHref={route('admin.employees.edit', employee.id)} />
+                                                <RowActions
+                                                    editHref={
+                                                        can('employees.update')
+                                                            ? route('admin.employees.edit', employee.id)
+                                                            : undefined
+                                                    }
+                                                    onDelete={
+                                                        can('employees.delete') && employee.id !== currentEmployee?.id
+                                                            ? () => remove(employee.id, employee.full_name)
+                                                            : undefined
+                                                    }
+                                                />
                                             </td>
                                         </tr>
                                     ))}

@@ -5,6 +5,7 @@ import EmptyState, { EmptyRow } from '../../Components/EmptyState';
 import { PaginationFooter } from '../../Components/Pagination';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { confirmAction } from '../../lib/confirm';
+import { usePermissions } from '../../Hooks/usePermissions';
 import type { PaginatedData } from '../../types';
 import { useTranslation } from '../../lib/useTranslation';
 
@@ -35,6 +36,7 @@ export default function TreasuryIndex({
     transactions: PaginatedData<TransactionRecord> | null;
 }) {
     const { t, price, date, dateTime } = useTranslation();
+    const { can } = usePermissions();
     const [txType, setTxType] = useState('income');
     const [txAmount, setTxAmount] = useState('');
     const [txDescription, setTxDescription] = useState('');
@@ -124,44 +126,46 @@ export default function TreasuryIndex({
                         </table>
                     </div>
 
-                    <div className="card">
-                        <div className="card-header">
-                            <h4 className="card-title">{t('admin.newTreasuryAccount')}</h4>
+                    {can('treasury.create') && (
+                        <div className="card">
+                            <div className="card-header">
+                                <h4 className="card-title">{t('admin.newTreasuryAccount')}</h4>
+                            </div>
+                            <div className="card-body">
+                                <input
+                                    className="form-control mb-2"
+                                    placeholder={t('admin.name')}
+                                    value={newName}
+                                    onChange={(e) => setNewName(e.target.value)}
+                                />
+                                <select
+                                    className="form-select mb-2"
+                                    value={newType}
+                                    onChange={(e) => setNewType(e.target.value)}
+                                >
+                                    <option value="cash">{t('admin.cash')}</option>
+                                    <option value="bank">{t('admin.bank')}</option>
+                                    <option value="wallet">{t('admin.wallet')}</option>
+                                </select>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    className="form-control mb-2"
+                                    placeholder={t('admin.openingBalance')}
+                                    value={newBalance}
+                                    onChange={(e) => setNewBalance(e.target.value)}
+                                />
+                                <button
+                                    type="button"
+                                    className="btn btn-primary btn-sm"
+                                    onClick={createTreasury}
+                                    disabled={!newName}
+                                >
+                                    {t('admin.create')}
+                                </button>
+                            </div>
                         </div>
-                        <div className="card-body">
-                            <input
-                                className="form-control mb-2"
-                                placeholder={t('admin.name')}
-                                value={newName}
-                                onChange={(e) => setNewName(e.target.value)}
-                            />
-                            <select
-                                className="form-select mb-2"
-                                value={newType}
-                                onChange={(e) => setNewType(e.target.value)}
-                            >
-                                <option value="cash">{t('admin.cash')}</option>
-                                <option value="bank">{t('admin.bank')}</option>
-                                <option value="wallet">{t('admin.wallet')}</option>
-                            </select>
-                            <input
-                                type="number"
-                                step="0.01"
-                                className="form-control mb-2"
-                                placeholder={t('admin.openingBalance')}
-                                value={newBalance}
-                                onChange={(e) => setNewBalance(e.target.value)}
-                            />
-                            <button
-                                type="button"
-                                className="btn btn-primary btn-sm"
-                                onClick={createTreasury}
-                                disabled={!newName}
-                            >
-                                {t('admin.create')}
-                            </button>
-                        </div>
-                    </div>
+                    )}
                 </div>
 
                 <div className="col-xl-9">
@@ -195,86 +199,94 @@ export default function TreasuryIndex({
                                 )}
                             </div>
 
-                            <div className="row">
-                                <div className="col-lg-6">
-                                    <div className="card">
-                                        <div className="card-header">
-                                            <h4 className="card-title">{t('admin.recordTransaction')}</h4>
+                            {(can('treasury.transactions.create') || can('treasury.transfer')) && (
+                                <div className="row">
+                                    {can('treasury.transactions.create') && (
+                                        <div className="col-lg-6">
+                                            <div className="card">
+                                                <div className="card-header">
+                                                    <h4 className="card-title">{t('admin.recordTransaction')}</h4>
+                                                </div>
+                                                <div className="card-body">
+                                                    <select
+                                                        className="form-select mb-2"
+                                                        value={txType}
+                                                        onChange={(e) => setTxType(e.target.value)}
+                                                    >
+                                                        <option value="income">{t('admin.income')}</option>
+                                                        <option value="expense">{t('admin.expense')}</option>
+                                                        <option value="adjustment">{t('admin.adjustment')}</option>
+                                                    </select>
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        className="form-control mb-2"
+                                                        placeholder={t('admin.amountSignedForAdjustment')}
+                                                        value={txAmount}
+                                                        onChange={(e) => setTxAmount(e.target.value)}
+                                                    />
+                                                    <input
+                                                        className="form-control mb-2"
+                                                        placeholder={t('admin.description')}
+                                                        value={txDescription}
+                                                        onChange={(e) => setTxDescription(e.target.value)}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-primary btn-sm"
+                                                        onClick={recordTransaction}
+                                                    >
+                                                        {t('admin.record')}
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="card-body">
-                                            <select
-                                                className="form-select mb-2"
-                                                value={txType}
-                                                onChange={(e) => setTxType(e.target.value)}
-                                            >
-                                                <option value="income">{t('admin.income')}</option>
-                                                <option value="expense">{t('admin.expense')}</option>
-                                                <option value="adjustment">{t('admin.adjustment')}</option>
-                                            </select>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                className="form-control mb-2"
-                                                placeholder={t('admin.amountSignedForAdjustment')}
-                                                value={txAmount}
-                                                onChange={(e) => setTxAmount(e.target.value)}
-                                            />
-                                            <input
-                                                className="form-control mb-2"
-                                                placeholder={t('admin.description')}
-                                                value={txDescription}
-                                                onChange={(e) => setTxDescription(e.target.value)}
-                                            />
-                                            <button
-                                                type="button"
-                                                className="btn btn-primary btn-sm"
-                                                onClick={recordTransaction}
-                                            >
-                                                {t('admin.record')}
-                                            </button>
+                                    )}
+                                    {can('treasury.transfer') && (
+                                        <div className="col-lg-6">
+                                            <div className="card">
+                                                <div className="card-header">
+                                                    <h4 className="card-title">
+                                                        {t('admin.transferToAnotherTreasury')}
+                                                    </h4>
+                                                </div>
+                                                <div className="card-body">
+                                                    <select
+                                                        className="form-select mb-2"
+                                                        value={transferTo}
+                                                        onChange={(e) => setTransferTo(Number(e.target.value))}
+                                                    >
+                                                        <option value="">{t('admin.select')}</option>
+                                                        {treasuries
+                                                            .filter((t) => t.id !== selected.id)
+                                                            .map((t) => (
+                                                                <option key={t.id} value={t.id}>
+                                                                    {t.name}
+                                                                </option>
+                                                            ))}
+                                                    </select>
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        className="form-control mb-2"
+                                                        placeholder={t('admin.amount')}
+                                                        value={transferAmount}
+                                                        onChange={(e) => setTransferAmount(e.target.value)}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-primary btn-sm"
+                                                        onClick={transfer}
+                                                        disabled={!transferTo}
+                                                    >
+                                                        {t('admin.transfer')}
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
-                                <div className="col-lg-6">
-                                    <div className="card">
-                                        <div className="card-header">
-                                            <h4 className="card-title">{t('admin.transferToAnotherTreasury')}</h4>
-                                        </div>
-                                        <div className="card-body">
-                                            <select
-                                                className="form-select mb-2"
-                                                value={transferTo}
-                                                onChange={(e) => setTransferTo(Number(e.target.value))}
-                                            >
-                                                <option value="">{t('admin.select')}</option>
-                                                {treasuries
-                                                    .filter((t) => t.id !== selected.id)
-                                                    .map((t) => (
-                                                        <option key={t.id} value={t.id}>
-                                                            {t.name}
-                                                        </option>
-                                                    ))}
-                                            </select>
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                className="form-control mb-2"
-                                                placeholder={t('admin.amount')}
-                                                value={transferAmount}
-                                                onChange={(e) => setTransferAmount(e.target.value)}
-                                            />
-                                            <button
-                                                type="button"
-                                                className="btn btn-primary btn-sm"
-                                                onClick={transfer}
-                                                disabled={!transferTo}
-                                            >
-                                                {t('admin.transfer')}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            )}
 
                             <div className="card">
                                 <div className="card-header">

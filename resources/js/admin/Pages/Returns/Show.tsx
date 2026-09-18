@@ -3,6 +3,7 @@ import { useState } from 'react';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { confirmAction } from '../../lib/confirm';
+import { usePermissions } from '../../Hooks/usePermissions';
 import { useTranslation } from '../../lib/useTranslation';
 
 interface ReturnItem {
@@ -55,6 +56,7 @@ export default function ReturnsShow({
     treasuries: Treasury[];
 }) {
     const { t } = useTranslation();
+    const { can } = usePermissions();
     const [shippingFee, setShippingFee] = useState('0');
     const [warehouseId, setWarehouseId] = useState<number | ''>(warehouses[0]?.id ?? '');
     const [treasuryId, setTreasuryId] = useState<number | ''>(treasuries[0]?.id ?? '');
@@ -64,9 +66,11 @@ export default function ReturnsShow({
     const needsShippingFeeConsent =
         ret.stage === 'post_delivery' && ret.status === 'requested' && !ret.customer_accepted_return_shipping_fee_at;
     const canApprove =
-        ret.status === 'requested' && (ret.stage !== 'post_delivery' || ret.customer_accepted_return_shipping_fee_at);
-    const canReceive = ret.status === 'approved';
-    const canRefund = ret.status === 'inspected';
+        ret.status === 'requested' &&
+        (ret.stage !== 'post_delivery' || ret.customer_accepted_return_shipping_fee_at) &&
+        can('returns.approve');
+    const canReceive = ret.status === 'approved' && can('returns.receive');
+    const canRefund = ret.status === 'inspected' && can('returns.refund');
 
     async function acceptFee() {
         if (!(await confirmAction({ title: t('admin.recordAcceptedReturnFee') }))) return;
@@ -144,10 +148,11 @@ export default function ReturnsShow({
                             </div>
                             <div className="card-body">
                                 <p className="mb-1">
-                                    Net amount: <strong>{ret.refund.net_amount}</strong>
+                                    {t('admin.netAmount')}: <strong>{ret.refund.net_amount}</strong>
                                 </p>
                                 <p className="mb-0 text-muted">
-                                    {ret.refund.method} — ref. {ret.refund.reference_number}
+                                    {t(`refundMethod.${ret.refund.method}`)} — {t('admin.ref')}{' '}
+                                    {ret.refund.reference_number}
                                 </p>
                             </div>
                         </div>
@@ -161,13 +166,21 @@ export default function ReturnsShow({
                         </div>
                         <div className="card-body">
                             <p className="mb-1 fw-medium">
-                                Order #{ret.order.order_number} — {ret.order.customer.name}
+                                {t('admin.orderForCustomer', {
+                                    number: ret.order.order_number,
+                                    name: ret.order.customer.name,
+                                })}
                             </p>
                             <p className="mb-1 text-muted">{ret.order.customer.phone}</p>
                             <p className="mb-1">
-                                Stage: <span className="badge bg-light text-dark border px-2 py-1">{ret.stage}</span>
+                                {t('admin.stage')}:{' '}
+                                <span className="badge bg-light text-dark border px-2 py-1">
+                                    {t(`returnStage.${ret.stage}`)}
+                                </span>
                             </p>
-                            <p className="mb-1">Reason: {ret.reason?.name}</p>
+                            <p className="mb-1">
+                                {t('admin.reason')}: {ret.reason?.name}
+                            </p>
                             {ret.customer_notes && (
                                 <p className="mb-1 text-muted">&ldquo;{ret.customer_notes}&rdquo;</p>
                             )}
@@ -222,7 +235,7 @@ export default function ReturnsShow({
                                         </select>
                                     </div>
                                     <button type="button" className="btn btn-primary" onClick={receive}>
-                                        Confirm Received &amp; Restock
+                                        {t('admin.confirmReceivedAndRestock')}
                                     </button>
                                 </>
                             )}
@@ -236,9 +249,9 @@ export default function ReturnsShow({
                                             value={treasuryId}
                                             onChange={(e) => setTreasuryId(Number(e.target.value))}
                                         >
-                                            {treasuries.map((t) => (
-                                                <option key={t.id} value={t.id}>
-                                                    {t.name} ({t.type})
+                                            {treasuries.map((account) => (
+                                                <option key={account.id} value={account.id}>
+                                                    {account.name} ({t(`treasury.type.${account.type}`)})
                                                 </option>
                                             ))}
                                         </select>
@@ -252,7 +265,7 @@ export default function ReturnsShow({
                                         >
                                             {REFUND_METHODS.map((m) => (
                                                 <option key={m} value={m}>
-                                                    {m}
+                                                    {t(`refundMethod.${m}`)}
                                                 </option>
                                             ))}
                                         </select>

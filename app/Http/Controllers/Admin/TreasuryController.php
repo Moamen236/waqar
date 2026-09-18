@@ -9,6 +9,8 @@ use App\Models\Treasury;
 use App\Services\Treasury\TreasuryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -20,8 +22,24 @@ use Inertia\Response;
  * inter-treasury transfers. TreasuryService remains the only place a
  * balance actually changes; this controller only calls it.
  */
-class TreasuryController extends Controller
+class TreasuryController extends Controller implements HasMiddleware
 {
+    /**
+     * Not CRUD-shaped — the three writes are opening a new account,
+     * posting a manual transaction, and transferring between two existing
+     * accounts, none of which is really an "update" of an existing row —
+     * so split by what each one does.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:treasury.view', only: ['index']),
+            new Middleware('permission:treasury.create', only: ['store']),
+            new Middleware('permission:treasury.transactions.create', only: ['storeTransaction']),
+            new Middleware('permission:treasury.transfer', only: ['transfer']),
+        ];
+    }
+
     public function index(Request $request): Response
     {
         $treasuries = Treasury::query()->orderBy('name')->get();
@@ -50,7 +68,7 @@ class TreasuryController extends Controller
 
         Treasury::create($data);
 
-        return back()->with('success', 'Treasury account created.');
+        return back()->with('success', __('Treasury account created.'));
     }
 
     public function storeTransaction(Request $request, TreasuryService $treasuryService): RedirectResponse
@@ -71,7 +89,7 @@ class TreasuryController extends Controller
             $data['description'] ?? null,
         );
 
-        return back()->with('success', 'Transaction recorded.');
+        return back()->with('success', __('Transaction recorded.'));
     }
 
     public function transfer(Request $request, TreasuryService $treasuryService): RedirectResponse
@@ -91,6 +109,6 @@ class TreasuryController extends Controller
             $data['notes'] ?? null,
         );
 
-        return back()->with('success', 'Transfer recorded.');
+        return back()->with('success', __('Transfer recorded.'));
     }
 }

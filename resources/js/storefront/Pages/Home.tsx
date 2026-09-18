@@ -145,7 +145,7 @@ export default function Home({
                         <img
                             src="/storefront/images/generated/banner-best-sellers.svg"
                             className="duration-1000"
-                            alt="Best sellers"
+                            alt={t('home.bannerBestSellersAlt')}
                         />
                     </div>
                     <div className="banner-content absolute top-0 start-0 w-full h-full flex flex-col items-center justify-center">
@@ -163,7 +163,7 @@ export default function Home({
                         <img
                             src="/storefront/images/generated/banner-on-sale.svg"
                             className="duration-1000"
-                            alt="On sale"
+                            alt={t('home.bannerOnSaleAlt')}
                         />
                     </div>
                     <div className="banner-content absolute top-0 start-0 w-full h-full flex flex-col items-center justify-center">

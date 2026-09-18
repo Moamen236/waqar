@@ -307,7 +307,7 @@ export default function PromotionForm({
                         <div className="card">
                             <div className="card-header">
                                 <h4 className="card-title">
-                                    {type === 'bundle' ? 'Bundle Components' : 'Trigger Items (Buy)'}
+                                    {type === 'bundle' ? t('admin.bundleComponents') : t('admin.triggerItemsBuy')}
                                 </h4>
                             </div>
                             <div className="card-body">

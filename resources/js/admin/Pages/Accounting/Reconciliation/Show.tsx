@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Flatpickr from 'react-flatpickr';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import { confirmAction } from '../../../lib/confirm';
+import { usePermissions } from '../../../Hooks/usePermissions';
 import { useTranslation } from '../../../lib/useTranslation';
 
 interface Statement {
@@ -50,6 +51,7 @@ export default function ReconciliationShow({
     treasuries: Treasury[];
 }) {
     const { t } = useTranslation();
+    const { can } = usePermissions();
     const [start, setStart] = useState(periodStart ?? '');
     const [end, setEnd] = useState(periodEnd ?? '');
     const [transferAmount, setTransferAmount] = useState<Record<number, string>>({});
@@ -155,9 +157,11 @@ export default function ReconciliationShow({
                                     </tbody>
                                 </table>
                             </div>
-                            <button type="button" className="btn btn-primary" onClick={createStatement}>
-                                {t('admin.createStatement')}
-                            </button>
+                            {can('accounting.reconciliation.create') && (
+                                <button type="button" className="btn btn-primary" onClick={createStatement}>
+                                    {t('admin.createStatement')}
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>
@@ -196,7 +200,7 @@ export default function ReconciliationShow({
                                         </span>
                                     </td>
                                     <td>
-                                        {statement.status === 'open' && (
+                                        {statement.status === 'open' && can('accounting.reconciliation.transfer') && (
                                             <div className="d-flex gap-2">
                                                 <select
                                                     className="form-control form-control-sm"

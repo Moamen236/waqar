@@ -1,7 +1,9 @@
 import { Head, Link, router } from '@inertiajs/react';
+import ExportButton from '../../Components/ExportButton';
 import { PaginationFooter } from '../../Components/Pagination';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { usePermissions } from '../../Hooks/usePermissions';
 import type { PaginatedData } from '../../types';
 import { useTranslation } from '../../lib/useTranslation';
 
@@ -23,7 +25,8 @@ export default function ReturnsIndex({
     returns: PaginatedData<ReturnRecord>;
     status: string | null;
 }) {
-    const { t } = useTranslation();
+    const { t, date } = useTranslation();
+    const { can } = usePermissions();
     return (
         <AdminLayout title={t('admin.returnsRefunds')}>
             <Head title={t('admin.returns')} />
@@ -51,6 +54,9 @@ export default function ReturnsIndex({
                                     </option>
                                 ))}
                             </select>
+                            {can('returns.export') && (
+                                <ExportButton href={route('admin.returns.export', { status: status ?? '' })} />
+                            )}
                             <Link href={route('admin.returns.create')} className="btn btn-sm btn-primary">
                                 {t('admin.fileAReturn')}
                             </Link>
@@ -75,11 +81,11 @@ export default function ReturnsIndex({
                                                 {r.customer.name}
                                                 <div className="text-muted fs-13">{r.customer.phone}</div>
                                             </td>
-                                            <td>{r.stage}</td>
+                                            <td>{t(`returnStage.${r.stage}`)}</td>
                                             <td>
                                                 <StatusBadge status={r.status} />
                                             </td>
-                                            <td>{new Date(r.created_at).toLocaleDateString()}</td>
+                                            <td>{date(r.created_at)}</td>
                                             <td>
                                                 <Link
                                                     href={route('admin.returns.show', r.id)}

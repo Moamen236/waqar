@@ -301,7 +301,7 @@ export default function ProductShow({
                                             <div className="text-secondary">
                                                 {variant.available > 0
                                                     ? t('product.inStock', { count: variant.available })
-                                                    : 'Out of stock'}
+                                                    : t('product.outOfStock')}
                                             </div>
                                         </div>
                                     )}

@@ -11,6 +11,8 @@ use App\Models\ShippingRate;
 use App\Support\GeoTree;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -27,8 +29,18 @@ use Inertia\Response;
  * Nothing here computes a customer-facing price; it only stores what the
  * resolver will later read.
  */
-class ShippingRateController extends Controller
+class ShippingRateController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:delivery.rates.view', only: ['index']),
+            new Middleware('permission:delivery.rates.create', only: ['create', 'store']),
+            new Middleware('permission:delivery.rates.update', only: ['edit', 'update']),
+            new Middleware('permission:delivery.rates.delete', only: ['destroy']),
+        ];
+    }
+
     public function index(): Response
     {
         return Inertia::render('Delivery/ShippingRates/Index', [
@@ -119,14 +131,14 @@ class ShippingRateController extends Controller
     {
         $shippingRate->update($this->validated($request, $shippingRate->id));
 
-        return redirect()->route('admin.delivery.shipping-rates.index')->with('success', 'Shipping rate updated.');
+        return redirect()->route('admin.delivery.shipping-rates.index')->with('success', __('Shipping rate updated.'));
     }
 
     public function destroy(ShippingRate $shippingRate): RedirectResponse
     {
         $shippingRate->delete();
 
-        return redirect()->route('admin.delivery.shipping-rates.index')->with('success', 'Shipping rate removed.');
+        return redirect()->route('admin.delivery.shipping-rates.index')->with('success', __('Shipping rate removed.'));
     }
 
     /**
@@ -153,7 +165,7 @@ class ShippingRateController extends Controller
             default => Area::whereKey($data['geo_id'])->exists(),
         };
 
-        abort_unless($exists, 422, 'That location does not exist at the chosen level.');
+        abort_unless($exists, 422, __('That location does not exist at the chosen level.'));
 
         // The table has a unique (geo_type, geo_id) index — catching the
         // clash here gives a readable validation error instead of a raw
@@ -164,7 +176,7 @@ class ShippingRateController extends Controller
             ->exists();
 
         if ($duplicate) {
-            abort(422, 'A rate is already configured for that location.');
+            abort(422, __('A rate is already configured for that location.'));
         }
 
         $data['is_active'] = (bool) ($data['is_active'] ?? true);

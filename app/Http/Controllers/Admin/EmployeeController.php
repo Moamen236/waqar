@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Employee;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -18,8 +20,18 @@ use Spatie\Permission\Models\Role;
  * agent optionally reports to another employee holding the Customer
  * Service Team Leader role.
  */
-class EmployeeController extends Controller
+class EmployeeController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:employees.view', only: ['index']),
+            new Middleware('permission:employees.create', only: ['create', 'store']),
+            new Middleware('permission:employees.update', only: ['edit', 'update']),
+            new Middleware('permission:employees.delete', only: ['destroy']),
+        ];
+    }
+
     public function index(Request $request): Response
     {
         $employees = Employee::query()
@@ -49,7 +61,7 @@ class EmployeeController extends Controller
         $employee = Employee::create($data);
         $employee->syncRoles([$role]);
 
-        return redirect()->route('admin.employees.index')->with('success', 'Employee created.');
+        return redirect()->route('admin.employees.index')->with('success', __('Employee created.'));
     }
 
     public function edit(Request $request, Employee $employee): Response
@@ -79,7 +91,30 @@ class EmployeeController extends Controller
         $employee->update($data);
         $employee->syncRoles([$role]);
 
-        return redirect()->route('admin.employees.index')->with('success', 'Employee updated.');
+        return redirect()->route('admin.employees.index')->with('success', __('Employee updated.'));
+    }
+
+    /**
+     * Two guards, both mirroring assignableRoles()'s own escalation logic:
+     * an employee can't delete their own account (they'd otherwise lock
+     * themselves out mid-request), and only a Super Admin can remove
+     * another Super Admin.
+     */
+    public function destroy(Request $request, Employee $employee): RedirectResponse
+    {
+        $actor = $request->user('employee');
+
+        if ($employee->id === $actor->id) {
+            return back()->with('error', __('You cannot delete your own account.'));
+        }
+
+        if ($employee->hasRole('Super Admin') && ! $actor->hasRole('Super Admin')) {
+            abort(403);
+        }
+
+        $employee->delete();
+
+        return redirect()->route('admin.employees.index')->with('success', __('Employee deleted.'));
     }
 
     /**
@@ -122,7 +157,7 @@ class EmployeeController extends Controller
         ]);
 
         if ($data['role'] === 'Super Admin' && ($actor === null || ! $actor->hasRole('Super Admin'))) {
-            abort(403, 'Only a Super Admin can assign the Super Admin role.');
+            abort(403, __('Only a Super Admin can assign the Super Admin role.'));
         }
 
         return $data;

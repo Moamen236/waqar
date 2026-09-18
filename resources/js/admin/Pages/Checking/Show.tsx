@@ -43,6 +43,14 @@ interface OrderDetail {
 
 type ReasonAction = 'postpone' | 'cancel' | 'backorder';
 
+// The confirm prompt used to be built from the action name itself
+// (`${action} this order?`), which is only a sentence in English.
+const ACTION_QUESTION: Record<ReasonAction, string> = {
+    postpone: 'admin.postponeOrderQuestion',
+    cancel: 'admin.cancelOrderQuestion',
+    backorder: 'admin.backorderOrderQuestion',
+};
+
 // Ported from Admin Template/order-detail.html: Product table, Order
 // Timeline (the dashed vertical line + circular markers), Customer
 // Details card, plus an Actions card for this department's slice of the
@@ -59,12 +67,12 @@ export default function CheckingShow({ order, warehouses }: { order: OrderDetail
 
     async function act(action: ReasonAction) {
         if (!reason.trim()) {
-            await confirmAction({ title: 'A reason is required', text: t('admin.enterAReasonFirst') });
+            await confirmAction({ title: t('admin.aReasonIsRequired'), text: t('admin.enterAReasonFirst') });
             return;
         }
         if (
             !(await confirmAction({
-                title: `${action[0].toUpperCase()}${action.slice(1)} this order?`,
+                title: t(ACTION_QUESTION[action]),
                 danger: action === 'cancel',
             }))
         )

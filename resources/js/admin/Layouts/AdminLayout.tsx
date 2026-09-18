@@ -94,25 +94,25 @@ const NAV: NavGroup[] = [
                 label: 'admin.navRepresentatives',
                 href: route('admin.delivery.representatives.index'),
                 icon: 'bx-user-pin',
-                permission: 'delivery.representatives.manage',
+                permission: 'delivery.representatives.view',
             },
             {
                 label: 'admin.navShippingCompanies',
                 href: route('admin.delivery.shipping-companies.index'),
                 icon: 'bx-buildings',
-                permission: 'delivery.companies.manage',
+                permission: 'delivery.companies.view',
             },
             {
                 label: 'admin.navShippingRates',
                 href: route('admin.delivery.shipping-rates.index'),
                 icon: 'bx-map-pin',
-                permission: 'delivery.rates.manage',
+                permission: 'delivery.rates.view',
             },
             {
                 label: 'admin.navReconciliation',
                 href: route('admin.accounting.reconciliation.index'),
                 icon: 'bx-receipt',
-                permission: 'accounting.reconciliation.manage',
+                permission: 'accounting.reconciliation.view',
             },
         ],
     },
@@ -144,25 +144,25 @@ const NAV: NavGroup[] = [
                 label: 'admin.navCategories',
                 href: route('admin.categories.index'),
                 icon: 'bx-category',
-                permission: 'categories.manage',
+                permission: 'categories.view',
             },
             {
                 label: 'admin.navAttributes',
                 href: route('admin.attributes.index'),
                 icon: 'bx-palette',
-                permission: 'attributes.manage',
+                permission: 'attributes.view',
             },
             {
                 label: 'admin.navCollections',
                 href: route('admin.collections.index'),
                 icon: 'bx-collection',
-                permission: 'collections.manage',
+                permission: 'collections.view',
             },
             {
                 label: 'admin.navPromotions',
                 href: route('admin.promotions.index'),
                 icon: 'bxs-megaphone',
-                permission: 'promotions.manage',
+                permission: 'promotions.view',
             },
             {
                 label: 'admin.navInventory',
@@ -209,7 +209,7 @@ const NAV: NavGroup[] = [
                 label: 'admin.navRolesPermissions',
                 href: route('admin.roles.index'),
                 icon: 'bx-lock-alt',
-                permission: 'roles.manage',
+                permission: 'roles.view',
             },
             {
                 label: 'admin.navActivityLog',
@@ -389,7 +389,7 @@ export default function AdminLayout({
                                     </Dropdown.Toggle>
                                     <Dropdown.Menu className="dropdown-menu-end">
                                         <Dropdown.ItemText className="text-muted small">
-                                            {employee.roles.join(', ')}
+                                            {employee.roles.map((r) => t(`role.${r}`)).join('، ')}
                                         </Dropdown.ItemText>
                                         <Dropdown.Divider />
                                         <Dropdown.Item

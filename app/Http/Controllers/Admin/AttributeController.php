@@ -7,6 +7,8 @@ use App\Models\Attribute;
 use App\Models\AttributeValue;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -16,8 +18,22 @@ use Inertia\Response;
  * needs to differentiate SKUs. One page, not a full CRUD set — attributes
  * themselves rarely change once seeded, values are the day-to-day edit.
  */
-class AttributeController extends Controller
+class AttributeController extends Controller implements HasMiddleware
 {
+    /**
+     * Value-level create/update/delete folds into the matching
+     * attribute-level permission — there is one screen, not two.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:attributes.view', only: ['index']),
+            new Middleware('permission:attributes.create', only: ['store', 'storeValue']),
+            new Middleware('permission:attributes.update', only: ['update', 'updateValue']),
+            new Middleware('permission:attributes.delete', only: ['destroy', 'destroyValue']),
+        ];
+    }
+
     public function index(): Response
     {
         return Inertia::render('Attributes/Index', [
@@ -36,7 +52,7 @@ class AttributeController extends Controller
 
         Attribute::create($data);
 
-        return back()->with('success', 'Attribute created.');
+        return back()->with('success', __('Attribute created.'));
     }
 
     public function update(Request $request, Attribute $attribute): RedirectResponse
@@ -50,7 +66,24 @@ class AttributeController extends Controller
 
         $attribute->update($data);
 
-        return back()->with('success', 'Attribute updated.');
+        return back()->with('success', __('Attribute updated.'));
+    }
+
+    /**
+     * Refused while it still has values — same reasoning as destroyValue
+     * below: deleting the attribute out from under them wouldn't remove
+     * anything (they're a separate table), it would just orphan them from
+     * the one screen that manages them.
+     */
+    public function destroy(Attribute $attribute): RedirectResponse
+    {
+        if ($attribute->values()->exists()) {
+            return back()->with('error', __('Remove this attribute\'s values first.'));
+        }
+
+        $attribute->delete();
+
+        return back()->with('success', __('Attribute removed.'));
     }
 
     public function storeValue(Request $request, Attribute $attribute): RedirectResponse
@@ -65,7 +98,7 @@ class AttributeController extends Controller
 
         $attribute->values()->create($data);
 
-        return back()->with('success', 'Value added.');
+        return back()->with('success', __('Value added.'));
     }
 
     public function updateValue(Request $request, Attribute $attribute, AttributeValue $value): RedirectResponse
@@ -82,7 +115,7 @@ class AttributeController extends Controller
 
         $value->update($data);
 
-        return back()->with('success', 'Value updated.');
+        return back()->with('success', __('Value updated.'));
     }
 
     /**

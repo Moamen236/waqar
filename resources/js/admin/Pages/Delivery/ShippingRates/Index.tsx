@@ -45,10 +45,7 @@ export default function ShippingRatesIndex({
             {uncoveredGovernorates.length > 0 && (
                 <div className="alert alert-warning d-flex align-items-center gap-2" role="alert">
                     <i className="bx bx-error-circle fs-20" />
-                    <div>
-                        No rate is configured for <strong>{uncoveredGovernorates.join(', ')}</strong> — checkout will
-                        refuse every order delivered there until one is added at some level.
-                    </div>
+                    <div>{t('admin.noRateConfiguredFor', { places: uncoveredGovernorates.join('، ') })}</div>
                 </div>
             )}
 
@@ -117,10 +114,8 @@ export default function ShippingRatesIndex({
                         </div>
                         <div className="card-body">
                             <p className="text-muted mb-0">
-                                At checkout the most specific configured rate wins —{' '}
-                                <strong>{t('admin.areaDistrictCityGovernorate')}</strong>. Set a governorate rate as the
-                                baseline, then override individual cities, districts or areas that cost more or less to
-                                reach. A customer never sees or edits a shipping price; it is always resolved here.
+                                {t('admin.atCheckoutMostSpecificWins')}{' '}
+                                <strong>{t('admin.areaDistrictCityGovernorate')}</strong>. {t('admin.rateBaselineNote')}
                             </p>
                         </div>
                     </div>

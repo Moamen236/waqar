@@ -1,8 +1,10 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
+import { confirmAction } from '../../lib/confirm';
 import { PaginationFooter } from '../../Components/Pagination';
 import RowActions from '../../Components/RowActions';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { usePermissions } from '../../Hooks/usePermissions';
 import type { PaginatedData } from '../../types';
 import { useTranslation } from '../../lib/useTranslation';
 
@@ -20,6 +22,22 @@ interface PromotionRecord {
 // the closest domain match for a discount-campaign list.
 export default function PromotionsIndex({ promotions }: { promotions: PaginatedData<PromotionRecord> }) {
     const { t } = useTranslation();
+    const { can } = usePermissions();
+
+    async function remove(id: number, name: string) {
+        if (
+            !(await confirmAction({
+                title: t('admin.deleteConfirmQ', { name }),
+                confirmText: t('admin.delete'),
+                danger: true,
+            }))
+        ) {
+            return;
+        }
+
+        router.delete(route('admin.promotions.destroy', id), { preserveScroll: true });
+    }
+
     return (
         <AdminLayout title={t('admin.promotions')}>
             <Head title={t('admin.promotions')} />
@@ -28,9 +46,11 @@ export default function PromotionsIndex({ promotions }: { promotions: PaginatedD
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center gap-1">
                             <h4 className="card-title flex-grow-1">{t('admin.allPromotions')}</h4>
-                            <Link href={route('admin.promotions.create')} className="btn btn-sm btn-primary">
-                                {t('admin.addPromotion')}
-                            </Link>
+                            {can('promotions.create') && (
+                                <Link href={route('admin.promotions.create')} className="btn btn-sm btn-primary">
+                                    {t('admin.addPromotion')}
+                                </Link>
+                            )}
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-hover table-centered">
@@ -58,7 +78,18 @@ export default function PromotionsIndex({ promotions }: { promotions: PaginatedD
                                                 <StatusBadge status={promotion.is_active ? 'active' : 'inactive'} />
                                             </td>
                                             <td>
-                                                <RowActions editHref={route('admin.promotions.edit', promotion.id)} />
+                                                <RowActions
+                                                    editHref={
+                                                        can('promotions.update')
+                                                            ? route('admin.promotions.edit', promotion.id)
+                                                            : undefined
+                                                    }
+                                                    onDelete={
+                                                        can('promotions.delete')
+                                                            ? () => remove(promotion.id, promotion.name)
+                                                            : undefined
+                                                    }
+                                                />
                                             </td>
                                         </tr>
                                     ))}

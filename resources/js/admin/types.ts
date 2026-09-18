@@ -63,7 +63,7 @@ export type GeoTree = GeoGovernorate[];
 export interface Customer {
     id: number;
     name: string;
-    email: string;
+    email: string | null;
     phone: string;
     is_active: boolean;
     orders_count?: number;

@@ -32,12 +32,12 @@ interface FormValues {
 export default function OrdersCreate({
     customers,
     variants,
-    warehouses,
+    warehouse,
     geoTree,
 }: {
     customers: Customer[];
     variants: VariantOption[];
-    warehouses: Warehouse[];
+    warehouse: Warehouse | null;
     geoTree: GeoTree;
 }) {
     const { t, price } = useTranslation();
@@ -46,7 +46,7 @@ export default function OrdersCreate({
     const { register, control, handleSubmit, watch, setValue } = useForm<FormValues>({
         defaultValues: {
             customer_id: null,
-            warehouse_id: warehouses[0]?.id ?? null,
+            warehouse_id: warehouse?.id ?? null,
             items: [{ product_variant_id: null, quantity: 1 }],
             governorate_id: null,
             city_id: null,
@@ -294,18 +294,12 @@ export default function OrdersCreate({
                                 <h4 className="card-title">{t('admin.orderSummary')}</h4>
                             </div>
                             <div className="card-body">
+                                {/* Not selectable — every admin-created order
+                                    reserves against the main warehouse. */}
                                 <div className="mb-3">
                                     <label className="form-label">{t('admin.warehouse')}</label>
-                                    <select
-                                        className="form-control"
-                                        {...register('warehouse_id', { valueAsNumber: true })}
-                                    >
-                                        {warehouses.map((w) => (
-                                            <option key={w.id} value={w.id}>
-                                                {w.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <input type="hidden" {...register('warehouse_id', { valueAsNumber: true })} />
+                                    <input className="form-control" value={warehouse?.name ?? ''} readOnly disabled />
                                 </div>
                                 <div className="mb-3">
                                     <label className="form-label">{t('admin.couponCodeOptional')}</label>

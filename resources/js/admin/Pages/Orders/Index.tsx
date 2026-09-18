@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { confirmAction } from '../../lib/confirm';
 import { EmptyRow } from '../../Components/EmptyState';
+import ExportButton from '../../Components/ExportButton';
 import { PaginationFooter } from '../../Components/Pagination';
 import SearchFilter from '../../Components/SearchFilter';
 import StatCard from '../../Components/StatCard';
@@ -88,7 +89,7 @@ export default function OrdersIndex({
         <AdminLayout title={t('admin.orderBook')}>
             <Head title={t('admin.orderBook')} />
 
-            <div className="row">
+            <div className="row mb-4">
                 <div className="col-md-6 col-xl-3">
                     <StatCard
                         label={t('admin.awaitingChecking')}
@@ -148,6 +149,12 @@ export default function OrdersIndex({
                                     ))}
                                 </select>
                             </SearchFilter>
+
+                            {can('orders.export') && (
+                                <ExportButton
+                                    href={route('admin.orders.export', { status: filters.status, q: filters.q })}
+                                />
+                            )}
 
                             {can('orders.create') && (
                                 <Link

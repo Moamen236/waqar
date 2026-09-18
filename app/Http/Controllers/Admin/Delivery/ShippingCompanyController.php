@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\ShippingCompany;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -14,8 +16,18 @@ use Inertia\Response;
  * /admin/delivery/shipping-companies (Section 14) — flat per-company fee
  * config, plain CRUD.
  */
-class ShippingCompanyController extends Controller
+class ShippingCompanyController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:delivery.companies.view', only: ['index']),
+            new Middleware('permission:delivery.companies.create', only: ['create', 'store']),
+            new Middleware('permission:delivery.companies.update', only: ['edit', 'update']),
+            new Middleware('permission:delivery.companies.delete', only: ['destroy']),
+        ];
+    }
+
     public function index(): Response
     {
         return Inertia::render('Delivery/ShippingCompanies/Index', [
@@ -32,7 +44,7 @@ class ShippingCompanyController extends Controller
     {
         ShippingCompany::create($this->validated($request));
 
-        return redirect()->route('admin.delivery.shipping-companies.index')->with('success', 'Shipping company created.');
+        return redirect()->route('admin.delivery.shipping-companies.index')->with('success', __('Shipping company created.'));
     }
 
     public function edit(ShippingCompany $shippingCompany): Response
@@ -44,7 +56,14 @@ class ShippingCompanyController extends Controller
     {
         $shippingCompany->update($this->validated($request));
 
-        return redirect()->route('admin.delivery.shipping-companies.index')->with('success', 'Shipping company updated.');
+        return redirect()->route('admin.delivery.shipping-companies.index')->with('success', __('Shipping company updated.'));
+    }
+
+    public function destroy(ShippingCompany $shippingCompany): RedirectResponse
+    {
+        $shippingCompany->delete();
+
+        return redirect()->route('admin.delivery.shipping-companies.index')->with('success', __('Shipping company deleted.'));
     }
 
     /**

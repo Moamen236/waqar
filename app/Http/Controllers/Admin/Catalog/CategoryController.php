@@ -8,6 +8,8 @@ use App\Support\ImageUpload;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -17,8 +19,18 @@ use Inertia\Response;
  * parent_id, unlimited depth (Section 05). Not in the roadmap's original
  * Phase 4 task table, added after the fact alongside Products.
  */
-class CategoryController extends Controller
+class CategoryController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:categories.view', only: ['index']),
+            new Middleware('permission:categories.create', only: ['create', 'store']),
+            new Middleware('permission:categories.update', only: ['edit', 'update']),
+            new Middleware('permission:categories.delete', only: ['destroy']),
+        ];
+    }
+
     public function index(): Response
     {
         return Inertia::render('Categories/Index', [
@@ -39,7 +51,7 @@ class CategoryController extends Controller
 
         Category::create($data);
 
-        return redirect()->route('admin.categories.index')->with('success', 'Category created.');
+        return redirect()->route('admin.categories.index')->with('success', __('Category created.'));
     }
 
     public function edit(Category $category): Response
@@ -70,7 +82,20 @@ class CategoryController extends Controller
 
         $category->update($data);
 
-        return redirect()->route('admin.categories.index')->with('success', 'Category updated.');
+        return redirect()->route('admin.categories.index')->with('success', __('Category updated.'));
+    }
+
+    /**
+     * Soft delete — a product referencing this category through
+     * product_categories keeps that row and can still resolve it via
+     * withTrashed() where that matters; the category itself just drops
+     * out of every default query (the picker, the storefront nav).
+     */
+    public function destroy(Category $category): RedirectResponse
+    {
+        $category->delete();
+
+        return redirect()->route('admin.categories.index')->with('success', __('Category deleted.'));
     }
 
     /**

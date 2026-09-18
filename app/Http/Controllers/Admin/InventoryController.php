@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Actions\Inventory\AdjustStockAction;
 use App\Enums\InventoryMovementType;
 use App\Exceptions\InsufficientStockException;
+use App\Exports\InventoryExport;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryMovement;
 use App\Models\ProductVariant;
@@ -13,9 +14,12 @@ use App\Models\WarehouseInventory;
 use App\Services\Inventory\InventoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * /admin/inventory — stock on hand, and the one screen that can change it
@@ -29,8 +33,17 @@ use Inertia\Response;
  * adjustment leaves a readable, attributed log entry" is one of the
  * roadmap's three completion criteria for this phase.
  */
-class InventoryController extends Controller
+class InventoryController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:inventory.view', only: ['index']),
+            new Middleware('permission:inventory.export', only: ['export']),
+            new Middleware('permission:inventory.adjust', only: ['adjust']),
+        ];
+    }
+
     public function index(Request $request): Response
     {
         $warehouseId = $request->integer('warehouse') ?: null;
@@ -86,6 +99,20 @@ class InventoryController extends Controller
                     'at' => $movement->created_at?->toDateTimeString(),
                 ]),
         ]);
+    }
+
+    /**
+     * The same stock rows index() renders — same warehouse/search filters
+     * — as an .xlsx download.
+     */
+    public function export(Request $request): BinaryFileResponse
+    {
+        $export = new InventoryExport(
+            $request->integer('warehouse') ?: null,
+            trim((string) $request->string('search')),
+        );
+
+        return $export->download('inventory-'.now()->format('Y-m-d_His').'.xlsx');
     }
 
     public function adjust(Request $request, AdjustStockAction $action): RedirectResponse

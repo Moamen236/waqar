@@ -257,9 +257,9 @@ function TreasuryFields({
                     value={treasuryId}
                     onChange={(e) => setTreasuryId(Number(e.target.value))}
                 >
-                    {treasuries.map((t) => (
-                        <option key={t.id} value={t.id}>
-                            {t.name} ({t.type})
+                    {treasuries.map((account) => (
+                        <option key={account.id} value={account.id}>
+                            {account.name} ({t(`treasury.type.${account.type}`)})
                         </option>
                     ))}
                 </select>
@@ -273,7 +273,7 @@ function TreasuryFields({
                 >
                     {COLLECTED_METHODS.map((m) => (
                         <option key={m} value={m}>
-                            {m}
+                            {t(`collectedMethod.${m}`)}
                         </option>
                     ))}
                 </select>

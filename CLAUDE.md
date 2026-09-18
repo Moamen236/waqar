@@ -122,8 +122,16 @@ The convention to follow as it's built, from the E-Commerce source doc's recomme
   `routes/web.php` has two placeholder routes only (`/` and `/admin`, Phase 0).
 
 **Two identity models, not one `users` table** (spec Section 15, Q19): `customers` (storefront login) and
-`employees` (staff — Checking, Delivery Manager, Accounting, etc., 9 roles via `spatie/laravel-permission`,
-already installed and migrated). Only `employees` get the `HasRoles` trait.
+`employees` (staff — Checking, Delivery Manager, Accounting, etc., the spec's 9 roles plus `Store Orders`,
+via `spatie/laravel-permission`, already installed and migrated). Only `employees` get the `HasRoles` trait.
+
+**Three roles are data-scoped, not just permission-gated** — `Order::scopeVisibleTo()` is the single
+source of the rule and every order listing, guard, dashboard widget and export reads through it:
+`Customer Service` sees only orders it created, `Customer Service Team Leader` its team's, `Store Orders`
+only website-sourced orders (read-only). `OrderPolicy::viewAsEmployee()` repeats it per row,
+`Employee::scopeVisibleTo()` mirrors it for staff records, and `OrderReturn::scopeVisibleTo()` inherits it
+through the order. The same `orders.view` permission therefore means a different row set per role — this
+supersedes spec Q16's "agents are unscoped" wording; see Section 15's build-amendment callout.
 
 **Stock deducts on Accounting-confirmed "Delivered" only** — not at order creation, not at Checking
 confirmation, not at shipment. Order creation *reserves* stock (Section 07); this is the single most
@@ -140,3 +148,13 @@ separate `translations` table.
 `spatie/laravel-permission`, `spatie/laravel-translatable`, `spatie/laravel-medialibrary`,
 `spatie/laravel-activitylog`, and `laravel/sanctum` are installed and migrated (Phase 0). No
 `laravel/scout` (spec decision — search is plain MySQL query scopes, not a search-index package).
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

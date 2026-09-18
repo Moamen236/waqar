@@ -28,7 +28,7 @@ class AssignDeliveryAction
         DeliveryRepresentative|ShippingCompany $assignee,
     ): Order {
         if (($type === DeliveryAssignmentType::Representative) !== ($assignee instanceof DeliveryRepresentative)) {
-            throw new InvalidArgumentException('Assignment type must match the assignee given.');
+            throw new InvalidArgumentException(__('Assignment type must match the assignee given.'));
         }
 
         return DB::transaction(function () use ($order, $assignedBy, $type, $assignee) {
