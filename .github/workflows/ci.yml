@@ -151,12 +151,44 @@ jobs:
       - name: Build and start the stack
         run: |
           cp .env.example .env
+
+          # The compose file bind-mounts the repo over /var/www/html, so
+          # the container sees exactly what the runner checked out — not
+          # the image's own copy — and the app runs as www-data (uid 82),
+          # which owns nothing on the runner. Locally the repo already
+          # carries the loose modes CLAUDE.md describes; a fresh checkout
+          # does not, so php-fpm could not even write storage/logs.
+          chmod -R a+rwX .
+
           docker compose up -d --build
+
+          # Same bind mount, second consequence: a fresh checkout has no
+          # vendor/ and no node_modules/, and neither is in the image
+          # (the Dockerfile never runs composer install). Without this,
+          # every artisan call below dies on a missing vendor/autoload.php
+          # — which is exactly how this job failed the first time it ever
+          # got to run. HOME points at /tmp because www-data's home inside
+          # the image is root-owned, so composer and npm cannot cache there.
+          docker compose exec -T -e HOME=/tmp app \
+            composer install --no-interaction --prefer-dist --no-progress
+          docker compose exec -T -e HOME=/tmp app npm ci
+
           docker compose exec -T app php artisan key:generate
           docker compose exec -T app php artisan migrate --force --seed
-          docker compose exec -T app npm ci
-          docker compose exec -T app npm run build
+          docker compose exec -T -e HOME=/tmp app npm run build
           docker compose exec -T app php artisan storage:link || true
+
+          # supervisord started php-fpm, both queue workers and the
+          # scheduler before vendor/ existed, so everything but php-fpm
+          # exhausted its retries and sat in FATAL. Preflight round-trips
+          # a real job through the queue, so it needs them actually alive.
+          docker compose restart app
+
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -L http://localhost:26991/ar || true)
+            [ "$code" = "200" ] && break
+            sleep 2
+          done
 
       # The cutover checklist, executable. Fails the build if this
       # deployment could not take a real order.
