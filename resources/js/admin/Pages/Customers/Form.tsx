@@ -34,13 +34,7 @@ interface FormValues {
 // (see CustomerController::store()). Editing an existing customer keeps
 // the email/password fields: that record may already be a real,
 // self-registered account.
-export default function CustomerForm({
-    customer,
-    geoTree,
-}: {
-    customer: CustomerRecord | null;
-    geoTree?: GeoTree;
-}) {
+export default function CustomerForm({ customer, geoTree }: { customer: CustomerRecord | null; geoTree?: GeoTree }) {
     const { t } = useTranslation();
     const { data, setData, post, put, processing, errors } = useForm<FormValues>({
         name: customer?.name ?? '',
@@ -136,9 +130,7 @@ export default function CustomerForm({
                                                         onChange={(e) => setData('password', e.target.value)}
                                                     />
                                                     {errors.password && (
-                                                        <div className="text-danger small mt-1">
-                                                            {errors.password}
-                                                        </div>
+                                                        <div className="text-danger small mt-1">{errors.password}</div>
                                                     )}
                                                 </div>
                                             </div>

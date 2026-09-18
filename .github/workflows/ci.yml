@@ -99,6 +99,28 @@ jobs:
         run: |
           cp .env.example .env
           php artisan key:generate
+          # waqar:preflight asserts public/storage resolves — product
+          # images are served through it — and Phase8CutoverTest runs
+          # that command. Nothing else in the suite needs the link, but
+          # without it that one test fails on a real deployment gap.
+          php artisan storage:link
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # Feature tests render the real Blade root views, and both of them
+      # call `@vite(...)`, which reads public/build/manifest.json. Without
+      # a build that helper throws "Vite manifest not found" and every
+      # test that renders a page fails — 51 of them, which is what this
+      # job did on every run before this step existed. The render job
+      # builds the same assets (inside the compose container); this is
+      # the runner-side equivalent.
+      - name: Build assets
+        run: npm run build
 
       # The suite pins itself to `waqar_testing` in tests/TestCase.php
       # rather than phpunit.xml — see that file for why (container env
