@@ -34,3 +34,11 @@ Thumbs.db
 # Claude Code runtime state (the skills under .claude/skills are committed).
 /.claude/scheduled_tasks.lock
 /.claude/settings.local.json
+
+# Screenshot output from tools/render-check.js --shots
+/shots
+/docs
+
+# graphify knowledge graph output
+/graphify-out
+/products
