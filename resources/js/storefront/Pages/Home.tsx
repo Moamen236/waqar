@@ -51,7 +51,7 @@ export default function Home({
                                 </Link>
                             </div>
                             <div className="sub-img absolute sm:w-1/2 w-3/5 2xl:-end-[60px] -end-[16px] bottom-0">
-                                <img src="/storefront/images/generated/hero.svg" alt="" />
+                                <img src="/storefront/images/banner/1.png" alt="" />
                             </div>
                         </div>
                     </div>
@@ -143,7 +143,7 @@ export default function Home({
                 >
                     <div className="banner-img">
                         <img
-                            src="/storefront/images/generated/banner-best-sellers.svg"
+                            src="/storefront/images/banner/3.png"
                             className="duration-1000"
                             alt={t('home.bannerBestSellersAlt')}
                         />
@@ -161,7 +161,7 @@ export default function Home({
                 >
                     <div className="banner-img">
                         <img
-                            src="/storefront/images/generated/banner-on-sale.svg"
+                            src="/storefront/images/banner/2.png"
                             className="duration-1000"
                             alt={t('home.bannerOnSaleAlt')}
                         />

@@ -118,7 +118,9 @@ export default function StorefrontLayout({
                                     href={route('home')}
                                     className="flex items-center max-lg:absolute max-lg:left-1/2 max-lg:-translate-x-1/2"
                                 >
-                                    <div className="heading4">WAQAR</div>
+                                    <div className="heading4">
+                                        <img src="/storefront/images/logo/logo-dark.png" width={135} alt="WAQAR" />
+                                    </div>
                                 </Link>
                                 <div className="menu-main h-full max-lg:hidden">
                                     <ul className="flex items-center gap-8 h-full">
@@ -306,7 +308,7 @@ export default function StorefrontLayout({
                                         <i className="ph ph-x text-sm"></i>
                                     </div>
                                     <Link href={route('home')} className="logo text-3xl font-semibold text-center">
-                                        WAQAR
+                                        <img src="/storefront/images/logo/logo-dark.png" alt="WAQAR" />
                                     </Link>
                                 </div>
                                 <form
