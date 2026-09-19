@@ -160,7 +160,10 @@ class ReturnController extends Controller implements HasMiddleware
 
         return Inertia::render('Returns/Show', [
             'return' => $return,
-            'warehouses' => Warehouse::query()->where('is_active', true)->get(['id', 'name']),
+            // No picker — a single-store operation always restocks into
+            // the main warehouse, shown read-only (same arrangement as
+            // admin order-create).
+            'warehouse' => Warehouse::main()?->only(['id', 'name']),
             'treasuries' => Treasury::query()->where('is_active', true)->get(['id', 'name', 'type']),
         ]);
     }
@@ -187,9 +190,14 @@ class ReturnController extends Controller implements HasMiddleware
 
     public function receive(Request $request, OrderReturn $return, ReceiveReturnAction $action): RedirectResponse
     {
-        $data = $request->validate(['warehouse_id' => ['required', 'exists:warehouses,id']]);
+        // The request never decides where a restock lands: received items
+        // always go back into the main warehouse, so any warehouse_id
+        // supplied by the client is ignored rather than validated.
+        $warehouse = Warehouse::main();
 
-        $action->execute($return, $request->user('employee'), Warehouse::findOrFail($data['warehouse_id']));
+        abort_if($warehouse === null, 422, __('No active warehouse is configured.'));
+
+        $action->execute($return, $request->user('employee'), $warehouse);
 
         return back()->with('success', __('Return received and restocked.'));
     }

@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\Delivery\ShippingCompanyController;
 use App\Http\Controllers\Admin\Delivery\ShippingRateController;
 use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\InventoryController;
+use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PromotionController;
 use App\Http\Controllers\Admin\Returns\ReturnController;
@@ -53,6 +54,18 @@ Route::middleware('auth:employee')->group(function () {
     Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
 
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+    // The staff inbox (Section 23). No permission gate, unlike every
+    // other block below — an inbox belongs to whoever is signed in, the
+    // rows are already scoped by the notifiable relation, and what put
+    // them there was gated when it was dispatched. Same reasoning as the
+    // dashboard route above.
+    //
+    // `notifications/read` is registered ahead of the wildcard for the
+    // usual reason: otherwise it resolves as notification="read".
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('notifications/read', [NotificationController::class, 'markAllRead'])->name('notifications.read');
+    Route::post('notifications/{notification}', [NotificationController::class, 'open'])->name('notifications.open');
 
     // Customer Service — /admin/orders/create (Section 08), reuses
     // CreateOrderAction directly rather than duplicating checkout logic.

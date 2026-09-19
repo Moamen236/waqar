@@ -105,14 +105,14 @@ class AccountingController extends Controller implements HasMiddleware
             isset($data['collected_amount']) ? (float) $data['collected_amount'] : null,
         );
 
-        return redirect()->route('admin.accounting.index')->with('success', __('Order #:number marked Delivered.', ['number' => $order->order_number]));
+        return redirect()->route('admin.accounting.show', $order)->with('success', __('Order #:number marked Delivered.', ['number' => $order->order_number]));
     }
 
     public function returned(Request $request, Order $order, ConfirmDeliveryResultAction $action): RedirectResponse
     {
         $action->confirmReturnedAtDelivery($order, $request->user('employee'));
 
-        return redirect()->route('admin.accounting.index')->with('success', __('Order #:number marked Returned.', ['number' => $order->order_number]));
+        return redirect()->route('admin.accounting.show', $order)->with('success', __('Order #:number marked Returned.', ['number' => $order->order_number]));
     }
 
     public function partiallyReturned(Request $request, Order $order, ConfirmDeliveryResultAction $action): RedirectResponse
@@ -134,7 +134,7 @@ class AccountingController extends Controller implements HasMiddleware
             array_map('intval', $data['kept_quantities']),
         );
 
-        return redirect()->route('admin.accounting.index')->with('success', __('Order #:number marked Partially Returned.', ['number' => $order->order_number]));
+        return redirect()->route('admin.accounting.show', $order)->with('success', __('Order #:number marked Partially Returned.', ['number' => $order->order_number]));
     }
 
     /**
@@ -164,7 +164,7 @@ class AccountingController extends Controller implements HasMiddleware
             ]));
         }
 
-        return redirect()->route('admin.accounting.index')->with('success', $order->payment_status === PaymentStatus::Collected
+        return redirect()->route('admin.accounting.show', $order)->with('success', $order->payment_status === PaymentStatus::Collected
             ? __('Order #:number is fully paid.', ['number' => $order->order_number])
             : __('Payment recorded — order #:number still has a balance.', ['number' => $order->order_number]));
     }

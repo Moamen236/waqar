@@ -118,36 +118,64 @@ class CheckingController extends Controller implements HasMiddleware
     {
         $data = $request->validate(['notes' => ['nullable', 'string', 'max:1000']]);
 
-        $action->execute($order, $request->user('employee'), $data['notes'] ?? null);
-
-        return back()->with('success', __('Order #:number confirmed.', ['number' => $order->order_number]));
+        return $this->attempt(
+            $order,
+            fn () => $action->execute($order, $request->user('employee'), $data['notes'] ?? null),
+            __('Order #:number confirmed.', ['number' => $order->order_number]),
+        );
     }
 
     public function postpone(Request $request, Order $order, PostponeOrderAction $action): RedirectResponse
     {
         $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
 
-        $action->execute($order, $request->user('employee'), $data['reason']);
-
-        return back()->with('success', __('Order #:number postponed.', ['number' => $order->order_number]));
+        return $this->attempt(
+            $order,
+            fn () => $action->execute($order, $request->user('employee'), $data['reason']),
+            __('Order #:number postponed.', ['number' => $order->order_number]),
+        );
     }
 
     public function cancel(Request $request, Order $order, CancelOrderAction $action): RedirectResponse
     {
         $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
 
-        $action->execute($order, $request->user('employee'), $data['reason']);
-
-        return back()->with('success', __('Order #:number cancelled.', ['number' => $order->order_number]));
+        return $this->attempt(
+            $order,
+            fn () => $action->execute($order, $request->user('employee'), $data['reason']),
+            __('Order #:number cancelled.', ['number' => $order->order_number]),
+        );
     }
 
     public function backorder(Request $request, Order $order, MarkOrderBackorderAction $action): RedirectResponse
     {
         $data = $request->validate(['reason' => ['required', 'string', 'max:1000']]);
 
-        $action->execute($order, $request->user('employee'), $data['reason']);
+        return $this->attempt(
+            $order,
+            fn () => $action->execute($order, $request->user('employee'), $data['reason']),
+            __('Order #:number marked as backordered.', ['number' => $order->order_number]),
+        );
+    }
 
-        return back()->with('success', __('Order #:number marked as backordered.', ['number' => $order->order_number]));
+    /**
+     * Run one transition and turn its "not legal from this status" guard
+     * into a flash message. The Actions card only offers the transitions
+     * the current status allows, but a stale tab — or two people on the
+     * same order — can still post one that has since become illegal, and
+     * that used to surface as a 500.
+     */
+    private function attempt(Order $order, callable $transition, string $success): RedirectResponse
+    {
+        try {
+            $transition();
+        } catch (RuntimeException $e) {
+            return back()->with('error', __('Order #:number is no longer at a status that allows that.', [
+                'number' => $order->order_number,
+            ]));
+        }
+
+        return back()->with('success', $success);
     }
 
     /**

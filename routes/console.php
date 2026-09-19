@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -40,3 +41,24 @@ Schedule::command('queue:prune-failed --hours=168')
     ->at('03:40')
     ->onOneServer()
     ->description('Prune failed jobs older than a week');
+
+// Staff notifications are work-queue signals, not records — Checking
+// alone gets one per order placed, so the table grows with order volume
+// forever if nothing trims it. Only *read* rows are removed: an unread
+// notification is still someone's outstanding work no matter how old,
+// and silently deleting it would be the one failure mode worse than an
+// oversized table. The audit trail keeps the durable history (Phase 7).
+Schedule::call(function () {
+    DB::table('notifications')
+        ->whereNotNull('read_at')
+        ->where('read_at', '<', now()->subDays(30))
+        ->delete();
+})
+    ->name('notifications:prune')
+    ->daily()
+    ->at('03:25')
+    // name() must come first on a closure event — onOneServer needs
+    // something to key the lock on, and a callback has no command
+    // string to derive one from.
+    ->onOneServer()
+    ->description('Delete notifications read more than 30 days ago');

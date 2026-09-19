@@ -9,6 +9,7 @@ use App\Models\InventoryMovement;
 use App\Models\ProductVariant;
 use App\Models\Warehouse;
 use App\Models\WarehouseInventory;
+use App\Services\Notifications\StaffNotifier;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -32,6 +33,8 @@ class InventoryService
         InventoryMovementType::Damaged,
         InventoryMovementType::Lost,
     ];
+
+    public function __construct(private readonly StaffNotifier $staff) {}
 
     /**
      * Order created (Real product) → reserve stock, no physical deduction
@@ -61,7 +64,11 @@ class InventoryService
 
             $this->recordMovement($warehouse, $variant, InventoryMovementType::Reservation, $quantity, $reference, $employee);
 
-            return $inventory->fresh();
+            $fresh = $inventory->fresh();
+
+            $this->flagLowStock($variant, $warehouse, $available, $fresh);
+
+            return $fresh;
         });
     }
 
@@ -111,12 +118,18 @@ class InventoryService
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            $available = $inventory->quantity - $inventory->reserved_quantity;
+
             $inventory->decrement('quantity', $quantity);
             $inventory->decrement('reserved_quantity', min($quantity, $inventory->reserved_quantity));
 
             $this->recordMovement($warehouse, $variant, InventoryMovementType::Sale, -$quantity, $reference, $employee);
 
-            return $inventory->fresh();
+            $fresh = $inventory->fresh();
+
+            $this->flagLowStock($variant, $warehouse, $available, $fresh);
+
+            return $fresh;
         });
     }
 
@@ -213,11 +226,17 @@ class InventoryService
                 );
             }
 
+            $available = $inventory->quantity - $inventory->reserved_quantity;
+
             $inventory->update(['quantity' => $resulting]);
 
             $this->recordMovement($warehouse, $variant, $type, $signedQuantity, null, $employee, $reason);
 
-            return $inventory->fresh();
+            $fresh = $inventory->fresh();
+
+            $this->flagLowStock($variant, $warehouse, $available, $fresh);
+
+            return $fresh;
         });
     }
 
@@ -239,6 +258,63 @@ class InventoryService
             ->first();
 
         return $movement?->warehouse;
+    }
+
+    /**
+     * Low-stock and out-of-stock alerts (Section 23's "Low Stock").
+     *
+     * Edge-triggered: it fires on the transition past the line, not
+     * while sitting below it. That is what makes this cheap enough to
+     * run inline — there is no scheduled sweep, no "already alerted"
+     * state to keep, and a variant that sells its last few units
+     * produces one notification rather than one per order. Restocking
+     * lifts availability back above the line and arms it again, with no
+     * bookkeeping needed for that either.
+     *
+     * Only the three methods that *lower* availability call this; the
+     * guard below makes that belt-and-braces.
+     *
+     * ponytail: one global threshold from config, per-variant reorder
+     * points if merchandising ever asks. The dashboard's low-stock panel
+     * deliberately has no reorder-point column, so inventing one here
+     * would be the bigger change, not the smaller.
+     */
+    private function flagLowStock(
+        ProductVariant $variant,
+        Warehouse $warehouse,
+        int $availableBefore,
+        WarehouseInventory $after,
+    ): void {
+        $availableAfter = $after->quantity - $after->reserved_quantity;
+
+        if ($availableAfter >= $availableBefore) {
+            return;
+        }
+
+        $threshold = (int) config('inventory.low_stock_threshold');
+
+        $ranOut = $availableBefore > 0 && $availableAfter <= 0;
+        $ranLow = $availableBefore > $threshold && $availableAfter <= $threshold;
+
+        if (! $ranOut && ! $ranLow) {
+            return;
+        }
+
+        $params = [
+            'sku' => $variant->sku,
+            'warehouse' => $warehouse->name,
+            'available' => max($availableAfter, 0),
+        ];
+
+        // afterCommit for the same reason every observer uses it: these
+        // three methods all run inside a transaction that a later
+        // failure in the same Action can still roll back.
+        DB::afterCommit(fn () => $this->staff->toRoles(
+            ['Warehouse Manager', 'Vice Chairman'],
+            $ranOut ? 'stock_out' : 'stock_low',
+            $params,
+            'admin.inventory.index',
+        ));
     }
 
     private function recordMovement(

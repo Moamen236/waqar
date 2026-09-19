@@ -15,7 +15,7 @@ return new class extends Migration
             $table->decimal('amount', 10, 2); // full refundable amount before deduction
             $table->decimal('return_shipping_fee', 10, 2)->default(0); // deducted per Q6
             $table->decimal('net_amount', 10, 2); // amount - return_shipping_fee
-            $table->string('method'); // bank_transfer|wallet — manual, per Q5, no store credit/card reversal
+            $table->string('method'); // bank_transfer|wallet|cash — manual, per Q5, no store credit/card reversal
             $table->string('status')->default('pending'); // pending|completed
             $table->string('reference_number')->nullable(); // bank/wallet transfer reference
             $table->foreignId('processed_by')->nullable()->constrained('employees')->nullOnDelete();

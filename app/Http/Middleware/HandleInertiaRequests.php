@@ -2,11 +2,13 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\Admin\NotificationController;
 use App\Models\Cart;
 use App\Models\Category;
 use App\Models\Collection;
 use App\Services\Cart\CartService;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\DatabaseNotification;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -109,6 +111,20 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
             ],
+            // Admin shell data — the topbar bell, and nothing else yet.
+            // Mirror image of the storefront block below: lazy closures,
+            // null on the other area's requests. The bell polls this
+            // through a partial reload (`only: ['admin']`), which is the
+            // whole reason the counts live in shared props rather than
+            // on each page.
+            'admin' => $isAdmin && $employee ? [
+                'notificationCount' => fn () => $employee->unreadNotifications()->count(),
+                'notifications' => fn () => $employee->notifications()
+                    ->limit(10)
+                    ->get()
+                    ->map(fn (DatabaseNotification $notification) => NotificationController::row($notification))
+                    ->all(),
+            ] : null,
             // Storefront shell data only — computed lazily and skipped
             // entirely on admin requests, which never render the Anvogue
             // header/footer.

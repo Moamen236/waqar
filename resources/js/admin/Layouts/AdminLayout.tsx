@@ -5,6 +5,7 @@ import SimpleBar from 'simplebar-react';
 import 'simplebar-react/dist/simplebar.min.css';
 import Breadcrumb, { type Crumb } from '../Components/Breadcrumb';
 import LocaleSwitcher from '../Components/LocaleSwitcher';
+import NotificationBell from '../Components/NotificationBell';
 import ThemeToggle from '../Components/ThemeToggle';
 import { usePermissions } from '../Hooks/usePermissions';
 import { notifyError, notifySuccess } from '../lib/confirm';
@@ -26,6 +27,9 @@ interface NavGroup {
 /** The width below which Larkon switches its sidebar to off-canvas. */
 const LARKON_MENU_BREAKPOINT = 1140;
 
+/** How often the topbar bell re-checks for new notifications. */
+const NOTIFICATION_POLL_MS = 60_000;
+
 /**
  * The sidebar sizes app.min.css actually defines, minus `hidden` (which is
  * derived from the viewport, never chosen).
@@ -41,6 +45,26 @@ type DesktopMenuSize = 'sm-hover-active' | 'sm-hover' | 'condensed';
 
 const DEFAULT_MENU_SIZE: DesktopMenuSize = 'sm-hover-active';
 const MENU_SIZE_KEY = 'waqar.admin.menuSize';
+
+/**
+ * Strip query/hash and a trailing slash so `/ar/admin/` and
+ * `/ar/admin?page=2` compare equal to `/ar/admin`.
+ */
+function normalizePath(path: string): string {
+    const bare = path.split(/[?#]/)[0];
+
+    if (bare.length > 1 && bare.endsWith('/')) return bare.slice(0, -1);
+
+    return bare;
+}
+
+function pathOf(href: string): string {
+    try {
+        return normalizePath(new URL(href, window.location.origin).pathname);
+    } catch {
+        return normalizePath(href);
+    }
+}
 
 // Icon classes are Boxicons (`bx bx-*` / the solid `bxs-*` family) — the
 // icon font Larkon's own icons.min.css actually ships, not the
@@ -246,6 +270,31 @@ export default function AdminLayout({
     const { flash } = usePage<SharedProps>().props;
     const { employee, can } = usePermissions();
     const currentUrl = usePage().url;
+    const currentPath = pathOf(currentUrl);
+
+    // One active link at a time: every href is a prefix of its own
+    // sub-pages (`/orders` also prefixes `/orders/create`), and whole
+    // sections nest under each other (`/admin` prefixes everything,
+    // `/delivery` prefixes `/delivery/representatives`), so a plain
+    // startsWith marks Dashboard + Delivery Board + Representatives all
+    // active on `/ar/admin/delivery/representatives`. Instead collect
+    // every visible item whose path matches on a segment boundary and
+    // keep only the longest — i.e. the most specific section.
+    const visiblePaths = NAV.flatMap((group) =>
+        group.items.filter((item) => !item.permission || can(item.permission)).map((item) => pathOf(item.href)),
+    );
+    const longestActiveLength = visiblePaths
+        .filter((itemPath) => currentPath === itemPath || currentPath.startsWith(`${itemPath}/`))
+        .reduce((max, itemPath) => Math.max(max, itemPath.length), 0);
+    const isActive = (href: string): boolean => {
+        if (longestActiveLength === 0) return false;
+        const itemPath = pathOf(href);
+
+        return (
+            itemPath.length === longestActiveLength &&
+            (currentPath === itemPath || currentPath.startsWith(`${itemPath}/`))
+        );
+    };
     const [sidebarOpen, setSidebarOpen] = useState(false);
     // The desktop menu size, in Larkon's own vocabulary. Read in the
     // initialiser rather than an effect so the sidebar does not paint at one
@@ -276,6 +325,27 @@ export default function AdminLayout({
         if (flash.success) notifySuccess(flash.success);
         if (flash.error) notifyError(flash.error);
     }, [flash.success, flash.error]);
+
+    // Keep the topbar bell current without a websocket. There is no
+    // broadcasting stack in this project at all (no config/broadcasting.php,
+    // no Echo, no Reverb), and adding one for a counter would mean a new
+    // server process and two more dependencies — so this polls instead.
+    //
+    // A partial reload, so only the `admin` prop is recomputed: the page's
+    // own props, its scroll position and any open form all survive. Paused
+    // while the tab is hidden, because a backgrounded admin tab left open
+    // overnight would otherwise fire ~500 pointless requests.
+    useEffect(() => {
+        const tick = () => {
+            if (!document.hidden) {
+                router.reload({ only: ['admin'] });
+            }
+        };
+
+        const timer = window.setInterval(tick, NOTIFICATION_POLL_MS);
+
+        return () => window.clearInterval(timer);
+    }, []);
 
     // Larkon's sidebar sizes are driven by `data-menu-size` on <html>, and
     // the breakpoint that picks one is **JavaScript, not CSS** — app.min.css
@@ -383,6 +453,8 @@ export default function AdminLayout({
 
                             <LocaleSwitcher />
 
+                            <NotificationBell />
+
                             {employee && (
                                 <Dropdown align="end" className="topbar-item">
                                     <Dropdown.Toggle
@@ -470,7 +542,7 @@ export default function AdminLayout({
                                             <Link
                                                 href={item.href}
                                                 onClick={closeSidebar}
-                                                className={`nav-link ${currentUrl.startsWith(new URL(item.href).pathname) ? 'active' : ''}`}
+                                                className={`nav-link ${isActive(item.href) ? 'active' : ''}`}
                                             >
                                                 <span className="nav-icon">
                                                     <i className={`bx ${item.icon}`} />

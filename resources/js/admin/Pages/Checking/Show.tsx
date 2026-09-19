@@ -62,6 +62,18 @@ const ACTION_QUESTION: Record<ReasonAction, string> = {
     backorder: 'admin.backorderOrderQuestion',
 };
 
+// Which statuses each button is legal from — the same guard its Phase 3
+// Action enforces (ConfirmOrderAction::CONFIRMABLE_FROM and friends).
+// Server-side an illegal transition throws, so offering the button at the
+// wrong status isn't a no-op, it's a 500: a Confirmed order used to keep
+// showing Confirm. Backorder's Resume is handled on its own branch below.
+const ALLOWED_FROM: Record<'confirm' | ReasonAction, string[]> = {
+    confirm: ['New', 'Checking', 'Postponed'],
+    postpone: ['New', 'Checking', 'Confirmed'],
+    backorder: ['Confirmed'],
+    cancel: ['New', 'Checking', 'Confirmed', 'Postponed', 'Backorder'],
+};
+
 // Ported from Admin Template/order-detail.html: Product table, Order
 // Timeline (the dashed vertical line + circular markers), Customer
 // Details card, plus an Actions card for this department's slice of the
@@ -102,7 +114,8 @@ export default function CheckingShow({ order, stock }: { order: OrderDetail; sto
         router.post(route('admin.checking.resume', order.id));
     }
 
-    const canAct = ['New', 'Checking', 'Postponed', 'Confirmed', 'Backorder'].includes(order.status);
+    const allows = (action: keyof typeof ALLOWED_FROM) => ALLOWED_FROM[action].includes(order.status);
+    const canAct = (Object.keys(ALLOWED_FROM) as (keyof typeof ALLOWED_FROM)[]).some(allows);
 
     return (
         <AdminLayout
@@ -298,26 +311,38 @@ export default function CheckingShow({ order, stock }: { order: OrderDetail; sto
                                         />
                                     </div>
                                     <div className="d-grid gap-2">
-                                        <button type="button" className="btn btn-success" onClick={confirm}>
-                                            {t('admin.confirm')}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="btn btn-warning"
-                                            onClick={() => act('postpone')}
-                                        >
-                                            {t('admin.postpone')}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="btn btn-secondary"
-                                            onClick={() => act('backorder')}
-                                        >
-                                            {t('admin.markBackorder')}
-                                        </button>
-                                        <button type="button" className="btn btn-danger" onClick={() => act('cancel')}>
-                                            {t('admin.cancelOrder')}
-                                        </button>
+                                        {allows('confirm') && (
+                                            <button type="button" className="btn btn-success" onClick={confirm}>
+                                                {t('admin.confirm')}
+                                            </button>
+                                        )}
+                                        {allows('postpone') && (
+                                            <button
+                                                type="button"
+                                                className="btn btn-warning"
+                                                onClick={() => act('postpone')}
+                                            >
+                                                {t('admin.postpone')}
+                                            </button>
+                                        )}
+                                        {allows('backorder') && (
+                                            <button
+                                                type="button"
+                                                className="btn btn-secondary"
+                                                onClick={() => act('backorder')}
+                                            >
+                                                {t('admin.markBackorder')}
+                                            </button>
+                                        )}
+                                        {allows('cancel') && (
+                                            <button
+                                                type="button"
+                                                className="btn btn-danger"
+                                                onClick={() => act('cancel')}
+                                            >
+                                                {t('admin.cancelOrder')}
+                                            </button>
+                                        )}
                                     </div>
                                 </>
                             ) : (

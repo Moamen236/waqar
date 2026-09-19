@@ -57,6 +57,7 @@
     "Order #:number confirmed.": "Order #:number confirmed.",
     "Order #:number created for :customer.": "Order #:number created for :customer.",
     "Order #:number is fully paid.": "Order #:number is fully paid.",
+    "Order #:number is no longer at a status that allows that.": "Order #:number is no longer at a status that allows that.",
     "Order #:number marked Delivered.": "Order #:number marked Delivered.",
     "Order #:number marked Partially Returned.": "Order #:number marked Partially Returned.",
     "Order #:number marked Returned.": "Order #:number marked Returned.",

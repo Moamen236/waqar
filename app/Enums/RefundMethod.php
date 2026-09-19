@@ -7,4 +7,5 @@ enum RefundMethod: string
 {
     case BankTransfer = 'bank_transfer';
     case Wallet = 'wallet';
+    case Cash = 'cash';
 }

@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import Tab from 'react-bootstrap/Tab';
 import Tabs from 'react-bootstrap/Tabs';
@@ -73,6 +73,11 @@ interface Treasury {
 
 const COLLECTED_METHODS = ['cash', 'bank_transfer', 'wallet', 'other'];
 
+// Every confirmation lands back on this same page component, and post()
+// preserves local state by default — which would leave the old amounts and
+// kept quantities sitting next to the new status. Remount from fresh props.
+const FRESH = { preserveState: false, preserveScroll: true };
+
 // Ported from Admin Template/order-detail.html's Product table +
 // Customer Details / Payment Information cards.
 export default function AccountingShow({ order, treasuries }: { order: OrderDetail; treasuries: Treasury[] }) {
@@ -100,10 +105,10 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
     const outstanding =
         order.payment_status === 'partially_collected' && payment !== null
             ? {
-                due: Number(payment.amount),
-                collected: Number(payment.collected_amount ?? 0),
-                remaining: round2(Number(payment.amount) - Number(payment.collected_amount ?? 0)),
-            }
+                  due: Number(payment.amount),
+                  collected: Number(payment.collected_amount ?? 0),
+                  remaining: round2(Number(payment.amount) - Number(payment.collected_amount ?? 0)),
+              }
             : null;
     const [balanceAmount, setBalanceAmount] = useState(outstanding ? String(outstanding.remaining) : '');
 
@@ -131,21 +136,29 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
             }))
         )
             return;
-        router.post(route('admin.accounting.delivered', order.id), {
-            treasury_id: treasuryId,
-            collected_method: collectedMethod,
-            collected_amount: collectedAmount || undefined,
-        });
+        router.post(
+            route('admin.accounting.delivered', order.id),
+            {
+                treasury_id: treasuryId,
+                collected_method: collectedMethod,
+                collected_amount: collectedAmount || undefined,
+            },
+            FRESH,
+        );
     }
 
     async function collectBalance() {
         if (!treasuryId || !balanceAmount) return;
         if (!(await confirmAction({ title: t('admin.recordCollectionQ', { amount: balanceAmount }) }))) return;
-        router.post(route('admin.accounting.collect', order.id), {
-            treasury_id: treasuryId,
-            collected_method: collectedMethod,
-            amount: balanceAmount,
-        });
+        router.post(
+            route('admin.accounting.collect', order.id),
+            {
+                treasury_id: treasuryId,
+                collected_method: collectedMethod,
+                amount: balanceAmount,
+            },
+            FRESH,
+        );
     }
 
     async function confirmReturned() {
@@ -156,7 +169,7 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
             }))
         )
             return;
-        router.post(route('admin.accounting.returned', order.id));
+        router.post(route('admin.accounting.returned', order.id), {}, FRESH);
     }
 
     async function confirmPartial() {
@@ -168,18 +181,32 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
             }))
         )
             return;
-        router.post(route('admin.accounting.partially-returned', order.id), {
-            treasury_id: treasuryId,
-            collected_method: collectedMethod,
-            collected_amount: collectedAmount,
-            kept_quantities: keptQuantities,
-        });
+        router.post(
+            route('admin.accounting.partially-returned', order.id),
+            {
+                treasury_id: treasuryId,
+                collected_method: collectedMethod,
+                collected_amount: collectedAmount,
+                kept_quantities: keptQuantities,
+            },
+            FRESH,
+        );
     }
 
     return (
         <AdminLayout
             title={t('admin.accountingForOrder', { number: order.order_number })}
             breadcrumbs={[{ label: t('admin.accountingDeliveryConfirmation'), href: route('admin.accounting.index') }]}
+            actions={
+                <Link
+                    href={route('admin.orders.invoice', order.id)}
+                    target="_blank"
+                    className="btn btn-sm btn-soft-primary d-flex align-items-center gap-1"
+                >
+                    <i className="bx bx-printer" />
+                    {t('admin.invoice')}
+                </Link>
+            }
         >
             <Head title={t('admin.orderNumber', { number: order.order_number })} />
 
@@ -239,10 +266,7 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                                     />
                                     <DetailRow label={t('admin.contactNumber')} value={assignee.phone} ltr />
                                     {assignee.contact_person && (
-                                        <DetailRow
-                                            label={t('admin.contactPerson')}
-                                            value={assignee.contact_person}
-                                        />
+                                        <DetailRow label={t('admin.contactPerson')} value={assignee.contact_person} />
                                     )}
                                     {assignment && (
                                         <>
@@ -296,9 +320,7 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                                     </tbody>
                                     <tfoot className="border-top">
                                         <tr>
-                                            <td className="px-0 fw-semibold text-danger">
-                                                {t('admin.stillOwed')}
-                                            </td>
+                                            <td className="px-0 fw-semibold text-danger">{t('admin.stillOwed')}</td>
                                             <td className="text-end px-0 fw-semibold text-danger">
                                                 <span dir="ltr">{price(outstanding.remaining)}</span>
                                             </td>

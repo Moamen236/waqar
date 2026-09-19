@@ -926,3 +926,106 @@ it('tells Accounting who is carrying the order, representative or company', func
             ->where('order.delivery_representative', null)
             ->etc());
 });
+
+// Accounting confirms from the order's own page, so that page — not the
+// queue it came from — is where the result has to show up.
+it('sends Accounting back to the order it just confirmed, carrying the new status', function () {
+    $geo = p4Geo();
+    $warehouse = Warehouse::create(['name' => 'Main Warehouse', 'address' => 'Cairo', 'phone' => '1']);
+    ShippingRate::create(['geo_type' => 'governorate', 'geo_id' => $geo['governorate']->id, 'price' => 30]);
+    $variant = p4Variant($warehouse->id);
+    $customer = p4Customer();
+
+    [$csAgent] = p4Employee('Customer Service');
+    [$checker] = p4Employee('Checking');
+    [$deliveryManager] = p4Employee('Delivery Manager');
+    [$accountant] = p4Employee('Accounting');
+
+    $this->actingAs($csAgent, 'employee')->post(route('admin.orders.store'), [
+        'customer_id' => $customer->id,
+        'items' => [['product_variant_id' => $variant->id, 'quantity' => 1]],
+        'governorate_id' => $geo['governorate']->id,
+        'city_id' => $geo['city']->id,
+        'area_id' => $geo['area']->id,
+        'address_line' => '1 Test St',
+        'recipient_name' => $customer->name,
+        'phone' => $customer->phone,
+    ])->assertRedirect();
+    $order = Order::firstOrFail(); // 100 goods + 30 shipping = 130
+
+    $this->actingAs($checker, 'employee')->post(route('admin.checking.confirm', $order))->assertRedirect();
+    $rep = DeliveryRepresentative::create(['name' => 'Ahmed', 'phone' => '1']);
+    $this->actingAs($deliveryManager, 'employee')
+        ->post(route('admin.delivery.assign', $order), ['assignment_type' => 'representative', 'assignee_id' => $rep->id])
+        ->assertRedirect();
+
+    $treasury = Treasury::create(['name' => 'Main Cash', 'type' => 'cash', 'current_balance' => 0]);
+
+    $this->actingAs($accountant, 'employee')->post(route('admin.accounting.delivered', $order), [
+        'treasury_id' => $treasury->id,
+        'collected_method' => 'cash',
+        'collected_amount' => 100,
+    ])->assertRedirect(route('admin.accounting.show', $order));
+
+    // The card reads the status and the balance off these props.
+    $this->actingAs($accountant, 'employee')->get(route('admin.accounting.show', $order))
+        ->assertInertia(fn ($page) => $page
+            ->where('order.status', 'Delivered')
+            ->where('order.payment_status', 'partially_collected')
+            ->where('order.payments.0.collected_amount', '100.00')
+            ->etc());
+
+    $this->actingAs($accountant, 'employee')->post(route('admin.accounting.collect', $order), [
+        'treasury_id' => $treasury->id,
+        'collected_method' => 'cash',
+        'amount' => 30,
+    ])->assertRedirect(route('admin.accounting.show', $order));
+
+    $this->actingAs($accountant, 'employee')->get(route('admin.accounting.show', $order))
+        ->assertInertia(fn ($page) => $page->where('order.payment_status', 'collected')->etc());
+});
+
+// The Actions card offers only the transitions the current status allows;
+// a stale tab that posts one anyway gets a flash, not a 500.
+it('refuses a Checking transition the order status no longer allows', function () {
+    $geo = p4Geo();
+    $warehouse = Warehouse::create(['name' => 'Main Warehouse', 'address' => 'Cairo', 'phone' => '1']);
+    ShippingRate::create(['geo_type' => 'governorate', 'geo_id' => $geo['governorate']->id, 'price' => 30]);
+    $variant = p4Variant($warehouse->id);
+    $customer = p4Customer();
+
+    [$csAgent] = p4Employee('Customer Service');
+    [$checker] = p4Employee('Checking');
+
+    $this->actingAs($csAgent, 'employee')->post(route('admin.orders.store'), [
+        'customer_id' => $customer->id,
+        'items' => [['product_variant_id' => $variant->id, 'quantity' => 1]],
+        'governorate_id' => $geo['governorate']->id,
+        'city_id' => $geo['city']->id,
+        'area_id' => $geo['area']->id,
+        'address_line' => '1 Test St',
+        'recipient_name' => $customer->name,
+        'phone' => $customer->phone,
+    ])->assertRedirect();
+    $order = Order::firstOrFail();
+
+    $this->actingAs($checker, 'employee')->post(route('admin.checking.confirm', $order))
+        ->assertSessionHas('success');
+
+    // Confirming again isn't legal from Confirmed — the button is gone
+    // from the card, and the endpoint says so instead of throwing.
+    $this->actingAs($checker, 'employee')->post(route('admin.checking.confirm', $order))
+        ->assertSessionHas('error');
+
+    expect($order->fresh()->status->value)->toBe('Confirmed');
+
+    // Backorder is legal from Confirmed, and Confirm is not legal from it.
+    $this->actingAs($checker, 'employee')
+        ->post(route('admin.checking.backorder', $order), ['reason' => 'Supplier delay'])
+        ->assertSessionHas('success');
+    $this->actingAs($checker, 'employee')
+        ->post(route('admin.checking.postpone', $order), ['reason' => 'Customer asked'])
+        ->assertSessionHas('error');
+
+    expect($order->fresh()->status->value)->toBe('Backorder');
+});

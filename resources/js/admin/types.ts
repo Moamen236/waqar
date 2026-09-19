@@ -17,12 +17,34 @@ export interface AuthEmployee {
     permissions: string[];
 }
 
+/**
+ * One row in the staff inbox. `type` is a slug, not a sentence — the UI
+ * renders `t('notification.' + type, params)` because there is no
+ * employee locale to render against on the server (see
+ * app/Notifications/Staff/StaffNotification.php). `linked` says whether
+ * the row goes anywhere; the URL itself is never sent, the server
+ * resolves it on click.
+ */
+export interface StaffNotification {
+    id: string;
+    type: string;
+    params: Record<string, string | number>;
+    linked: boolean;
+    read_at: string | null;
+    created_at: string | null;
+}
+
 export interface SharedProps {
     [key: string]: unknown;
     /** Driven by the {locale} URL segment, same as the storefront (Q20). */
     locale: LocaleProps;
     auth: { employee: AuthEmployee | null };
     flash: { success?: string | null; error?: string | null };
+    /** Admin shell data; null on storefront requests. */
+    admin: {
+        notificationCount: number;
+        notifications: StaffNotification[];
+    } | null;
 }
 
 export interface PaginatedData<T> {

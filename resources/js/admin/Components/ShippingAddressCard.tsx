@@ -31,12 +31,12 @@ export default function ShippingAddressCard({ order }: { order: ShippingAddress 
                 <p className="mb-1" dir="ltr">
                     {order.shipping_phone}
                 </p>
-                <p className="mb-2 text-muted">{order.shipping_address_line}</p>
                 <ul className="list-unstyled mb-0 fs-13">
                     <GeoRow label={t('admin.governorate')} value={order.shipping_governorate?.name} />
                     <GeoRow label={t('admin.city')} value={order.shipping_city?.name} />
                     <GeoRow label={t('admin.district')} value={order.shipping_district?.name} />
                     <GeoRow label={t('admin.area')} value={order.shipping_area?.name} />
+                    <GeoRow label={t('admin.addressLine')} value={order.shipping_address_line} />
                 </ul>
             </div>
         </div>
@@ -48,7 +48,7 @@ function GeoRow({ label, value }: { label: string; value?: string }) {
     return (
         <li className="d-flex justify-content-between gap-2">
             <span className="text-muted">{label}</span>
-            <span className="text-dark">{value ?? '—'}</span>
+            <span className="text-dark">{value ? value : '—'}</span>
         </li>
     );
 }

@@ -79,17 +79,25 @@ interface Treasury extends Option {
     type: string;
 }
 
-const REFUND_METHODS = ['bank_transfer', 'wallet'];
+const REFUND_METHODS = ['bank_transfer', 'wallet', 'cash'];
+
+// Each refund method posts against the treasury of the same type —
+// picking cash jumps the treasury to the cash till, and so on.
+const METHOD_TREASURY_TYPE: Record<string, string> = {
+    bank_transfer: 'bank',
+    wallet: 'wallet',
+    cash: 'cash',
+};
 
 // Ported from Admin Template/order-detail.html's Product table + summary
 // card conventions.
 export default function ReturnsShow({
     return: ret,
-    warehouses,
+    warehouse,
     treasuries,
 }: {
     return: ReturnDetail;
-    warehouses: Option[];
+    warehouse: { id: number; name: string } | null;
     treasuries: Treasury[];
 }) {
     const { t, price } = useTranslation();
@@ -100,10 +108,15 @@ export default function ReturnsShow({
     const returnedTotal = ret.items.reduce((sum, item) => sum + Number(item.order_item.unit_price) * item.quantity, 0);
     const returnedIds = new Set(ret.items.map((item) => item.order_item.id));
     const [shippingFee, setShippingFee] = useState('0');
-    const [warehouseId, setWarehouseId] = useState<number | ''>(warehouses[0]?.id ?? '');
     const [treasuryId, setTreasuryId] = useState<number | ''>(treasuries[0]?.id ?? '');
     const [method, setMethod] = useState('bank_transfer');
     const [reference, setReference] = useState('');
+
+    function handleMethodChange(next: string) {
+        setMethod(next);
+        const match = treasuries.find((account) => account.type === METHOD_TREASURY_TYPE[next]);
+        if (match) setTreasuryId(match.id);
+    }
 
     const needsShippingFeeConsent =
         ret.stage === 'post_delivery' && ret.status === 'requested' && !ret.customer_accepted_return_shipping_fee_at;
@@ -125,7 +138,6 @@ export default function ReturnsShow({
     }
 
     async function receive() {
-        if (!warehouseId) return;
         if (
             !(await confirmAction({
                 title: t('admin.confirmItemsReceived'),
@@ -133,7 +145,9 @@ export default function ReturnsShow({
             }))
         )
             return;
-        router.post(route('admin.returns.receive', ret.id), { warehouse_id: warehouseId });
+        // No warehouse_id — the server always restocks into the main
+        // warehouse, which is shown read-only below.
+        router.post(route('admin.returns.receive', ret.id));
     }
 
     async function refund() {
@@ -352,21 +366,23 @@ export default function ReturnsShow({
 
                             {canReceive && (
                                 <>
+                                    {/* Not selectable — received items always
+                                        restock into the main warehouse. */}
                                     <div className="mb-2">
                                         <label className="form-label fs-13">{t('admin.receivingWarehouse')}</label>
-                                        <select
+                                        <input
                                             className="form-control"
-                                            value={warehouseId}
-                                            onChange={(e) => setWarehouseId(Number(e.target.value))}
-                                        >
-                                            {warehouses.map((w) => (
-                                                <option key={w.id} value={w.id}>
-                                                    {w.name}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            value={warehouse?.name ?? ''}
+                                            readOnly
+                                            disabled
+                                        />
                                     </div>
-                                    <button type="button" className="btn btn-primary" onClick={receive}>
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary"
+                                        onClick={receive}
+                                        disabled={!warehouse}
+                                    >
                                         {t('admin.confirmReceivedAndRestock')}
                                     </button>
                                 </>
@@ -393,7 +409,7 @@ export default function ReturnsShow({
                                         <select
                                             className="form-control"
                                             value={method}
-                                            onChange={(e) => setMethod(e.target.value)}
+                                            onChange={(e) => handleMethodChange(e.target.value)}
                                         >
                                             {REFUND_METHODS.map((m) => (
                                                 <option key={m} value={m}>

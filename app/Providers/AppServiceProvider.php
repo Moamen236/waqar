@@ -4,10 +4,20 @@ namespace App\Providers;
 
 use App\Listeners\LogAccessChange;
 use App\Models\Employee;
+use App\Models\InventoryMovement;
 use App\Models\Order;
 use App\Models\OrderReturn;
+use App\Models\Review;
+use App\Models\ShippingCompanyStatement;
+use App\Models\Treasury;
+use App\Models\TreasuryTransaction;
+use App\Observers\InventoryMovementObserver;
 use App\Observers\OrderObserver;
 use App\Observers\OrderReturnObserver;
+use App\Observers\ReviewObserver;
+use App\Observers\ShippingCompanyStatementObserver;
+use App\Observers\TreasuryObserver;
+use App\Observers\TreasuryTransactionObserver;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -46,12 +56,23 @@ class AppServiceProvider extends ServiceProvider
                 : null;
         });
 
-        // Customer-facing notifications for the order lifecycle and the
-        // post-delivery return flow (Section 23's event list) — see the
-        // observers for why they hang off the models rather than off each
-        // Action.
+        // Notifications for the order lifecycle and the post-delivery
+        // return flow (Section 23's event list) — see the observers for
+        // why they hang off the models rather than off each Action. Both
+        // carry the staff side as well as the customer side.
         Order::observe(OrderObserver::class);
         OrderReturn::observe(OrderReturnObserver::class);
+
+        // Staff-only events. Each observer does its own filtering: most
+        // rows written to these tables are routine traffic nobody needs
+        // telling about, and the interesting minority is what each class
+        // defines. TreasuryTransactionObserver in particular exists
+        // mostly to exclude the per-order COD income.
+        TreasuryTransaction::observe(TreasuryTransactionObserver::class);
+        Treasury::observe(TreasuryObserver::class);
+        ShippingCompanyStatement::observe(ShippingCompanyStatementObserver::class);
+        InventoryMovement::observe(InventoryMovementObserver::class);
+        Review::observe(ReviewObserver::class);
 
         $this->resolveActivityCauser();
 

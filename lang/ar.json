@@ -57,6 +57,7 @@
     "Order #:number confirmed.": "تم تأكيد الطلب رقم :number.",
     "Order #:number created for :customer.": "تم إنشاء الطلب رقم :number للعميل :customer.",
     "Order #:number is fully paid.": "تم سداد الطلب رقم :number بالكامل.",
+    "Order #:number is no longer at a status that allows that.": "لم يعد الطلب رقم :number في حالة تسمح بهذا الإجراء.",
     "Order #:number marked Delivered.": "تم تعليم الطلب رقم :number كمُسلَّم.",
     "Order #:number marked Partially Returned.": "تم تعليم الطلب رقم :number كمرتجع جزئياً.",
     "Order #:number marked Returned.": "تم تعليم الطلب رقم :number كمرتجع.",

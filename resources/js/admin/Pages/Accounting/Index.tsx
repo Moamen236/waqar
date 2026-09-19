@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { PaginationFooter } from '../../Components/Pagination';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { usePermissions } from '../../Hooks/usePermissions';
 import type { OrderSummary, PaginatedData } from '../../types';
 import { useTranslation } from '../../lib/useTranslation';
 
@@ -17,6 +18,8 @@ export default function AccountingIndex({
     outstanding: PaginatedData<OutstandingOrder>;
 }) {
     const { t, price } = useTranslation();
+    const { can } = usePermissions();
+    const showInvoice = can('orders.view');
     return (
         <AdminLayout title={t('admin.accountingDeliveryConfirmation')}>
             <Head title={t('admin.accounting')} />
@@ -42,7 +45,12 @@ export default function AccountingIndex({
                                     {orders.data.map((order) => (
                                         <tr key={order.id}>
                                             <td className="fw-medium">#{order.order_number}</td>
-                                            <td>{order.customer?.name}</td>
+                                            <td>
+                                                <span className="d-block fw-medium">{order.customer?.name ?? '—'}</span>
+                                                <span className="text-muted fs-13" dir="ltr">
+                                                    {order.customer?.phone ?? ''}
+                                                </span>
+                                            </td>
                                             <td>
                                                 <StatusBadge status={order.status} />
                                             </td>
@@ -53,12 +61,25 @@ export default function AccountingIndex({
                                             </td>
                                             <td>{order.total}</td>
                                             <td>
-                                                <Link
-                                                    href={route('admin.accounting.show', order.id)}
-                                                    className="btn btn-soft-primary btn-sm"
-                                                >
-                                                    {t('admin.confirmResult')}
-                                                </Link>
+                                                <div className="d-flex gap-1">
+                                                    <Link
+                                                        href={route('admin.accounting.show', order.id)}
+                                                        className="btn btn-soft-primary btn-sm"
+                                                    >
+                                                        {t('admin.confirmResult')}
+                                                    </Link>
+                                                    {showInvoice && (
+                                                        <Link
+                                                            href={route('admin.orders.invoice', order.id)}
+                                                            target="_blank"
+                                                            className="btn btn-soft-secondary btn-sm"
+                                                            title={t('admin.invoice')}
+                                                            aria-label={t('admin.invoice')}
+                                                        >
+                                                            <i className="bx bx-printer" />
+                                                        </Link>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -104,7 +125,14 @@ export default function AccountingIndex({
                                         return (
                                             <tr key={order.id}>
                                                 <td className="fw-medium">#{order.order_number}</td>
-                                                <td>{order.customer?.name}</td>
+                                                <td>
+                                                    <span className="d-block fw-medium">
+                                                        {order.customer?.name ?? '—'}
+                                                    </span>
+                                                    <span className="text-muted fs-13" dir="ltr">
+                                                        {order.customer?.phone ?? ''}
+                                                    </span>
+                                                </td>
                                                 <td>
                                                     <StatusBadge status={order.status} />
                                                 </td>
@@ -124,12 +152,25 @@ export default function AccountingIndex({
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <Link
-                                                        href={route('admin.accounting.show', order.id)}
-                                                        className="btn btn-soft-primary btn-sm"
-                                                    >
-                                                        {t('admin.recordCollection')}
-                                                    </Link>
+                                                    <div className="d-flex gap-1">
+                                                        <Link
+                                                            href={route('admin.accounting.show', order.id)}
+                                                            className="btn btn-soft-primary btn-sm"
+                                                        >
+                                                            {t('admin.recordCollection')}
+                                                        </Link>
+                                                        {showInvoice && (
+                                                            <Link
+                                                                href={route('admin.orders.invoice', order.id)}
+                                                                target="_blank"
+                                                                className="btn btn-soft-secondary btn-sm"
+                                                                title={t('admin.invoice')}
+                                                                aria-label={t('admin.invoice')}
+                                                            >
+                                                                <i className="bx bx-printer" />
+                                                            </Link>
+                                                        )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         );

@@ -192,6 +192,58 @@ export default function OrderShow({
 
                     <div className="card">
                         <div className="card-header">
+                            <h4 className="card-title">{t('admin.paymentInformation')}</h4>
+                        </div>
+                        <div className="card-body">
+                            {order.payments.length === 0 ? (
+                                <p className="text-muted mb-0">{t('admin.noPaymentsRecorded')}</p>
+                            ) : (
+                                order.payments.map((payment) => (
+                                    <div key={payment.id} className="mb-3">
+                                        <div className="d-flex justify-content-between gap-2">
+                                            <div>
+                                                <span className="d-block fw-medium" dir="ltr">
+                                                    {price(Number(payment.amount))}
+                                                </span>
+                                                <span className="text-muted fs-13">
+                                                    {payment.collected_method
+                                                        ? t(`collectedMethod.${payment.collected_method}`)
+                                                        : (payment.method ?? '—')}
+                                                </span>
+                                            </div>
+                                            <StatusBadge status={payment.status} />
+                                        </div>
+
+                                        {/* Only worth spelling out once money has
+                                            actually moved — before that the single
+                                            row above says everything. */}
+                                        {payment.transactions.length > 0 && (
+                                            <>
+                                                <h5 className="fs-13 text-muted mt-3 mb-1">
+                                                    {t('admin.paymentCollections')}
+                                                </h5>
+                                                <PaymentInstalments instalments={payment.transactions} />
+                                                {payment.status === 'partially_collected' && (
+                                                    <p className="text-danger fs-13 mt-2 mb-0">
+                                                        {t('admin.stillOwed')}:{' '}
+                                                        <span dir="ltr">
+                                                            {price(
+                                                                Number(payment.amount) -
+                                                                    Number(payment.collected_amount ?? 0),
+                                                            )}
+                                                        </span>
+                                                    </p>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="card">
+                        <div className="card-header">
                             <h4 className="card-title">{t('admin.orderTimeline')}</h4>
                         </div>
                         <div className="card-body">
@@ -242,58 +294,6 @@ export default function OrderShow({
 
                 <div className="col-xl-3 col-lg-4">
                     <OrderSummaryCard order={order} />
-
-                    <div className="card">
-                        <div className="card-header">
-                            <h4 className="card-title">{t('admin.paymentInformation')}</h4>
-                        </div>
-                        <div className="card-body">
-                            {order.payments.length === 0 ? (
-                                <p className="text-muted mb-0">{t('admin.noPaymentsRecorded')}</p>
-                            ) : (
-                                order.payments.map((payment) => (
-                                    <div key={payment.id} className="mb-3">
-                                        <div className="d-flex justify-content-between gap-2">
-                                            <div>
-                                                <span className="d-block fw-medium" dir="ltr">
-                                                    {price(Number(payment.amount))}
-                                                </span>
-                                                <span className="text-muted fs-13">
-                                                    {payment.collected_method
-                                                        ? t(`collectedMethod.${payment.collected_method}`)
-                                                        : (payment.method ?? '—')}
-                                                </span>
-                                            </div>
-                                            <StatusBadge status={payment.status} />
-                                        </div>
-
-                                        {/* Only worth spelling out once money has
-                                            actually moved — before that the single
-                                            row above says everything. */}
-                                        {payment.transactions.length > 0 && (
-                                            <>
-                                                <h5 className="fs-13 text-muted mt-3 mb-1">
-                                                    {t('admin.paymentCollections')}
-                                                </h5>
-                                                <PaymentInstalments instalments={payment.transactions} />
-                                                {payment.status === 'partially_collected' && (
-                                                    <p className="text-danger fs-13 mt-2 mb-0">
-                                                        {t('admin.stillOwed')}:{' '}
-                                                        <span dir="ltr">
-                                                            {price(
-                                                                Number(payment.amount) -
-                                                                    Number(payment.collected_amount ?? 0),
-                                                            )}
-                                                        </span>
-                                                    </p>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
 
                     <div className="card">
                         <div className="card-header">

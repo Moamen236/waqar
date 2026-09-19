@@ -16,9 +16,9 @@ use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /**
- * Manual bank/wallet transfer, recorded by Accounting (Question 5) — no
- * store credit, no card reversal. net_amount deducts the return shipping
- * fee the customer already accepted (Question 6).
+ * Manual bank/wallet/cash refund, recorded by Accounting (Question 5) —
+ * no store credit, no card reversal. net_amount deducts the return
+ * shipping fee the customer already accepted (Question 6).
  */
 class RefundReturnAction
 {

@@ -345,12 +345,17 @@ it('walks a post-delivery return through the full admin workflow — approve, re
         ->assertRedirect();
     expect($return->fresh()->status->value)->toBe('approved');
 
+    $otherWarehouse = Warehouse::create(['name' => 'Branch', 'address' => 'Alex', 'phone' => '2']);
+
     $this->actingAs($warehouseManager, 'employee')
-        ->post(route('admin.returns.receive', $return), ['warehouse_id' => $warehouse->id])
+        // A supplied warehouse is ignored — received items always
+        // restock into the main warehouse.
+        ->post(route('admin.returns.receive', $return), ['warehouse_id' => $otherWarehouse->id])
         ->assertRedirect();
     $return->refresh();
     expect($return->status->value)->toBe('inspected')
-        ->and(WarehouseInventory::where('product_variant_id', $variant->id)->first()->quantity)->toBe(5); // restocked
+        ->and(WarehouseInventory::where('warehouse_id', $warehouse->id)->where('product_variant_id', $variant->id)->first()->quantity)->toBe(5) // restocked into main
+        ->and(WarehouseInventory::where('warehouse_id', $otherWarehouse->id)->where('product_variant_id', $variant->id)->exists())->toBeFalse();
 
     $this->actingAs($accountant, 'employee')
         ->post(route('admin.returns.refund', $return), [
@@ -364,4 +369,68 @@ it('walks a post-delivery return through the full admin workflow — approve, re
         // Treasury: +100 from the original COD collection, then -90 for
         // this refund — 10.00 net, not a standalone -90.
         ->and($treasury->fresh()->current_balance)->toEqual('10.00');
+});
+
+it('refunds a return in cash against the cash treasury', function () {
+    $geo = p4cGeo();
+    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '1']);
+    ShippingRate::create(['geo_type' => 'governorate', 'geo_id' => $geo['governorate']->id, 'price' => 0]);
+    $variant = p4cVariant($warehouse->id, stock: 5);
+    $customer = p4cCustomer();
+    $this->seed(ReturnReasonSeeder::class);
+    $reason = ReturnReason::first();
+
+    [$checker] = p4cEmployee('Checking');
+    [$deliveryManager] = p4cEmployee('Delivery Manager');
+    [$accountant] = p4cEmployee('Accounting');
+    [$warehouseManager] = p4cEmployee('Warehouse Manager');
+    [$csAgent] = p4cEmployee('Customer Service');
+
+    $order = app(CreateOrderAction::class)->execute(
+        $customer, [['product_variant_id' => $variant->id, 'quantity' => 1]], $warehouse,
+        $geo['governorate']->id, $geo['city']->id, null, $geo['area']->id,
+        '1 Test St', $customer->name, $customer->phone,
+        OrderSource::CustomerService, $csAgent,
+    );
+    app(ConfirmOrderAction::class)->execute($order, $checker);
+    $rep = DeliveryRepresentative::create(['name' => 'Ahmed', 'phone' => '1']);
+    app(AssignDeliveryAction::class)->execute($order, $deliveryManager, DeliveryAssignmentType::Representative, $rep);
+    $cashTreasury = Treasury::create(['name' => 'Cash Till', 'type' => 'cash', 'current_balance' => 1000]);
+    app(ConfirmDeliveryResultAction::class)->confirmDelivered($order, $accountant, $cashTreasury, CollectedMethod::Cash);
+
+    $orderItem = $order->items()->firstOrFail();
+
+    $this->actingAs($csAgent, 'employee')
+        ->post(route('admin.returns.store'), [
+            'order_id' => $order->id,
+            'primary_reason_id' => $reason->id,
+            'items' => [['order_item_id' => $orderItem->id, 'quantity' => 1]],
+        ])
+        ->assertRedirect();
+    $return = OrderReturn::firstOrFail();
+
+    $this->actingAs($csAgent, 'employee')
+        ->post(route('admin.returns.accept-shipping-fee', $return), ['return_shipping_fee' => 0])
+        ->assertRedirect();
+
+    $this->actingAs($warehouseManager, 'employee')
+        ->post(route('admin.returns.approve', $return))
+        ->assertRedirect();
+
+    $this->actingAs($warehouseManager, 'employee')
+        ->post(route('admin.returns.receive', $return))
+        ->assertRedirect();
+
+    $this->actingAs($accountant, 'employee')
+        ->post(route('admin.returns.refund', $return), [
+            'treasury_id' => $cashTreasury->id, 'method' => 'cash', 'reference_number' => 'CASH-1',
+        ])
+        ->assertRedirect();
+
+    $return->refresh();
+    expect($return->status->value)->toBe('refunded')
+        ->and($return->refund->method->value)->toBe('cash')
+        ->and($return->refund->net_amount)->toEqual('100.00')
+        // Till: 1000 opening + 100 COD collection − 100 cash refund.
+        ->and($cashTreasury->fresh()->current_balance)->toEqual('1000.00');
 });
