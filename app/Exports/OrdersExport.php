@@ -14,34 +14,29 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 /**
  * The same rows /admin/orders shows — same visibleTo() scope (a Customer
  * Service Team Leader's export can never contain more than their own
- * team's orders) and the same status/search filters — as an .xlsx
- * download instead of a paginated table.
+ * team's orders) and the same filters, applied through Order::filtered()
+ * so the download can never drift from the table — as an .xlsx download
+ * instead of a paginated table.
  */
 class OrdersExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMapping
 {
     use Exportable;
 
+    /**
+     * @param  array<string, mixed>  $filters  Order::filtered() keys.
+     */
     public function __construct(
         private readonly Employee $employee,
-        private readonly string $status = '',
-        private readonly string $search = '',
+        private readonly array $filters = [],
     ) {}
 
     public function query(): Builder
     {
         return Order::query()
             ->visibleTo($this->employee)
+            ->filtered($this->filters)
             ->with(['customer:id,name,phone', 'deliveryRepresentative:id,name', 'shippingCompany:id,name'])
             ->withCount('items')
-            ->when($this->status !== '', fn ($query) => $query->where('status', $this->status))
-            ->when($this->search !== '', fn ($query) => $query->where(
-                fn ($inner) => $inner
-                    ->where('order_number', 'like', "%{$this->search}%")
-                    ->orWhere('shipping_phone', 'like', "%{$this->search}%")
-                    ->orWhereHas('customer', fn ($customer) => $customer
-                        ->where('name', 'like', "%{$this->search}%")
-                        ->orWhere('phone', 'like', "%{$this->search}%"))
-            ))
             ->orderByDesc('id');
     }
 

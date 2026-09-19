@@ -1,4 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
+import type { FormEvent } from 'react';
 import { confirmAction } from '../../lib/confirm';
 import { EmptyRow } from '../../Components/EmptyState';
 import ExportButton from '../../Components/ExportButton';
@@ -9,7 +11,7 @@ import StatusBadge from '../../Components/StatusBadge';
 import RowActions from '../../Components/RowActions';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { usePermissions } from '../../Hooks/usePermissions';
-import type { PaginatedData } from '../../types';
+import type { GeoTree, PaginatedData } from '../../types';
 import { useTranslation } from '../../lib/useTranslation';
 
 interface OrderRow {
@@ -25,6 +27,32 @@ interface OrderRow {
     shipping_company: { id: number; name: string } | null;
 }
 
+interface OrderFilters {
+    status: string;
+    q: string;
+    customer: string;
+    governorate_id: number | null;
+    city_id: number | null;
+    district_id: number | null;
+    area_id: number | null;
+    representative_id: number | null;
+    shipping_company_id: number | null;
+    date_from: string;
+    date_to: string;
+    qty_min: string;
+    qty_max: string;
+}
+
+interface AssigneeOption {
+    id: number;
+    name: string;
+}
+
+const asId = (value: unknown): number | null =>
+    value === '' || value === null || value === undefined ? null : Number(value);
+
+const asText = (value: unknown): string => (value === null || value === undefined ? '' : String(value));
+
 /**
  * Ported from Admin Template/orders-list.html: its row of summary tiles
  * above a single `table align-middle table-hover table-centered` card.
@@ -39,15 +67,24 @@ interface OrderRow {
  * here: an order is not an editable record — it moves through Checking,
  * Delivery and Accounting, each of which owns its own transitions — and
  * there is no delete route for one at all.
+ *
+ * Beyond the header search/status pair, an "Advanced filters" panel adds
+ * customer, shipping-destination cascade, assignee, placed-date range and
+ * total-quantity range. Every filter rides the query string, so the Excel
+ * export (which reads the same string through Order::filtered()) always
+ * downloads exactly the rows on screen.
  */
 export default function OrdersIndex({
     orders,
     filters,
     statuses,
     summary,
+    geoTree,
+    representatives,
+    shippingCompanies,
 }: {
     orders: PaginatedData<OrderRow>;
-    filters: { status: string; q: string };
+    filters: Partial<OrderFilters>;
     statuses: string[];
     summary: {
         awaiting_checking: number;
@@ -55,9 +92,57 @@ export default function OrdersIndex({
         delivered: number;
         cancelled_or_returned: number;
     };
+    geoTree: GeoTree;
+    representatives: AssigneeOption[];
+    shippingCompanies: AssigneeOption[];
 }) {
     const { t, price, dateTime } = useTranslation();
     const { can } = usePermissions();
+
+    const f: OrderFilters = {
+        status: asText(filters.status),
+        q: asText(filters.q),
+        customer: asText(filters.customer),
+        governorate_id: asId(filters.governorate_id),
+        city_id: asId(filters.city_id),
+        district_id: asId(filters.district_id),
+        area_id: asId(filters.area_id),
+        representative_id: asId(filters.representative_id),
+        shipping_company_id: asId(filters.shipping_company_id),
+        date_from: asText(filters.date_from),
+        date_to: asText(filters.date_to),
+        qty_min: asText(filters.qty_min),
+        qty_max: asText(filters.qty_max),
+    };
+
+    const advancedKeys: (keyof OrderFilters)[] = [
+        'customer',
+        'governorate_id',
+        'city_id',
+        'district_id',
+        'area_id',
+        'representative_id',
+        'shipping_company_id',
+        'date_from',
+        'date_to',
+        'qty_min',
+        'qty_max',
+    ];
+    const advancedCount = advancedKeys.filter((key) => {
+        const value = f[key];
+        return value !== '' && value !== null;
+    }).length;
+
+    const [advancedOpen, setAdvancedOpen] = useState(advancedCount > 0);
+
+    // Text/date/number drafts apply on Enter (form submit), not per
+    // keystroke — each apply is a server round-trip. Uncontrolled with a
+    // key off the applied values: applying or clearing remounts the form
+    // with fresh defaults, while typing never fights a re-render.
+    const draftsKey = [f.customer, f.date_from, f.date_to, f.qty_min, f.qty_max].join('|');
+
+    const governorate = geoTree.find((g) => g.id === f.governorate_id);
+    const city = governorate?.cities.find((c) => c.id === f.city_id);
 
     // Soft delete, and only offered on an order that is already Cancelled:
     // cancelling is what releases the stock reservation, and deleting does
@@ -78,12 +163,39 @@ export default function OrdersIndex({
         router.delete(route('admin.orders.destroy', id), { preserveScroll: true });
     }
 
-    const apply = (next: Partial<{ status: string; q: string }>) =>
-        router.get(
-            route('admin.orders.index'),
-            { status: filters.status, q: filters.q, ...next },
-            { preserveState: true, replace: true },
-        );
+    const queryParams = (base: OrderFilters): Record<string, string | number> => {
+        const params: Record<string, string | number> = {};
+        for (const [key, value] of Object.entries(base)) {
+            if (value === '' || value === null || value === undefined) {
+                continue;
+            }
+            params[key] = value as string | number;
+        }
+        return params;
+    };
+
+    const apply = (next: Partial<OrderFilters>) =>
+        router.get(route('admin.orders.index'), queryParams({ ...f, ...next }), {
+            preserveState: true,
+            replace: true,
+        });
+
+    const applyDrafts = (e: FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const form = new FormData(e.currentTarget);
+        apply({
+            customer: String(form.get('customer') ?? ''),
+            date_from: String(form.get('date_from') ?? ''),
+            date_to: String(form.get('date_to') ?? ''),
+            qty_min: String(form.get('qty_min') ?? ''),
+            qty_max: String(form.get('qty_max') ?? ''),
+        });
+    };
+
+    const clearAll = () => router.get(route('admin.orders.index'), {}, { preserveState: true, replace: true });
+
+    const selectValue = (value: number | null): string => (value === null ? '' : String(value));
+    const selectId = (value: string): number | null => (value === '' ? null : Number(value));
 
     return (
         <AdminLayout title={t('admin.orderBook')}>
@@ -131,14 +243,14 @@ export default function OrdersIndex({
                             <h4 className="card-title flex-grow-1">{t('admin.allOrders')}</h4>
 
                             <SearchFilter
-                                value={filters.q ?? ''}
+                                value={f.q ?? ''}
                                 placeholder={t('admin.searchOrderOrPhone')}
                                 onSubmit={(term) => apply({ q: term })}
                             >
                                 <select
                                     className="form-select form-select-sm w-auto"
                                     aria-label={t('admin.allStatuses')}
-                                    value={filters.status ?? ''}
+                                    value={f.status ?? ''}
                                     onChange={(event) => apply({ status: event.target.value })}
                                 >
                                     <option value="">{t('admin.allStatuses')}</option>
@@ -150,10 +262,18 @@ export default function OrdersIndex({
                                 </select>
                             </SearchFilter>
 
+                            <button
+                                type="button"
+                                className="btn btn-sm btn-soft-secondary d-flex align-items-center gap-1"
+                                onClick={() => setAdvancedOpen((open) => !open)}
+                            >
+                                <i className="bx bx-filter-alt" />
+                                {t('admin.advancedFilters')}
+                                {advancedCount > 0 && <span className="badge bg-primary ms-1">{advancedCount}</span>}
+                            </button>
+
                             {can('orders.export') && (
-                                <ExportButton
-                                    href={route('admin.orders.export', { status: filters.status, q: filters.q })}
-                                />
+                                <ExportButton href={route('admin.orders.export', queryParams(f))} />
                             )}
 
                             {can('orders.create') && (
@@ -166,6 +286,179 @@ export default function OrdersIndex({
                                 </Link>
                             )}
                         </div>
+
+                        {advancedOpen && (
+                            <div className="card-body border-top">
+                                <form key={draftsKey} onSubmit={applyDrafts}>
+                                    <div className="row g-3">
+                                        <div className="col-md-4">
+                                            <label className="form-label">{t('admin.customer')}</label>
+                                            <input
+                                                name="customer"
+                                                className="form-control form-control-sm"
+                                                defaultValue={f.customer}
+                                                placeholder={t('admin.searchOrderOrPhone')}
+                                            />
+                                        </div>
+                                        <div className="col-md-4">
+                                            <label className="form-label">{t('admin.governorate')}</label>
+                                            <select
+                                                className="form-control form-control-sm"
+                                                value={selectValue(f.governorate_id)}
+                                                onChange={(e) =>
+                                                    apply({
+                                                        governorate_id: selectId(e.target.value),
+                                                        city_id: null,
+                                                        district_id: null,
+                                                        area_id: null,
+                                                    })
+                                                }
+                                            >
+                                                <option value="">{t('admin.select')}</option>
+                                                {geoTree.map((g) => (
+                                                    <option key={g.id} value={g.id}>
+                                                        {g.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="col-md-4">
+                                            <label className="form-label">{t('admin.city')}</label>
+                                            <select
+                                                className="form-control form-control-sm"
+                                                value={selectValue(f.city_id)}
+                                                onChange={(e) =>
+                                                    apply({
+                                                        city_id: selectId(e.target.value),
+                                                        district_id: null,
+                                                        area_id: null,
+                                                    })
+                                                }
+                                            >
+                                                <option value="">{t('admin.select')}</option>
+                                                {governorate?.cities.map((c) => (
+                                                    <option key={c.id} value={c.id}>
+                                                        {c.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="col-md-4">
+                                            <label className="form-label">{t('admin.districtOptional')}</label>
+                                            <select
+                                                className="form-control form-control-sm"
+                                                value={selectValue(f.district_id)}
+                                                onChange={(e) => apply({ district_id: selectId(e.target.value) })}
+                                            >
+                                                <option value="">{t('admin.none')}</option>
+                                                {city?.districts.map((d) => (
+                                                    <option key={d.id} value={d.id}>
+                                                        {d.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="col-md-4">
+                                            <label className="form-label">{t('admin.area')}</label>
+                                            <select
+                                                className="form-control form-control-sm"
+                                                value={selectValue(f.area_id)}
+                                                onChange={(e) => apply({ area_id: selectId(e.target.value) })}
+                                            >
+                                                <option value="">{t('admin.select')}</option>
+                                                {city?.areas.map((a) => (
+                                                    <option key={a.id} value={a.id}>
+                                                        {a.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="col-md-4">
+                                            <label className="form-label">{t('admin.representative')}</label>
+                                            <select
+                                                className="form-control form-control-sm"
+                                                value={selectValue(f.representative_id)}
+                                                onChange={(e) => apply({ representative_id: selectId(e.target.value) })}
+                                            >
+                                                <option value="">{t('admin.allRepresentatives')}</option>
+                                                {representatives.map((r) => (
+                                                    <option key={r.id} value={r.id}>
+                                                        {r.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="col-md-4">
+                                            <label className="form-label">{t('admin.shippingCompany')}</label>
+                                            <select
+                                                className="form-control form-control-sm"
+                                                value={selectValue(f.shipping_company_id)}
+                                                onChange={(e) =>
+                                                    apply({ shipping_company_id: selectId(e.target.value) })
+                                                }
+                                            >
+                                                <option value="">{t('admin.allShippingCompanies')}</option>
+                                                {shippingCompanies.map((c) => (
+                                                    <option key={c.id} value={c.id}>
+                                                        {c.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="col-md-2">
+                                            <label className="form-label">{t('admin.dateFrom')}</label>
+                                            <input
+                                                type="date"
+                                                name="date_from"
+                                                className="form-control form-control-sm"
+                                                defaultValue={f.date_from}
+                                            />
+                                        </div>
+                                        <div className="col-md-2">
+                                            <label className="form-label">{t('admin.dateTo')}</label>
+                                            <input
+                                                type="date"
+                                                name="date_to"
+                                                className="form-control form-control-sm"
+                                                defaultValue={f.date_to}
+                                            />
+                                        </div>
+                                        <div className="col-md-2">
+                                            <label className="form-label">{t('admin.minQuantity')}</label>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                name="qty_min"
+                                                className="form-control form-control-sm"
+                                                defaultValue={f.qty_min}
+                                            />
+                                        </div>
+                                        <div className="col-md-2">
+                                            <label className="form-label">{t('admin.maxQuantity')}</label>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                name="qty_max"
+                                                className="form-control form-control-sm"
+                                                defaultValue={f.qty_max}
+                                            />
+                                        </div>
+                                        <div className="col-12 d-flex gap-2">
+                                            <button type="submit" className="btn btn-sm btn-primary">
+                                                {t('admin.applyFilters')}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="btn btn-sm btn-soft-secondary"
+                                                onClick={clearAll}
+                                            >
+                                                {t('admin.clearFilters')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        )}
 
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-hover table-centered">

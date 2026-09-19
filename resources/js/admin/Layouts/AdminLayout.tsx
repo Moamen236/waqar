@@ -80,6 +80,12 @@ const NAV: NavGroup[] = [
                 permission: 'orders.view',
             },
             {
+                label: 'admin.navOutForDelivery',
+                href: route('admin.delivery.orders'),
+                icon: 'bx-package',
+                permission: 'orders.view',
+            },
+            {
                 label: 'admin.navAccounting',
                 href: route('admin.accounting.index'),
                 icon: 'bx-wallet',
@@ -424,13 +430,13 @@ export default function AdminLayout({
                     two sizes rather than the shipped PNGs. */}
                 <div className="logo-box">
                     <Link href={route('admin.dashboard')} className="logo-dark">
-                        <span className="logo-sm fw-bold fs-4 text-dark">W</span>
-                        <span className="logo-lg fw-bold fs-4 text-dark">WAQAR</span>
+                        <img src="/admin-theme/assets/images/logo-sm-dark.png" alt="WAQAR" className="logo-sm" />
+                        <img src="/admin-theme/assets/images/logo-dark.png" alt="WAQAR" className="logo-lg" />
                     </Link>
 
                     <Link href={route('admin.dashboard')} className="logo-light">
-                        <span className="logo-sm fw-bold fs-4 text-white">W</span>
-                        <span className="logo-lg fw-bold fs-4 text-white">WAQAR</span>
+                        <img src="/admin-theme/assets/images/logo-sm-light.png" alt="WAQAR" className="logo-sm" />
+                        <img src="/admin-theme/assets/images/logo-light.png" alt="WAQAR" className="logo-lg" />
                     </Link>
                 </div>
 

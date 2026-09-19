@@ -85,4 +85,15 @@ export interface OrderSummary {
     customer?: Customer;
     delivery_representative?: { id: number; name: string } | null;
     shipping_company?: { id: number; name: string } | null;
+    // Present only where the controller eager-loads them — the delivery
+    // screens, which route by destination.
+    shipping_governorate?: GeoName | null;
+    shipping_city?: GeoName | null;
+    shipping_district?: GeoName | null;
+    shipping_area?: GeoName | null;
+}
+
+export interface GeoName {
+    id: number;
+    name: string;
 }

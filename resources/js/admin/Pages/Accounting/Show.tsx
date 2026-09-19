@@ -2,9 +2,13 @@ import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import Tab from 'react-bootstrap/Tab';
 import Tabs from 'react-bootstrap/Tabs';
+import OrderSummaryCard from '../../Components/OrderSummaryCard';
+import PaymentInstalments, { type Instalment } from '../../Components/PaymentInstalments';
+import ShippingAddressCard from '../../Components/ShippingAddressCard';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { confirmAction } from '../../lib/confirm';
+import type { GeoName } from '../../types';
 import { useTranslation } from '../../lib/useTranslation';
 
 interface OrderItem {
@@ -19,12 +23,45 @@ interface OrderItem {
     product_variant: { id: number; sku: string; product: { name: string } | null } | null;
 }
 
+interface Payment {
+    id: number;
+    // What this order is owed — the order total, or, after a partial
+    // return, the recomputed value of what the customer kept.
+    amount: string;
+    collected_amount: string | null;
+    status: string;
+    transactions: Instalment[];
+}
+
+interface DeliveryAssignment {
+    id: number;
+    assignment_type: string;
+    assigned_at: string;
+    assigned_by: { id: number; full_name: string } | null;
+}
+
 interface OrderDetail {
     id: number;
     order_number: number;
     status: string;
+    payment_status: string;
+    delivery_assignment_type: string | null;
+    delivery_representative: { id: number; name: string; phone: string } | null;
+    shipping_company: { id: number; name: string; phone: string; contact_person: string | null } | null;
+    delivery_assignments: DeliveryAssignment[];
+    payments: Payment[];
+    subtotal: string;
+    discount_amount: string;
+    shipping_amount: string;
     total: string;
     customer: { name: string; email: string; phone: string };
+    shipping_recipient_name: string;
+    shipping_phone: string;
+    shipping_address_line: string;
+    shipping_governorate: GeoName | null;
+    shipping_city: GeoName | null;
+    shipping_district: GeoName | null;
+    shipping_area: GeoName | null;
     items: OrderItem[];
 }
 
@@ -39,7 +76,7 @@ const COLLECTED_METHODS = ['cash', 'bank_transfer', 'wallet', 'other'];
 // Ported from Admin Template/order-detail.html's Product table +
 // Customer Details / Payment Information cards.
 export default function AccountingShow({ order, treasuries }: { order: OrderDetail; treasuries: Treasury[] }) {
-    const { t } = useTranslation();
+    const { t, price, dateTime } = useTranslation();
     const [treasuryId, setTreasuryId] = useState<number | ''>(treasuries[0]?.id ?? '');
     const [collectedMethod, setCollectedMethod] = useState('cash');
     const [collectedAmount, setCollectedAmount] = useState(order.total);
@@ -48,6 +85,42 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
     );
 
     const canAct = ['Assigned', 'Out for Delivery'].includes(order.status);
+
+    // Whoever went out with the goods — exactly one of the two, per
+    // delivery_assignment_type. contact_person only exists on a company.
+    const assignee = order.delivery_representative
+        ? { ...order.delivery_representative, contact_person: null as string | null }
+        : order.shipping_company;
+    const assignment = order.delivery_assignments[0] ?? null;
+
+    // What the courier came back short by, if anything. The goods are
+    // already delivered and the stock deducted — only the money is open,
+    // so this order keeps showing up here until it settles.
+    const payment = order.payments[order.payments.length - 1] ?? null;
+    const outstanding =
+        order.payment_status === 'partially_collected' && payment !== null
+            ? {
+                due: Number(payment.amount),
+                collected: Number(payment.collected_amount ?? 0),
+                remaining: round2(Number(payment.amount) - Number(payment.collected_amount ?? 0)),
+            }
+            : null;
+    const [balanceAmount, setBalanceAmount] = useState(outstanding ? String(outstanding.remaining) : '');
+
+    // What a partial return is worth, so the amount field isn't mental
+    // arithmetic at the counter. A suggestion only: confirmPartiallyReturned
+    // stores the amount Accounting actually types, it does not recompute
+    // one — the courier may have come back with a different figure.
+    const keptValue = order.items.reduce(
+        (sum, item) => sum + Number(item.unit_price) * (keptQuantities[item.id] ?? 0),
+        0,
+    );
+    const returnedValue = Number(order.subtotal) - keptValue;
+    // Pro-rata: a whole-order discount belongs to the goods, so only the
+    // share sitting on kept lines survives the return.
+    const discountShare =
+        Number(order.subtotal) > 0 ? (Number(order.discount_amount) * keptValue) / Number(order.subtotal) : 0;
+    const suggestedTotal = Math.max(0, round2(keptValue - discountShare + Number(order.shipping_amount)));
 
     async function confirmDelivered() {
         if (!treasuryId) return;
@@ -62,6 +135,16 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
             treasury_id: treasuryId,
             collected_method: collectedMethod,
             collected_amount: collectedAmount || undefined,
+        });
+    }
+
+    async function collectBalance() {
+        if (!treasuryId || !balanceAmount) return;
+        if (!(await confirmAction({ title: t('admin.recordCollectionQ', { amount: balanceAmount }) }))) return;
+        router.post(route('admin.accounting.collect', order.id), {
+            treasury_id: treasuryId,
+            collected_method: collectedMethod,
+            amount: balanceAmount,
         });
     }
 
@@ -114,6 +197,7 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                                         <th>SKU</th>
                                         <th>{t('admin.qty')}</th>
                                         <th>{t('admin.unitPrice')}</th>
+                                        <th>{t('admin.subTotal')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -122,13 +206,63 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                                             <td>{item.product_name_snapshot}</td>
                                             <td className="text-muted">{item.variant_sku_snapshot}</td>
                                             <td>{item.quantity}</td>
-                                            <td>{item.unit_price}</td>
+                                            <td>
+                                                <span dir="ltr" className="text-nowrap">
+                                                    {price(Number(item.unit_price))}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span dir="ltr" className="text-nowrap">
+                                                    {price(Number(item.unit_price) * item.quantity)}
+                                                </span>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
                     </div>
+
+                    <div className="card">
+                        <div className="card-header">
+                            <h4 className="card-title">{t('admin.deliveryDetails')}</h4>
+                        </div>
+                        <div className="card-body">
+                            {assignee === null ? (
+                                <p className="text-muted mb-0">{t('admin.notAssignedYet')}</p>
+                            ) : (
+                                <ul className="list-unstyled mb-0 fs-13">
+                                    <DetailRow label={t('admin.assignedTo')} value={assignee.name} />
+                                    <DetailRow
+                                        label={t('admin.type')}
+                                        value={t(`assignmentType.${order.delivery_assignment_type}`)}
+                                    />
+                                    <DetailRow label={t('admin.contactNumber')} value={assignee.phone} ltr />
+                                    {assignee.contact_person && (
+                                        <DetailRow
+                                            label={t('admin.contactPerson')}
+                                            value={assignee.contact_person}
+                                        />
+                                    )}
+                                    {assignment && (
+                                        <>
+                                            <DetailRow
+                                                label={t('admin.assignedAt')}
+                                                value={dateTime(assignment.assigned_at)}
+                                                ltr
+                                            />
+                                            <DetailRow
+                                                label={t('admin.by')}
+                                                value={assignment.assigned_by?.full_name ?? '—'}
+                                            />
+                                        </>
+                                    )}
+                                </ul>
+                            )}
+                        </div>
+                    </div>
+
+                    <OrderSummaryCard order={order} />
                 </div>
 
                 <div className="col-xl-5">
@@ -141,6 +275,57 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                             <p className="mb-0 text-muted">{order.customer.phone}</p>
                         </div>
                     </div>
+
+                    <ShippingAddressCard order={order} />
+
+                    {outstanding !== null && (
+                        <div className="card border-warning">
+                            <div className="card-header d-flex justify-content-between align-items-center">
+                                <h4 className="card-title">{t('admin.outstandingBalance')}</h4>
+                                <StatusBadge status={order.payment_status} />
+                            </div>
+                            <div className="card-body">
+                                <table className="table table-sm mb-3">
+                                    <tbody>
+                                        <PreviewRow label={t('admin.amountDue')} value={price(outstanding.due)} />
+                                        <PreviewRow
+                                            label={t('admin.collectedSoFar')}
+                                            value={price(outstanding.collected)}
+                                            muted
+                                        />
+                                    </tbody>
+                                    <tfoot className="border-top">
+                                        <tr>
+                                            <td className="px-0 fw-semibold text-danger">
+                                                {t('admin.stillOwed')}
+                                            </td>
+                                            <td className="text-end px-0 fw-semibold text-danger">
+                                                <span dir="ltr">{price(outstanding.remaining)}</span>
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+
+                                <h5 className="fs-13 text-muted mb-1">{t('admin.paymentCollections')}</h5>
+                                <div className="mb-3">
+                                    <PaymentInstalments instalments={payment?.transactions ?? []} />
+                                </div>
+
+                                <TreasuryFields
+                                    treasuries={treasuries}
+                                    treasuryId={treasuryId}
+                                    setTreasuryId={setTreasuryId}
+                                    collectedMethod={collectedMethod}
+                                    setCollectedMethod={setCollectedMethod}
+                                    collectedAmount={balanceAmount}
+                                    setCollectedAmount={setBalanceAmount}
+                                />
+                                <button type="button" className="btn btn-primary w-100 mt-2" onClick={collectBalance}>
+                                    {t('admin.recordCollection')}
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center">
@@ -202,6 +387,48 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                                                 />
                                             </div>
                                         ))}
+                                        <table className="table table-sm mt-3 mb-2">
+                                            <tbody>
+                                                <PreviewRow
+                                                    label={t('admin.keptItems')}
+                                                    value={price(round2(keptValue))}
+                                                />
+                                                <PreviewRow
+                                                    label={t('admin.returnedItems')}
+                                                    value={`-${price(round2(returnedValue))}`}
+                                                    muted
+                                                />
+                                                {Number(order.discount_amount) > 0 && (
+                                                    <PreviewRow
+                                                        label={t('admin.discountProRata')}
+                                                        value={`-${price(round2(discountShare))}`}
+                                                        muted
+                                                    />
+                                                )}
+                                                <PreviewRow
+                                                    label={t('admin.deliveryCharge')}
+                                                    value={price(Number(order.shipping_amount))}
+                                                />
+                                            </tbody>
+                                            <tfoot className="border-top">
+                                                <tr>
+                                                    <td className="px-0 fw-semibold text-dark">
+                                                        {t('admin.suggestedCollection')}
+                                                    </td>
+                                                    <td className="text-end px-0 fw-semibold text-dark">
+                                                        <span dir="ltr">{price(suggestedTotal)}</span>
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                        <button
+                                            type="button"
+                                            className="btn btn-sm btn-soft-secondary w-100 mb-3"
+                                            disabled={collectedAmount === String(suggestedTotal)}
+                                            onClick={() => setCollectedAmount(String(suggestedTotal))}
+                                        >
+                                            {t('admin.useThisAmount')}
+                                        </button>
                                         <TreasuryFields
                                             treasuries={treasuries}
                                             treasuryId={treasuryId}
@@ -289,5 +516,32 @@ function TreasuryFields({
                 />
             </div>
         </>
+    );
+}
+
+/** Money rounding, so a pro-rata share can't show 15 decimal places. */
+function round2(value: number): number {
+    return Math.round(value * 100) / 100;
+}
+
+/** One line of the partial-return preview. */
+function PreviewRow({ label, value, muted = false }: { label: string; value: string; muted?: boolean }) {
+    return (
+        <tr>
+            <td className="px-0">{label}</td>
+            <td className={`text-end px-0 fw-medium ${muted ? 'text-muted' : 'text-dark'}`}>
+                <span dir="ltr">{value}</span>
+            </td>
+        </tr>
+    );
+}
+
+/** One labelled line of the delivery card. */
+function DetailRow({ label, value, ltr = false }: { label: string; value: string; ltr?: boolean }) {
+    return (
+        <li className="d-flex justify-content-between gap-2">
+            <span className="text-muted">{label}</span>
+            {ltr ? <span dir="ltr">{value}</span> : <span className="text-dark">{value}</span>}
+        </li>
     );
 }

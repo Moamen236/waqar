@@ -1,9 +1,9 @@
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
+import OrderSummaryCard from '../../Components/OrderSummaryCard';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { confirmAction } from '../../lib/confirm';
-import type { Warehouse } from '../../types';
 import { useTranslation } from '../../lib/useTranslation';
 
 interface OrderItem {
@@ -36,9 +36,20 @@ interface OrderDetail {
     shipping_recipient_name: string;
     shipping_phone: string;
     shipping_address_line: string;
+    subtotal: string;
+    discount_amount: string;
+    shipping_amount: string;
     total: string;
     items: OrderItem[];
     status_history: StatusHistoryEntry[];
+}
+
+// What Resume would find in the main warehouse right now — the server
+// builds this only while the order sits in Backorder.
+interface StockCheck {
+    warehouse: string | null;
+    items: { name: string; required: number; available: number; tracked: boolean }[];
+    can_resume: boolean;
 }
 
 type ReasonAction = 'postpone' | 'cancel' | 'backorder';
@@ -55,10 +66,9 @@ const ACTION_QUESTION: Record<ReasonAction, string> = {
 // Timeline (the dashed vertical line + circular markers), Customer
 // Details card, plus an Actions card for this department's slice of the
 // order lifecycle.
-export default function CheckingShow({ order, warehouses }: { order: OrderDetail; warehouses: Warehouse[] }) {
+export default function CheckingShow({ order, stock }: { order: OrderDetail; stock: StockCheck | null }) {
     const { t, price, dateTime, isRtl } = useTranslation();
     const [reason, setReason] = useState('');
-    const [warehouseId, setWarehouseId] = useState<number | ''>(warehouses[0]?.id ?? '');
 
     async function confirm() {
         if (!(await confirmAction({ title: t('admin.confirmThisOrder') }))) return;
@@ -81,10 +91,15 @@ export default function CheckingShow({ order, warehouses }: { order: OrderDetail
     }
 
     async function resume() {
-        if (!warehouseId) return;
-        if (!(await confirmAction({ title: t('admin.resumeFromBackorder'), text: t('admin.stockWillBeReservedNow') })))
+        if (!stock?.can_resume) return;
+        if (
+            !(await confirmAction({
+                title: t('admin.resumeFromBackorder'),
+                text: t('admin.stockWillBeReservedIn', { warehouse: stock.warehouse ?? '' }),
+            }))
+        )
             return;
-        router.post(route('admin.checking.resume', order.id), { warehouse_id: warehouseId });
+        router.post(route('admin.checking.resume', order.id));
     }
 
     const canAct = ['New', 'Checking', 'Postponed', 'Confirmed', 'Backorder'].includes(order.status);
@@ -189,6 +204,8 @@ export default function CheckingShow({ order, warehouses }: { order: OrderDetail
                 </div>
 
                 <div className="col-xl-4">
+                    <OrderSummaryCard order={order} />
+
                     <div className="card">
                         <div className="card-header">
                             <h4 className="card-title">{t('admin.customerDetails')}</h4>
@@ -219,23 +236,53 @@ export default function CheckingShow({ order, warehouses }: { order: OrderDetail
                             <StatusBadge status={order.status} />
                         </div>
                         <div className="card-body">
-                            {order.status === 'Backorder' ? (
+                            {order.status === 'Backorder' && stock ? (
                                 <>
-                                    <div className="mb-3">
-                                        <label className="form-label">{t('admin.warehouse')}</label>
-                                        <select
-                                            className="form-control"
-                                            value={warehouseId}
-                                            onChange={(e) => setWarehouseId(Number(e.target.value))}
-                                        >
-                                            {warehouses.map((w) => (
-                                                <option key={w.id} value={w.id}>
-                                                    {w.name}
-                                                </option>
-                                            ))}
-                                        </select>
+                                    <h5 className="mb-2">
+                                        {t('admin.stockIn', { warehouse: stock.warehouse ?? '—' })}
+                                    </h5>
+                                    <div className="table-responsive mb-3">
+                                        <table className="table table-sm align-middle mb-0">
+                                            <thead className="bg-light-subtle">
+                                                <tr>
+                                                    <th>{t('admin.product')}</th>
+                                                    <th className="text-end">{t('admin.required')}</th>
+                                                    <th className="text-end">{t('admin.available')}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {stock.items.map((item, i) => (
+                                                    <tr key={i}>
+                                                        <td>{item.name}</td>
+                                                        <td className="text-end">{item.required}</td>
+                                                        <td
+                                                            className={`text-end fw-medium ${
+                                                                item.tracked && item.available >= item.required
+                                                                    ? 'text-success'
+                                                                    : 'text-danger'
+                                                            }`}
+                                                        >
+                                                            {/* An Advertisement product has no inventory row at
+                                                                all, so "0" would read as a stock problem rather
+                                                                than the conversion it actually needs. */}
+                                                            {item.tracked
+                                                                ? item.available
+                                                                : t('admin.notConvertedToReal')}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
                                     </div>
-                                    <button type="button" className="btn btn-primary w-100" onClick={resume}>
+                                    {!stock.can_resume && (
+                                        <p className="text-danger fs-13">{t('admin.notEnoughStockToResume')}</p>
+                                    )}
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary w-100"
+                                        disabled={!stock.can_resume}
+                                        onClick={resume}
+                                    >
                                         {t('admin.resumeStockAvailable')}
                                     </button>
                                 </>

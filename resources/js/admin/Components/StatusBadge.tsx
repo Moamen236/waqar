@@ -17,6 +17,7 @@ const VARIANTS: Record<string, string> = {
     Returned: 'danger',
     pending: 'secondary',
     collected: 'success',
+    partially_collected: 'warning',
     not_collected: 'danger',
     refunded: 'warning',
     active: 'success',

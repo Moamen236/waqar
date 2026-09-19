@@ -11,6 +11,13 @@ enum PaymentStatus: string
 {
     case Pending = 'pending';
     case Collected = 'collected';
+    /**
+     * The courier came back with less than the order is owed. The goods
+     * are delivered and the stock is deducted — only the money is
+     * outstanding, so the order stays on Accounting's books until the
+     * balance is collected (AccountingController::collect()).
+     */
+    case PartiallyCollected = 'partially_collected';
     case NotCollected = 'not_collected';
     case Refunded = 'refunded';
 }

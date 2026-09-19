@@ -4,12 +4,27 @@ import AdminLayout from '../../Layouts/AdminLayout';
 import type { GeoTree } from '../../types';
 import { useTranslation } from '../../lib/useTranslation';
 
+interface AddressEntry {
+    id?: number;
+    label: string;
+    governorate_id: number | null;
+    city_id: number | null;
+    district_id: number | null;
+    area_id: number | null;
+    address_line: string;
+    is_default: boolean;
+}
+
 interface CustomerRecord {
     id: number;
     name: string;
     email: string | null;
     phone: string;
     is_active: boolean;
+    addresses?: AddressEntry[] | null;
+    // Pre multi-address payload — still accepted so older renders keep
+    // working until the new form ships everywhere.
+    default_address?: AddressEntry | null;
 }
 
 interface FormValues {
@@ -18,29 +33,36 @@ interface FormValues {
     phone: string;
     password: string;
     is_active: boolean;
-    address: {
-        governorate_id: number | null;
-        city_id: number | null;
-        district_id: number | null;
-        area_id: number | null;
-        address_line: string;
-    };
+    addresses: AddressEntry[];
+}
+
+const blankAddress = (isDefault = false): AddressEntry => ({
+    label: '',
+    governorate_id: null,
+    city_id: null,
+    district_id: null,
+    area_id: null,
+    address_line: '',
+    is_default: isDefault,
+});
+
+function initialAddresses(customer: CustomerRecord | null): AddressEntry[] {
+    if (customer?.addresses?.length) {
+        return customer.addresses.map((a) => ({ ...a, label: a.label ?? '' }));
+    }
+    if (customer?.default_address) {
+        return [{ ...blankAddress(true), ...customer.default_address, label: '' }];
+    }
+    return [blankAddress(true)];
 }
 
 // Ported from Admin Template/customer-add.html's General Information card
 // layout. A customer added here (customer === null) is Customer Service
 // filing one on someone's behalf — a phone order, a walk-in — so there is
-// no email/password to collect, and an address is taken up front instead
-// (see CustomerController::store()). Editing an existing customer keeps
-// the email/password fields: that record may already be a real,
-// self-registered account.
-export default function CustomerForm({
-    customer,
-    geoTree,
-}: {
-    customer: CustomerRecord | null;
-    geoTree?: GeoTree;
-}) {
+// no email/password to collect, and addresses are taken up front instead
+// (see CustomerController::store()). Both create and edit support several
+// addresses (home + work, …) with exactly one default.
+export default function CustomerForm({ customer, geoTree }: { customer: CustomerRecord | null; geoTree?: GeoTree }) {
     const { t } = useTranslation();
     const { data, setData, post, put, processing, errors } = useForm<FormValues>({
         name: customer?.name ?? '',
@@ -48,17 +70,44 @@ export default function CustomerForm({
         phone: customer?.phone ?? '',
         password: '',
         is_active: customer?.is_active ?? true,
-        address: {
-            governorate_id: null,
-            city_id: null,
-            district_id: null,
-            area_id: null,
-            address_line: '',
-        },
+        addresses: initialAddresses(customer),
     });
 
-    const governorate = geoTree?.find((g) => g.id === data.address.governorate_id);
-    const city = governorate?.cities.find((c) => c.id === data.address.city_id);
+    const patchAddress = (index: number, patch: Partial<AddressEntry>) => {
+        setData(
+            'addresses',
+            data.addresses.map((a, i) => (i === index ? { ...a, ...patch } : a)),
+        );
+    };
+
+    const setDefault = (index: number) => {
+        setData(
+            'addresses',
+            data.addresses.map((a, i) => ({ ...a, is_default: i === index })),
+        );
+    };
+
+    const addAddress = () => {
+        setData('addresses', [...data.addresses, blankAddress(false)]);
+    };
+
+    const removeAddress = (index: number) => {
+        if (data.addresses.length <= 1) {
+            return;
+        }
+        const next = data.addresses.filter((_, i) => i !== index);
+        // Keep exactly one default — if the removed row was the default,
+        // fall back to the first remaining row.
+        if (!next.some((a) => a.is_default)) {
+            next[0] = { ...next[0], is_default: true };
+        }
+        setData('addresses', next);
+    };
+
+    const errorFor = (index: number, field: keyof AddressEntry): string | undefined =>
+        (errors as Record<string, string>)[`addresses.${index}.${field}`];
+
+    const toNullableId = (value: string): number | null => (value === '' ? null : Number(value));
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -136,9 +185,7 @@ export default function CustomerForm({
                                                         onChange={(e) => setData('password', e.target.value)}
                                                     />
                                                     {errors.password && (
-                                                        <div className="text-danger small mt-1">
-                                                            {errors.password}
-                                                        </div>
+                                                        <div className="text-danger small mt-1">{errors.password}</div>
                                                     )}
                                                 </div>
                                             </div>
@@ -148,132 +195,196 @@ export default function CustomerForm({
                             </div>
                         </div>
 
-                        {!customer && geoTree && (
+                        {geoTree && (
                             <div className="card">
-                                <div className="card-header">
-                                    <h4 className="card-title">{t('admin.address')}</h4>
+                                <div className="card-header d-flex align-items-center justify-content-between">
+                                    <h4 className="card-title mb-0">{t('admin.addresses')}</h4>
+                                    <button type="button" className="btn btn-sm btn-soft-primary" onClick={addAddress}>
+                                        {t('admin.addAddress')}
+                                    </button>
                                 </div>
                                 <div className="card-body">
-                                    <div className="row g-3">
-                                        <div className="col-md-4">
-                                            <label className="form-label">{t('admin.governorate')}</label>
-                                            <select
-                                                className="form-control"
-                                                value={data.address.governorate_id ?? ''}
-                                                onChange={(e) =>
-                                                    setData('address', {
-                                                        ...data.address,
-                                                        governorate_id: Number(e.target.value),
-                                                        city_id: null,
-                                                        district_id: null,
-                                                        area_id: null,
-                                                    })
-                                                }
-                                            >
-                                                <option value="">{t('admin.select')}</option>
-                                                {geoTree.map((g) => (
-                                                    <option key={g.id} value={g.id}>
-                                                        {g.name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            {errors['address.governorate_id'] && (
-                                                <div className="text-danger small mt-1">
-                                                    {errors['address.governorate_id']}
+                                    {(errors as Record<string, string>).addresses && (
+                                        <div className="alert alert-danger py-2">
+                                            {(errors as Record<string, string>).addresses}
+                                        </div>
+                                    )}
+                                    {data.addresses.map((address, index) => {
+                                        const governorate = geoTree.find((g) => g.id === address.governorate_id);
+                                        const city = governorate?.cities.find((c) => c.id === address.city_id);
+                                        return (
+                                            <div key={address.id ?? `new-${index}`} className="border rounded p-3 mb-3">
+                                                <div className="d-flex align-items-center justify-content-between mb-3">
+                                                    <strong>
+                                                        {t('admin.address')} #{index + 1}
+                                                        {address.is_default && (
+                                                            <span className="badge bg-success ms-2">
+                                                                {t('admin.defaultAddress')}
+                                                            </span>
+                                                        )}
+                                                    </strong>
+                                                    {data.addresses.length > 1 && (
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-soft-danger"
+                                                            onClick={() => removeAddress(index)}
+                                                        >
+                                                            {t('admin.removeThisAddress')}
+                                                        </button>
+                                                    )}
                                                 </div>
-                                            )}
-                                        </div>
-                                        <div className="col-md-4">
-                                            <label className="form-label">{t('admin.city')}</label>
-                                            <select
-                                                className="form-control"
-                                                value={data.address.city_id ?? ''}
-                                                onChange={(e) =>
-                                                    setData('address', {
-                                                        ...data.address,
-                                                        city_id: Number(e.target.value),
-                                                        district_id: null,
-                                                        area_id: null,
-                                                    })
-                                                }
-                                            >
-                                                <option value="">{t('admin.select')}</option>
-                                                {governorate?.cities.map((c) => (
-                                                    <option key={c.id} value={c.id}>
-                                                        {c.name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            {errors['address.city_id'] && (
-                                                <div className="text-danger small mt-1">
-                                                    {errors['address.city_id']}
+                                                <div className="row g-3">
+                                                    <div className="col-md-4">
+                                                        <label className="form-label">{t('admin.label')}</label>
+                                                        <input
+                                                            className="form-control"
+                                                            placeholder={t('admin.labelPlaceholder')}
+                                                            value={address.label}
+                                                            onChange={(e) =>
+                                                                patchAddress(index, {
+                                                                    label: e.target.value,
+                                                                })
+                                                            }
+                                                        />
+                                                        {errorFor(index, 'label') && (
+                                                            <div className="text-danger small mt-1">
+                                                                {errorFor(index, 'label')}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="col-md-4">
+                                                        <label className="form-label">{t('admin.governorate')}</label>
+                                                        <select
+                                                            className="form-control"
+                                                            value={address.governorate_id ?? ''}
+                                                            onChange={(e) =>
+                                                                patchAddress(index, {
+                                                                    governorate_id: toNullableId(e.target.value),
+                                                                    city_id: null,
+                                                                    district_id: null,
+                                                                    area_id: null,
+                                                                })
+                                                            }
+                                                        >
+                                                            <option value="">{t('admin.select')}</option>
+                                                            {geoTree.map((g) => (
+                                                                <option key={g.id} value={g.id}>
+                                                                    {g.name}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        {errorFor(index, 'governorate_id') && (
+                                                            <div className="text-danger small mt-1">
+                                                                {errorFor(index, 'governorate_id')}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="col-md-4">
+                                                        <label className="form-label">{t('admin.city')}</label>
+                                                        <select
+                                                            className="form-control"
+                                                            value={address.city_id ?? ''}
+                                                            onChange={(e) =>
+                                                                patchAddress(index, {
+                                                                    city_id: toNullableId(e.target.value),
+                                                                    district_id: null,
+                                                                    area_id: null,
+                                                                })
+                                                            }
+                                                        >
+                                                            <option value="">{t('admin.select')}</option>
+                                                            {governorate?.cities.map((c) => (
+                                                                <option key={c.id} value={c.id}>
+                                                                    {c.name}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        {errorFor(index, 'city_id') && (
+                                                            <div className="text-danger small mt-1">
+                                                                {errorFor(index, 'city_id')}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="col-md-4">
+                                                        <label className="form-label">
+                                                            {t('admin.districtOptional')}
+                                                        </label>
+                                                        <select
+                                                            className="form-control"
+                                                            value={address.district_id ?? ''}
+                                                            onChange={(e) =>
+                                                                patchAddress(index, {
+                                                                    district_id: toNullableId(e.target.value),
+                                                                })
+                                                            }
+                                                        >
+                                                            <option value="">{t('admin.none')}</option>
+                                                            {city?.districts.map((d) => (
+                                                                <option key={d.id} value={d.id}>
+                                                                    {d.name}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div className="col-md-4">
+                                                        <label className="form-label">{t('admin.area')}</label>
+                                                        <select
+                                                            className="form-control"
+                                                            value={address.area_id ?? ''}
+                                                            onChange={(e) =>
+                                                                patchAddress(index, {
+                                                                    area_id: toNullableId(e.target.value),
+                                                                })
+                                                            }
+                                                        >
+                                                            <option value="">{t('admin.select')}</option>
+                                                            {city?.areas.map((a) => (
+                                                                <option key={a.id} value={a.id}>
+                                                                    {a.name}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        {errorFor(index, 'area_id') && (
+                                                            <div className="text-danger small mt-1">
+                                                                {errorFor(index, 'area_id')}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="col-md-8">
+                                                        <label className="form-label">{t('admin.addressLine')}</label>
+                                                        <input
+                                                            className="form-control"
+                                                            value={address.address_line}
+                                                            onChange={(e) =>
+                                                                patchAddress(index, {
+                                                                    address_line: e.target.value,
+                                                                })
+                                                            }
+                                                        />
+                                                        {errorFor(index, 'address_line') && (
+                                                            <div className="text-danger small mt-1">
+                                                                {errorFor(index, 'address_line')}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="col-12">
+                                                        <div className="form-check">
+                                                            <input
+                                                                type="radio"
+                                                                className="form-check-input"
+                                                                name="default-address"
+                                                                checked={address.is_default}
+                                                                onChange={() => setDefault(index)}
+                                                            />
+                                                            <label className="form-check-label">
+                                                                {t('admin.defaultAddress')}
+                                                            </label>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </div>
-                                        <div className="col-md-4">
-                                            <label className="form-label">{t('admin.districtOptional')}</label>
-                                            <select
-                                                className="form-control"
-                                                value={data.address.district_id ?? ''}
-                                                onChange={(e) =>
-                                                    setData('address', {
-                                                        ...data.address,
-                                                        district_id: e.target.value ? Number(e.target.value) : null,
-                                                    })
-                                                }
-                                            >
-                                                <option value="">{t('admin.none')}</option>
-                                                {city?.districts.map((d) => (
-                                                    <option key={d.id} value={d.id}>
-                                                        {d.name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        <div className="col-md-4">
-                                            <label className="form-label">{t('admin.area')}</label>
-                                            <select
-                                                className="form-control"
-                                                value={data.address.area_id ?? ''}
-                                                onChange={(e) =>
-                                                    setData('address', {
-                                                        ...data.address,
-                                                        area_id: Number(e.target.value),
-                                                    })
-                                                }
-                                            >
-                                                <option value="">{t('admin.select')}</option>
-                                                {city?.areas.map((a) => (
-                                                    <option key={a.id} value={a.id}>
-                                                        {a.name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            {errors['address.area_id'] && (
-                                                <div className="text-danger small mt-1">
-                                                    {errors['address.area_id']}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="col-md-8">
-                                            <label className="form-label">{t('admin.addressLine')}</label>
-                                            <input
-                                                className="form-control"
-                                                value={data.address.address_line}
-                                                onChange={(e) =>
-                                                    setData('address', {
-                                                        ...data.address,
-                                                        address_line: e.target.value,
-                                                    })
-                                                }
-                                            />
-                                            {errors['address.address_line'] && (
-                                                <div className="text-danger small mt-1">
-                                                    {errors['address.address_line']}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}

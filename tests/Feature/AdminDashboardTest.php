@@ -389,6 +389,10 @@ it('keeps status transitions off the order book', function () {
     // admin.orders.destroy was added deliberately and is not a transition:
     // it soft-deletes an already-Cancelled order, which is why it cannot
     // stand in for cancelling. The two tests below pin that.
+    //
+    // admin.orders.quote is POST only because it carries a whole draft
+    // order in its body — it writes nothing and returns priced totals for
+    // the create form.
     $writable = collect(app('router')->getRoutes())
         ->filter(fn ($route) => str_starts_with($route->getName() ?? '', 'admin.orders.'))
         ->reject(fn ($route) => $route->methods() === ['GET', 'HEAD'])
@@ -397,7 +401,7 @@ it('keeps status transitions off the order book', function () {
         ->values()
         ->all();
 
-    expect($writable)->toBe(['admin.orders.destroy', 'admin.orders.store']);
+    expect($writable)->toBe(['admin.orders.destroy', 'admin.orders.quote', 'admin.orders.store']);
 });
 
 it('soft-deletes an order rather than removing the row', function () {

@@ -1,5 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { EmptyRow } from '../../Components/EmptyState';
+import OrderSummaryCard from '../../Components/OrderSummaryCard';
+import PaymentInstalments, { type Instalment } from '../../Components/PaymentInstalments';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { useTranslation } from '../../lib/useTranslation';
@@ -29,10 +31,12 @@ interface StatusHistoryEntry {
 interface Payment {
     id: number;
     amount: string;
+    collected_amount: string | null;
     status: string;
     method: string | null;
     collected_method: string | null;
     created_at: string;
+    transactions: Instalment[];
 }
 
 interface OrderDetail {
@@ -94,6 +98,14 @@ export default function OrderShow({
             breadcrumbs={[{ label: t('admin.orderBook'), href: route('admin.orders.index') }]}
             actions={
                 <>
+                    <Link
+                        href={route('admin.orders.invoice', order.id)}
+                        target="_blank"
+                        className="btn btn-sm btn-soft-primary d-flex align-items-center gap-1"
+                    >
+                        <i className="bx bx-printer" />
+                        {t('admin.invoice')}
+                    </Link>
                     {workflow.checking && (
                         <Link
                             href={route('admin.checking.show', order.id)}
@@ -229,42 +241,7 @@ export default function OrderShow({
                 </div>
 
                 <div className="col-xl-3 col-lg-4">
-                    <div className="card">
-                        <div className="card-header">
-                            <h4 className="card-title">{t('admin.orderSummary')}</h4>
-                        </div>
-                        <div className="card-body">
-                            <div className="table-responsive">
-                                <table className="table mb-0">
-                                    <tbody>
-                                        <SummaryRow
-                                            icon="bx-clipboard"
-                                            label={t('admin.subTotal')}
-                                            value={price(Number(order.subtotal))}
-                                        />
-                                        <SummaryRow
-                                            icon="bx-purchase-tag"
-                                            label={t('admin.discount')}
-                                            value={`-${price(Number(order.discount_amount))}`}
-                                        />
-                                        <SummaryRow
-                                            icon="bxs-truck"
-                                            label={t('admin.deliveryCharge')}
-                                            value={price(Number(order.shipping_amount))}
-                                        />
-                                    </tbody>
-                                    <tfoot className="border-top">
-                                        <tr>
-                                            <td className="px-0 fw-semibold text-dark">{t('admin.grandTotal')}</td>
-                                            <td className="text-end px-0 fw-semibold text-dark">
-                                                <span dir="ltr">{price(Number(order.total))}</span>
-                                            </td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
+                    <OrderSummaryCard order={order} />
 
                     <div className="card">
                         <div className="card-header">
@@ -275,18 +252,43 @@ export default function OrderShow({
                                 <p className="text-muted mb-0">{t('admin.noPaymentsRecorded')}</p>
                             ) : (
                                 order.payments.map((payment) => (
-                                    <div key={payment.id} className="d-flex justify-content-between gap-2 mb-2">
-                                        <div>
-                                            <span className="d-block fw-medium" dir="ltr">
-                                                {price(Number(payment.amount))}
-                                            </span>
-                                            <span className="text-muted fs-13">
-                                                {payment.collected_method
-                                                    ? t(`collectedMethod.${payment.collected_method}`)
-                                                    : (payment.method ?? '—')}
-                                            </span>
+                                    <div key={payment.id} className="mb-3">
+                                        <div className="d-flex justify-content-between gap-2">
+                                            <div>
+                                                <span className="d-block fw-medium" dir="ltr">
+                                                    {price(Number(payment.amount))}
+                                                </span>
+                                                <span className="text-muted fs-13">
+                                                    {payment.collected_method
+                                                        ? t(`collectedMethod.${payment.collected_method}`)
+                                                        : (payment.method ?? '—')}
+                                                </span>
+                                            </div>
+                                            <StatusBadge status={payment.status} />
                                         </div>
-                                        <StatusBadge status={payment.status} />
+
+                                        {/* Only worth spelling out once money has
+                                            actually moved — before that the single
+                                            row above says everything. */}
+                                        {payment.transactions.length > 0 && (
+                                            <>
+                                                <h5 className="fs-13 text-muted mt-3 mb-1">
+                                                    {t('admin.paymentCollections')}
+                                                </h5>
+                                                <PaymentInstalments instalments={payment.transactions} />
+                                                {payment.status === 'partially_collected' && (
+                                                    <p className="text-danger fs-13 mt-2 mb-0">
+                                                        {t('admin.stillOwed')}:{' '}
+                                                        <span dir="ltr">
+                                                            {price(
+                                                                Number(payment.amount) -
+                                                                    Number(payment.collected_amount ?? 0),
+                                                            )}
+                                                        </span>
+                                                    </p>
+                                                )}
+                                            </>
+                                        )}
                                     </div>
                                 ))
                             )}
@@ -348,23 +350,6 @@ export default function OrderShow({
                 </div>
             </div>
         </AdminLayout>
-    );
-}
-
-/** One line of order-detail.html's Order Summary table. */
-function SummaryRow({ icon, label, value }: { icon: string; label: string; value: string }) {
-    return (
-        <tr>
-            <td className="px-0">
-                <p className="d-flex mb-0 align-items-center gap-1">
-                    <i className={`bx ${icon} align-middle`} />
-                    {label}
-                </p>
-            </td>
-            <td className="text-end text-dark fw-medium px-0">
-                <span dir="ltr">{value}</span>
-            </td>
-        </tr>
     );
 }
 

@@ -5,8 +5,18 @@ import AdminLayout from '../../Layouts/AdminLayout';
 import type { OrderSummary, PaginatedData } from '../../types';
 import { useTranslation } from '../../lib/useTranslation';
 
-export default function AccountingIndex({ orders }: { orders: PaginatedData<OrderSummary> }) {
-    const { t } = useTranslation();
+interface OutstandingOrder extends OrderSummary {
+    payments: { id: number; amount: string; collected_amount: string | null }[];
+}
+
+export default function AccountingIndex({
+    orders,
+    outstanding,
+}: {
+    orders: PaginatedData<OrderSummary>;
+    outstanding: PaginatedData<OutstandingOrder>;
+}) {
+    const { t, price } = useTranslation();
     return (
         <AdminLayout title={t('admin.accountingDeliveryConfirmation')}>
             <Head title={t('admin.accounting')} />
@@ -63,6 +73,78 @@ export default function AccountingIndex({ orders }: { orders: PaginatedData<Orde
                             </table>
                         </div>
                         <PaginationFooter data={orders} />
+                    </div>
+
+                    {/* Delivered, but the courier came back short. These
+                        have left every other queue, so this is the only
+                        place the open money is still visible. */}
+                    <div className="card">
+                        <div className="card-header">
+                            <h4 className="card-title">{t('admin.awaitingBalance')}</h4>
+                        </div>
+                        <div className="table-responsive">
+                            <table className="table align-middle mb-0 table-hover table-centered">
+                                <thead className="bg-light-subtle">
+                                    <tr>
+                                        <th>{t('admin.order')}</th>
+                                        <th>{t('admin.customer')}</th>
+                                        <th>{t('admin.status')}</th>
+                                        <th>{t('admin.amountDue')}</th>
+                                        <th>{t('admin.collectedSoFar')}</th>
+                                        <th>{t('admin.stillOwed')}</th>
+                                        <th>{t('admin.action')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {outstanding.data.map((order) => {
+                                        const payment = order.payments[order.payments.length - 1];
+                                        const due = Number(payment?.amount ?? 0);
+                                        const collected = Number(payment?.collected_amount ?? 0);
+
+                                        return (
+                                            <tr key={order.id}>
+                                                <td className="fw-medium">#{order.order_number}</td>
+                                                <td>{order.customer?.name}</td>
+                                                <td>
+                                                    <StatusBadge status={order.status} />
+                                                </td>
+                                                <td>
+                                                    <span dir="ltr" className="text-nowrap">
+                                                        {price(due)}
+                                                    </span>
+                                                </td>
+                                                <td className="text-muted">
+                                                    <span dir="ltr" className="text-nowrap">
+                                                        {price(collected)}
+                                                    </span>
+                                                </td>
+                                                <td className="text-danger fw-medium">
+                                                    <span dir="ltr" className="text-nowrap">
+                                                        {price(Math.round((due - collected) * 100) / 100)}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <Link
+                                                        href={route('admin.accounting.show', order.id)}
+                                                        className="btn btn-soft-primary btn-sm"
+                                                    >
+                                                        {t('admin.recordCollection')}
+                                                    </Link>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {outstanding.data.length === 0 && (
+                                        <tr>
+                                            <td colSpan={7} className="text-center text-muted py-4">
+                                                {t('admin.nothingAwaitingBalance')}
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        <PaginationFooter data={outstanding} />
                     </div>
                 </div>
             </div>

@@ -8,16 +8,20 @@ use App\Actions\Orders\MarkOrderBackorderAction;
 use App\Actions\Orders\PostponeOrderAction;
 use App\Actions\Orders\ResumeBackorderAction;
 use App\Enums\OrderStatus;
+use App\Exceptions\InsufficientStockException;
 use App\Exports\CheckingExport;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Warehouse;
+use App\Models\WarehouseInventory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
@@ -65,8 +69,49 @@ class CheckingController extends Controller implements HasMiddleware
 
         return Inertia::render('Checking/Show', [
             'order' => $order,
-            'warehouses' => Warehouse::query()->where('is_active', true)->get(['id', 'name']),
+            'stock' => $order->status === OrderStatus::Backorder ? $this->stockCheck($order) : null,
         ]);
+    }
+
+    /**
+     * What Resume would find in the main warehouse if it ran now. Resume
+     * reserves there and nowhere else, so the page can say up front
+     * whether every line is coverable instead of letting
+     * ResumeBackorderAction throw its way to an error page.
+     *
+     * @return array{warehouse: string|null, items: list<array{name: string, required: int, available: int, tracked: bool}>, can_resume: bool}
+     */
+    private function stockCheck(Order $order): array
+    {
+        $warehouse = Warehouse::main();
+
+        $available = $warehouse === null ? collect() : WarehouseInventory::query()
+            ->where('warehouse_id', $warehouse->id)
+            ->whereIn('product_variant_id', $order->items->pluck('product_variant_id'))
+            ->get()
+            ->keyBy('product_variant_id');
+
+        $items = $order->items->map(function (OrderItem $item) use ($available) {
+            $inventory = $available->get($item->product_variant_id);
+
+            return [
+                'name' => $item->product_name_snapshot,
+                'required' => $item->quantity,
+                'available' => $inventory ? $inventory->quantity - $inventory->reserved_quantity : 0,
+                // An Advertisement product carries no inventory at all, so
+                // it can't be reserved however the numbers read (Q14).
+                // data_get, not a nullsafe chain: a soft-deleted product
+                // nulls the relation, which the BelongsTo type doesn't say.
+                'tracked' => (bool) data_get($item, 'productVariant.product.inventory_tracking_enabled', false),
+            ];
+        })->all();
+
+        return [
+            'warehouse' => $warehouse?->name,
+            'items' => $items,
+            'can_resume' => $warehouse !== null
+                && collect($items)->every(fn (array $i) => $i['tracked'] && $i['available'] >= $i['required']),
+        ];
     }
 
     public function confirm(Request $request, Order $order, ConfirmOrderAction $action): RedirectResponse
@@ -105,11 +150,29 @@ class CheckingController extends Controller implements HasMiddleware
         return back()->with('success', __('Order #:number marked as backordered.', ['number' => $order->order_number]));
     }
 
+    /**
+     * No warehouse picker — Resume always reserves from the main
+     * warehouse, the same one admin order-create uses. The stock check
+     * show() renders gates the button, but this catch is the real guard:
+     * stock can be taken by another order between the page load and the
+     * click, and that used to surface as a 500.
+     */
     public function resume(Request $request, Order $order, ResumeBackorderAction $action): RedirectResponse
     {
-        $data = $request->validate(['warehouse_id' => ['required', 'exists:warehouses,id']]);
+        $warehouse = Warehouse::main();
 
-        $action->execute($order, $request->user('employee'), Warehouse::findOrFail($data['warehouse_id']));
+        if ($warehouse === null) {
+            return back()->with('error', __('There is no active warehouse to reserve stock from.'));
+        }
+
+        try {
+            $action->execute($order, $request->user('employee'), $warehouse);
+        } catch (InsufficientStockException|RuntimeException $e) {
+            return back()->with('error', __('Order #:number cannot be resumed yet — :warehouse does not have every item in stock.', [
+                'number' => $order->order_number,
+                'warehouse' => $warehouse->name,
+            ]));
+        }
 
         return back()->with('success', __('Order #:number resumed — stock reserved.', ['number' => $order->order_number]));
     }

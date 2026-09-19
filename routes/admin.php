@@ -57,6 +57,9 @@ Route::middleware('auth:employee')->group(function () {
     // Customer Service — /admin/orders/create (Section 08), reuses
     // CreateOrderAction directly rather than duplicating checkout logic.
     Route::get('orders/create', [OrderController::class, 'create'])->name('orders.create');
+    // Live totals for that screen — server-priced, same services the
+    // Action uses, so the browser never computes a shipping or coupon figure.
+    Route::post('orders/quote', [OrderController::class, 'quote'])->name('orders.quote');
     Route::post('orders', [OrderController::class, 'store'])->name('orders.store');
 
     // The whole order book. Every other order screen below is a role's work
@@ -76,6 +79,9 @@ Route::middleware('auth:employee')->group(function () {
     // reason as orders/create above.
     Route::get('orders/export', [OrderController::class, 'export'])->name('orders.export');
     Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
+    // Three segments, so no wildcard collision with orders/{order} above —
+    // kept adjacent so the order-book routes stay together.
+    Route::get('orders/{order}/invoice', [OrderController::class, 'invoice'])->name('orders.invoice');
 
     // Removing an order from the book. Soft delete, and only reachable once
     // the order is already Cancelled — see OrderController::destroy().
@@ -91,8 +97,14 @@ Route::middleware('auth:employee')->group(function () {
     Route::post('checking/{order}/backorder', [CheckingController::class, 'backorder'])->name('checking.backorder');
     Route::post('checking/{order}/resume', [CheckingController::class, 'resume'])->name('checking.resume');
 
-    // Delivery Manager — assignment board + representatives/companies.
+    // Delivery Manager — assign queue, the assign form, the out-for-delivery
+    // list, plus representatives/companies.
     Route::get('delivery', [DeliveryController::class, 'index'])->name('delivery.index');
+    // Ahead of delivery/{order}/… for the same wildcard-collision reason
+    // as orders/create above.
+    Route::get('delivery/orders', [DeliveryController::class, 'orders'])->name('delivery.orders');
+    Route::post('delivery/assign', [DeliveryController::class, 'assignBulk'])->name('delivery.assign.bulk');
+    Route::get('delivery/{order}/assign', [DeliveryController::class, 'assignForm'])->name('delivery.assign.form');
     Route::post('delivery/{order}/assign', [DeliveryController::class, 'assign'])->name('delivery.assign');
 
     Route::get('delivery/representatives', [RepresentativeController::class, 'index'])->name('delivery.representatives.index');
@@ -137,6 +149,9 @@ Route::middleware('auth:employee')->group(function () {
     Route::post('accounting/{order}/delivered', [AccountingController::class, 'delivered'])->name('accounting.delivered');
     Route::post('accounting/{order}/returned', [AccountingController::class, 'returned'])->name('accounting.returned');
     Route::post('accounting/{order}/partially-returned', [AccountingController::class, 'partiallyReturned'])->name('accounting.partially-returned');
+    // A later instalment on an order the courier came back short on — no
+    // status transition, only money.
+    Route::post('accounting/{order}/collect', [AccountingController::class, 'collect'])->name('accounting.collect');
 
     // Customers — real create/edit form (Section 17: the template's
     // customer-add/edit.html is a mislabeled Seller-list copy, not usable).

@@ -75,19 +75,27 @@ class ProductSeeder extends Seeder
 
         $values = [];
         foreach ([
-            ['Black', 'أسود', '#1F1F1F'], ['White', 'أبيض', '#F6EFDD'], ['Red', 'أحمر', '#DB4444'],
-            ['Yellow', 'أصفر', '#ECB018'], ['Purple', 'بنفسجي', '#8684D4'], ['Pink', 'وردي', '#F4407D'],
-            ['Green', 'أخضر', '#5B9A6A'], ['Blue', 'أزرق', '#5277B8'], ['Grey', 'رمادي', '#9AA0A6'],
-            ['Camel', 'جملي', '#B5794A'], ['Navy', 'كحلي', '#243B64'], ['Olive', 'زيتي', '#737A42'],
+            ['Black', 'أسود', '#1F1F1F'],
+            ['White', 'أبيض', '#F6EFDD'],
+            ['Red', 'أحمر', '#DB4444'],
+            ['Yellow', 'أصفر', '#ECB018'],
+            ['Purple', 'بنفسجي', '#8684D4'],
+            ['Pink', 'وردي', '#F4407D'],
+            ['Green', 'أخضر', '#5B9A6A'],
+            ['Blue', 'أزرق', '#5277B8'],
+            ['Grey', 'رمادي', '#9AA0A6'],
+            ['Camel', 'جملي', '#B5794A'],
+            ['Navy', 'كحلي', '#243B64'],
+            ['Olive', 'زيتي', '#737A42'],
         ] as $sortOrder => [$name, $ar, $hex]) {
-            $values['color:'.$name] = AttributeValue::firstOrCreate(
+            $values['color:' . $name] = AttributeValue::firstOrCreate(
                 ['attribute_id' => $color->id, 'value->en' => $name],
                 ['value' => ['en' => $name, 'ar' => $ar], 'color_hex' => $hex, 'sort_order' => $sortOrder + 1],
             );
         }
 
         foreach (['XS', 'S', 'M', 'L', 'XL', 'One Size'] as $sortOrder => $name) {
-            $values['size:'.$name] = AttributeValue::firstOrCreate(
+            $values['size:' . $name] = AttributeValue::firstOrCreate(
                 ['attribute_id' => $size->id, 'value->en' => $name],
                 ['value' => ['en' => $name, 'ar' => $name === 'One Size' ? 'مقاس واحد' : $name], 'sort_order' => $sortOrder + 1],
             );
@@ -145,7 +153,7 @@ class ProductSeeder extends Seeder
         foreach ($item['colors'] as $colorIndex => $color) {
             foreach ($item['sizes'] as $sizeIndex => $size) {
                 $variant = ProductVariant::updateOrCreate(
-                    ['sku' => $item['sku'].'-'.strtoupper(str_replace(' ', '-', $color)).'-'.strtoupper(str_replace(' ', '-', $size))],
+                    ['sku' => $item['sku'] . '-' . strtoupper(str_replace(' ', '-', $color)) . '-' . strtoupper(str_replace(' ', '-', $size))],
                     [
                         'product_id' => $product->id,
                         'price' => $item['price'],
@@ -157,7 +165,7 @@ class ProductSeeder extends Seeder
                     ],
                 );
 
-                $variant->attributeValues()->sync([$attributes['color:'.$color]->id, $attributes['size:'.$size]->id]);
+                $variant->attributeValues()->sync([$attributes['color:' . $color]->id, $attributes['size:' . $size]->id]);
 
                 if ($warehouse !== null && $item['type'] === ProductType::Real) {
                     WarehouseInventory::updateOrCreate(
@@ -184,10 +192,38 @@ class ProductSeeder extends Seeder
             return;
         }
 
-        foreach ([$item['art'], $item['art_alt']] as $index => $color) {
-            $product->addMediaFromString($this->productArt($item['name'], $item['short'], $color, $index === 1))
-                ->usingFileName($product->slug.'-'.($index + 1).'.svg')
-                ->toMediaCollection('product_images');
+        $availableImages = [
+            base_path('1.jpeg'),
+            base_path('2.jpeg'),
+            base_path('3.jpeg'),
+            base_path('4.jpeg'),
+            base_path('5.jpeg'),
+        ];
+
+        // Filter out non-existent images
+        $existingImages = array_filter($availableImages, fn($path) => file_exists($path));
+
+        if (!empty($existingImages)) {
+            // Attach up to 4 random images for each product from the available jpegs
+            $count = min(4, count($existingImages));
+            $randomKeys = (array) array_rand($existingImages, $count);
+
+            // To ensure we get array of keys even if count is 1
+            if ($count === 1) {
+                $randomKeys = [$randomKeys];
+            }
+
+            foreach ($randomKeys as $key) {
+                $product->addMedia($existingImages[$key])
+                    ->preservingOriginal()
+                    ->toMediaCollection('product_images');
+            }
+        } else {
+            foreach ([$item['art'], $item['art_alt']] as $index => $color) {
+                $product->addMediaFromString($this->productArt($item['name'], $item['short'], $color, $index === 1))
+                    ->usingFileName($product->slug . '-' . ($index + 1) . '.svg')
+                    ->toMediaCollection('product_images');
+            }
         }
     }
 
@@ -197,21 +233,21 @@ class ProductSeeder extends Seeder
         $safeShort = htmlspecialchars($short, ENT_XML1 | ENT_QUOTES, 'UTF-8');
         $accent = $alternate ? '#F6EFDD' : '#FFFFFF';
         $shape = $alternate
-            ? '<path d="M290 214l92-56 92 56 36 182H254l36-182z" fill="'.$accent.'" opacity=".92"/>'
-            : '<path d="M275 195l42-52h98l42 52 56 41-33 191H252l-33-191 56-40z" fill="'.$accent.'" opacity=".92"/>';
+            ? '<path d="M290 214l92-56 92 56 36 182H254l36-182z" fill="' . $accent . '" opacity=".92"/>'
+            : '<path d="M275 195l42-52h98l42 52 56 41-33 191H252l-33-191 56-40z" fill="' . $accent . '" opacity=".92"/>';
 
-        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 1024" role="img" aria-label="'.$safeName.' demo image">'
-            .'<rect width="768" height="1024" fill="'.$color.'"/><circle cx="622" cy="148" r="160" fill="#fff" opacity=".11"/>'
-            .'<circle cx="90" cy="875" r="210" fill="#000" opacity=".06"/>'.$shape
-            .'<text x="64" y="820" fill="#fff" font-family="Arial, sans-serif" font-size="35" font-weight="700">'.strtoupper($safeName).'</text>'
-            .'<text x="64" y="868" fill="#fff" font-family="Arial, sans-serif" font-size="23" opacity=".84">'.$safeShort.'</text>'
-            .'<text x="64" y="946" fill="#fff" font-family="Arial, sans-serif" font-size="18" letter-spacing="4" opacity=".72">WAQAR / DEMO EDIT</text></svg>';
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 1024" role="img" aria-label="' . $safeName . ' demo image">'
+            . '<rect width="768" height="1024" fill="' . $color . '"/><circle cx="622" cy="148" r="160" fill="#fff" opacity=".11"/>'
+            . '<circle cx="90" cy="875" r="210" fill="#000" opacity=".06"/>' . $shape
+            . '<text x="64" y="820" fill="#fff" font-family="Arial, sans-serif" font-size="35" font-weight="700">' . strtoupper($safeName) . '</text>'
+            . '<text x="64" y="868" fill="#fff" font-family="Arial, sans-serif" font-size="23" opacity=".84">' . $safeShort . '</text>'
+            . '<text x="64" y="946" fill="#fff" font-family="Arial, sans-serif" font-size="18" letter-spacing="4" opacity=".72">WAQAR / DEMO EDIT</text></svg>';
     }
 
     /** @param array<string, Category|Collection> $models @param array<int, string> $keys @return array<int, int> */
     private function ids(array $models, array $keys): array
     {
-        return array_map(fn (string $key) => $models[$key]->id, $keys);
+        return array_map(fn(string $key) => $models[$key]->id, $keys);
     }
 
     /** @return array<int, array<string, mixed>> */
@@ -241,8 +277,8 @@ class ProductSeeder extends Seeder
         return compact('sku', 'slug', 'name', 'price', 'new', 'featured', 'categories', 'collections', 'colors', 'sizes', 'art', 'type') + [
             'ar_name' => $arName,
             'sale_price' => $salePrice,
-            'description' => 'A versatile '.$name.' designed for an effortless everyday wardrobe.',
-            'ar_description' => $arName.' قطعة عملية لإطلالة يومية سهلة وأنيقة.',
+            'description' => 'A versatile ' . $name . ' designed for an effortless everyday wardrobe.',
+            'ar_description' => $arName . ' قطعة عملية لإطلالة يومية سهلة وأنيقة.',
             'short' => 'A considered everyday fashion staple.',
             'ar_short' => 'قطعة أساسية مدروسة لخزانة يومية أنيقة.',
             'art_alt' => $artAlt,

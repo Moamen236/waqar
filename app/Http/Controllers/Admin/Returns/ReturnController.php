@@ -144,7 +144,19 @@ class ReturnController extends Controller implements HasMiddleware
             403,
         );
 
-        $return->load(['order.customer', 'items.orderItem.productVariant.product', 'reason', 'refund']);
+        $return->load([
+            'order.customer:id,name,email,phone',
+            'order.items.productVariant.product:id,name',
+            'order.shippingGovernorate:id,name',
+            'order.shippingCity:id,name',
+            'order.shippingDistrict:id,name',
+            'order.shippingArea:id,name',
+            'order.shippingCompany:id,name',
+            'order.deliveryRepresentative:id,name,phone',
+            'items.orderItem.productVariant.product',
+            'reason',
+            'refund',
+        ]);
 
         return Inertia::render('Returns/Show', [
             'return' => $return,

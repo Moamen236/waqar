@@ -1,5 +1,7 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
+import OrderSummaryCard from '../../Components/OrderSummaryCard';
+import ShippingAddressCard from '../../Components/ShippingAddressCard';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { confirmAction } from '../../lib/confirm';
@@ -10,6 +12,7 @@ interface ReturnItem {
     id: number;
     quantity: number;
     order_item: {
+        id: number;
         unit_price: string;
         // The name and SKU as sold. order_items snapshots both at
         // checkout, so they stay correct — and stay *renderable* —
@@ -20,6 +23,20 @@ interface ReturnItem {
     };
 }
 
+interface GeoName {
+    id: number;
+    name: string;
+}
+
+interface OrderItemFull {
+    id: number;
+    quantity: number;
+    unit_price: string;
+    subtotal: string;
+    product_name_snapshot: string;
+    variant_sku_snapshot: string;
+}
+
 interface ReturnDetail {
     id: number;
     status: string;
@@ -27,7 +44,27 @@ interface ReturnDetail {
     return_shipping_fee: string | null;
     customer_accepted_return_shipping_fee_at: string | null;
     customer_notes: string | null;
-    order: { id: number; order_number: number; customer: { name: string; phone: string } };
+    order: {
+        id: number;
+        order_number: number;
+        status: string;
+        payment_status: string;
+        subtotal: string;
+        discount_amount: string;
+        shipping_amount: string;
+        total: string;
+        shipping_recipient_name: string;
+        shipping_phone: string;
+        shipping_address_line: string;
+        customer: { name: string; phone: string; email: string | null };
+        items: OrderItemFull[];
+        shipping_governorate: GeoName | null;
+        shipping_city: GeoName | null;
+        shipping_district: GeoName | null;
+        shipping_area: GeoName | null;
+        shipping_company: { id: number; name: string } | null;
+        delivery_representative: { id: number; name: string; phone: string } | null;
+    };
     items: ReturnItem[];
     reason: { name: string } | null;
     refund: { id: number; net_amount: string; method: string; reference_number: string } | null;
@@ -55,8 +92,13 @@ export default function ReturnsShow({
     warehouses: Option[];
     treasuries: Treasury[];
 }) {
-    const { t } = useTranslation();
+    const { t, price } = useTranslation();
     const { can } = usePermissions();
+
+    // What the customer is sending back, priced at the as-sold unit price —
+    // so Accounting can compare it against the order grand total below.
+    const returnedTotal = ret.items.reduce((sum, item) => sum + Number(item.order_item.unit_price) * item.quantity, 0);
+    const returnedIds = new Set(ret.items.map((item) => item.order_item.id));
     const [shippingFee, setShippingFee] = useState('0');
     const [warehouseId, setWarehouseId] = useState<number | ''>(warehouses[0]?.id ?? '');
     const [treasuryId, setTreasuryId] = useState<number | ''>(treasuries[0]?.id ?? '');
@@ -115,7 +157,7 @@ export default function ReturnsShow({
                 <div className="col-xl-7">
                     <div className="card">
                         <div className="card-header">
-                            <h4 className="card-title">{t('admin.product')}</h4>
+                            <h4 className="card-title">{t('admin.returnedItems')}</h4>
                         </div>
                         <div className="table-responsive">
                             <table className="table align-middle mb-0 table-centered">
@@ -125,6 +167,7 @@ export default function ReturnsShow({
                                         <th>SKU</th>
                                         <th>{t('admin.qty')}</th>
                                         <th>{t('admin.unitPrice')}</th>
+                                        <th>{t('admin.total')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -133,13 +176,85 @@ export default function ReturnsShow({
                                             <td>{item.order_item.product_name_snapshot}</td>
                                             <td className="text-muted">{item.order_item.variant_sku_snapshot}</td>
                                             <td>{item.quantity}</td>
-                                            <td>{item.order_item.unit_price}</td>
+                                            <td>
+                                                <span dir="ltr" className="text-nowrap">
+                                                    {price(Number(item.order_item.unit_price))}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span dir="ltr" className="text-nowrap">
+                                                    {price(Number(item.order_item.unit_price) * item.quantity)}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot className="border-top">
+                                    <tr>
+                                        <td colSpan={4} className="fw-semibold text-dark">
+                                            {t('admin.total')}
+                                        </td>
+                                        <td className="fw-semibold text-dark">
+                                            <span dir="ltr" className="text-nowrap">
+                                                {price(returnedTotal)}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="card">
+                        <div className="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <h4 className="card-title">
+                                {t('admin.orderTitle', { number: ret.order.order_number })}
+                            </h4>
+                            <div className="d-flex gap-2">
+                                <StatusBadge status={ret.order.status} />
+                                <StatusBadge status={ret.order.payment_status} />
+                            </div>
+                        </div>
+                        <div className="table-responsive">
+                            <table className="table align-middle mb-0 table-centered">
+                                <thead className="bg-light-subtle">
+                                    <tr>
+                                        <th>{t('admin.product')}</th>
+                                        <th>SKU</th>
+                                        <th>{t('admin.qty')}</th>
+                                        <th>{t('admin.unitPrice')}</th>
+                                        <th>{t('admin.total')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {ret.order.items.map((item) => (
+                                        <tr
+                                            key={item.id}
+                                            className={returnedIds.has(item.id) ? 'table-warning' : ''}
+                                        >
+                                            <td>{item.product_name_snapshot}</td>
+                                            <td className="text-muted">{item.variant_sku_snapshot}</td>
+                                            <td>{item.quantity}</td>
+                                            <td>
+                                                <span dir="ltr" className="text-nowrap">
+                                                    {price(Number(item.unit_price))}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span dir="ltr" className="text-nowrap">
+                                                    {price(Number(item.subtotal))}
+                                                </span>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
                     </div>
+
+                    <OrderSummaryCard order={ret.order} />
+
+                    <ShippingAddressCard order={ret.order} />
 
                     {ret.refund && (
                         <div className="card">
@@ -172,6 +287,23 @@ export default function ReturnsShow({
                                 })}
                             </p>
                             <p className="mb-1 text-muted">{ret.order.customer.phone}</p>
+                            <p className="mb-1">
+                                <Link
+                                    href={route('admin.orders.show', ret.order.id)}
+                                    className="link-primary fs-13"
+                                >
+                                    {t('admin.view')} —{' '}
+                                    {t('admin.orderTitle', { number: ret.order.order_number })}
+                                </Link>
+                            </p>
+                            <p className="mb-1">
+                                {t('admin.assignedTo')}:{' '}
+                                <span className="text-dark">
+                                    {ret.order.delivery_representative?.name ??
+                                        ret.order.shipping_company?.name ??
+                                        t('admin.none')}
+                                </span>
+                            </p>
                             <p className="mb-1">
                                 {t('admin.stage')}:{' '}
                                 <span className="badge bg-light text-dark border px-2 py-1">

@@ -7,6 +7,7 @@ use App\Enums\CollectionType;
 use App\Enums\PaymentStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /**
  * @property PaymentStatus $status
@@ -50,5 +51,20 @@ class Payment extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    /**
+     * Every collection made against this payment, in order. A COD payment
+     * settles in one go most of the time, but a courier who comes back
+     * short leaves a balance that gets collected later
+     * (ConfirmDeliveryResultAction::collectBalance) — each instalment is
+     * its own treasury transaction, and together they are the history of
+     * how this order got paid.
+     *
+     * @return MorphMany<TreasuryTransaction, $this>
+     */
+    public function transactions(): MorphMany
+    {
+        return $this->morphMany(TreasuryTransaction::class, 'reference')->oldest('id');
     }
 }

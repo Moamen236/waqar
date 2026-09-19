@@ -164,6 +164,62 @@ class Order extends Model
     }
 
     /**
+     * Shared listing filters for /admin/orders and its .xlsx export — one
+     * scope so the table and the download can never disagree on what
+     * "filtered" means. Every entry is optional; blank values are ignored.
+     *
+     * Supported keys: status, q (order no. / shipping phone / customer
+     * name+phone), customer (customer name/phone/email), governorate_id,
+     * city_id, district_id, area_id (shipping destination),
+     * representative_id, shipping_company_id (who carries it), date_from /
+     * date_to (placed on, inclusive), qty_min / qty_max (total product
+     * pieces in the order).
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public function scopeFiltered(Builder $query, array $filters): Builder
+    {
+        $status = trim((string) ($filters['status'] ?? ''));
+        $search = trim((string) ($filters['q'] ?? ''));
+        $customer = trim((string) ($filters['customer'] ?? ''));
+
+        $qtyMin = $filters['qty_min'] ?? null;
+        $qtyMin = $qtyMin === '' || $qtyMin === null ? null : (int) $qtyMin;
+        $qtyMax = $filters['qty_max'] ?? null;
+        $qtyMax = $qtyMax === '' || $qtyMax === null ? null : (int) $qtyMax;
+
+        // Total pieces per order, computed live — no join, so the listing
+        // query needs no GROUP BY and pagination counts stay exact.
+        $itemsTable = (new OrderItem)->getTable();
+        $quantitySql = "(SELECT COALESCE(SUM(quantity), 0) FROM {$itemsTable} WHERE {$itemsTable}.order_id = orders.id)";
+
+        return $query
+            ->when($status !== '', fn (Builder $inner) => $inner->where('status', $status))
+            ->when($search !== '', fn (Builder $inner) => $inner->where(
+                fn (Builder $term) => $term
+                    ->where('order_number', 'like', "%{$search}%")
+                    ->orWhere('shipping_phone', 'like', "%{$search}%")
+                    ->orWhereHas('customer', fn (Builder $candidate) => $candidate
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%"))
+            ))
+            ->when($customer !== '', fn (Builder $inner) => $inner->whereHas('customer', fn (Builder $candidate) => $candidate
+                ->where('name', 'like', "%{$customer}%")
+                ->orWhere('phone', 'like', "%{$customer}%")
+                ->orWhere('email', 'like', "%{$customer}%")))
+            ->when(! empty($filters['governorate_id']), fn (Builder $inner) => $inner->where('shipping_governorate_id', (int) $filters['governorate_id']))
+            ->when(! empty($filters['city_id']), fn (Builder $inner) => $inner->where('shipping_city_id', (int) $filters['city_id']))
+            ->when(! empty($filters['district_id']), fn (Builder $inner) => $inner->where('shipping_district_id', (int) $filters['district_id']))
+            ->when(! empty($filters['area_id']), fn (Builder $inner) => $inner->where('shipping_area_id', (int) $filters['area_id']))
+            ->when(! empty($filters['representative_id']), fn (Builder $inner) => $inner->where('delivery_representative_id', (int) $filters['representative_id']))
+            ->when(! empty($filters['shipping_company_id']), fn (Builder $inner) => $inner->where('shipping_company_id', (int) $filters['shipping_company_id']))
+            ->when(! empty($filters['date_from']), fn (Builder $inner) => $inner->whereDate('created_at', '>=', (string) $filters['date_from']))
+            ->when(! empty($filters['date_to']), fn (Builder $inner) => $inner->whereDate('created_at', '<=', (string) $filters['date_to']))
+            ->when($qtyMin !== null, fn (Builder $inner) => $inner->whereRaw("{$quantitySql} >= ?", [$qtyMin]))
+            ->when($qtyMax !== null, fn (Builder $inner) => $inner->whereRaw("{$quantitySql} <= ?", [$qtyMax]));
+    }
+
+    /**
      * @return BelongsTo<Customer, $this>
      */
     public function customer(): BelongsTo
