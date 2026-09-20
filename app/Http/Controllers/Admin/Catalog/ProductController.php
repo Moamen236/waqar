@@ -14,6 +14,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Review;
+use App\Models\Warehouse;
 use App\Models\WarehouseInventory;
 use App\Services\Catalog\SkuGenerator;
 use App\Services\Content\RichTextSanitizer;
@@ -425,10 +426,32 @@ class ProductController extends Controller implements HasMiddleware
                 : $product->variants()->create($fields);
 
             $variant->attributeValues()->sync($variantData['attribute_value_ids'] ?? []);
+            $this->seedStockRows($variant);
             $keepIds[] = $variant->id;
         }
 
         $this->removeDroppedVariants($product, $keepIds);
+    }
+
+    /**
+     * /admin/inventory lists warehouse_inventory rows and its Adjust
+     * button is per-row — so a variant with no row is invisible there and
+     * its stock can never be set at all. Nothing else creates that first
+     * row (InventoryService only makes one inside restock/adjust, both of
+     * which already need the variant to be reachable), so a product
+     * created through the admin was stuck at "no stock, no way to add
+     * any". Give every variant a zero row in each active warehouse at
+     * save time; the real quantity still arrives through an audited
+     * adjustment, never from this form.
+     */
+    private function seedStockRows(ProductVariant $variant): void
+    {
+        foreach (Warehouse::query()->where('is_active', true)->pluck('id') as $warehouseId) {
+            WarehouseInventory::query()->firstOrCreate(
+                ['warehouse_id' => $warehouseId, 'product_variant_id' => $variant->id],
+                ['quantity' => 0, 'reserved_quantity' => 0],
+            );
+        }
     }
 
     /**

@@ -178,7 +178,7 @@ export default function ProductForm({
                   ],
         },
     });
-    const { fields, append, remove, update } = useFieldArray({ control, name: 'variants' });
+    const { fields, append, remove } = useFieldArray({ control, name: 'variants' });
     const productType = watch('product_type');
 
     const onDrop = useCallback((files: File[]) => setNewImages((prev) => [...prev, ...files]), []);
@@ -281,6 +281,15 @@ export default function ProductForm({
         >
             <Head title={product ? t('admin.editProduct') : t('admin.newProduct')} />
             <form onSubmit={handleSubmit(onSubmit)}>
+                {Object.keys(serverErrors).length > 0 && (
+                    <div className="alert alert-danger">
+                        <ul className="mb-0 ps-3">
+                            {Object.entries(serverErrors).map(([field, message]) => (
+                                <li key={field}>{message}</li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
                 <div className="row">
                     {/* Left column — product-add.html's preview card. */}
                     <div className="col-xl-3 col-lg-4">
@@ -582,18 +591,10 @@ export default function ProductForm({
                                                         />
                                                     </td>
                                                     <td style={{ minWidth: 220 }}>
-                                                        <Select
-                                                            isMulti
+                                                        <MultiSelectField
+                                                            control={control}
+                                                            name={`variants.${index}.attribute_value_ids`}
                                                             options={attributeValueOptions}
-                                                            value={attributeValueOptions.filter((o) =>
-                                                                field.attribute_value_ids.includes(o.value),
-                                                            )}
-                                                            onChange={(selected) =>
-                                                                update(index, {
-                                                                    ...field,
-                                                                    attribute_value_ids: selected.map((s) => s.value),
-                                                                })
-                                                            }
                                                         />
                                                     </td>
                                                     <td style={{ minWidth: 110 }}>
@@ -765,7 +766,7 @@ function MultiSelectField({
     options,
 }: {
     control: Control<FormValues>;
-    name: 'category_ids' | 'collection_ids';
+    name: 'category_ids' | 'collection_ids' | `variants.${number}.attribute_value_ids`;
     options: { value: number; label: string }[];
 }) {
     return (
