@@ -22,19 +22,17 @@
  * fragile to rewrite (unlike the admin's Larkon bundle). The SCSS
  * *source* is still dropped — there is no sass step in the pipeline
  * (roadmap Phase 5 / Section 23). */
-/* Arabic typeface. Instrument Sans — the theme's own family, imported by
- * theme.css — carries no Arabic glyphs, so Arabic rendered as tofu boxes
- * until this was added (caught by the RTL screenshot pass, not by any
- * build check). Cairo is listed *after* Instrument Sans in --font-sans
- * below rather than swapped in per-locale: font fallback is per-glyph, so
- * Latin keeps Instrument Sans and Arabic picks up Cairo automatically, in
- * either locale and even in a sentence mixing both.
+/* Storefront typeface: Thmanyah Sans, the single font for the whole
+ * storefront — it carries both the Arabic and the Latin the shop needs
+ * (names, SKUs, emails, numbers), so no per-glyph fallback pairing is
+ * needed. The theme's Google Fonts import (Instrument Sans) is removed
+ * from anvogue/theme.css, so nothing remote is fetched.
  *
  * Vendored rather than pulled from Google at runtime — the same treatment
  * Phosphor and icomoon get, and necessary besides: an external
  * `@import url(...)` written here is silently dropped by the Tailwind/Vite
- * CSS pipeline. See tools/fetch-arabic-font.sh. */
-@import "./fonts/cairo.css";
+ * CSS pipeline. */
+@import "./fonts/thmanyah-sans-storefront.css";
 
 @import "./anvogue/icomoon.css" layer(anvogue);
 @import "./anvogue/theme.css" layer(anvogue);
@@ -86,7 +84,7 @@
     --color-surface2: rgba(255, 255, 255, 0.2);
 
     --font-sans:
-        "Instrument Sans", "Cairo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+        "Thmanyah Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
         sans-serif;
 }
 
@@ -140,9 +138,8 @@
     }
 }
 
-/* theme.css sets `font-family: "Instrument Sans", sans-serif` directly on
- * html/body, which would otherwise skip the Arabic face entirely no matter
- * what --font-sans says.
+/* theme.css sets `font-family: "Thmanyah Sans", sans-serif` directly on
+ * html/body, and --font-sans above is the single source the rest reads.
  *
  * Deliberately unlayered: theme.css lives in the `anvogue` layer, which
  * sits *after* `base`, so a @layer base rule here would lose to it.

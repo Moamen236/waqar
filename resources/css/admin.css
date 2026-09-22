@@ -1,15 +1,13 @@
-/* Arabic typeface for the staff UI. Must lead the file: CSS requires
+/* Admin typeface: Thmanyah Sans. Must lead the file: CSS requires
  * @import before any other rule, and the Tailwind/Vite pipeline silently
  * drops one that appears later (learned the hard way on the storefront).
  *
  * Larkon's bundled family has no Arabic glyphs — Arabic rendered as tofu
- * boxes until this was added. Cairo leads the stack rather than trailing
- * it, unlike the storefront: Q2 ships the staff UI Arabic-only, so Arabic
- * is the primary script here, and Cairo's Latin subset covers the SKUs,
- * emails and numbers that stay Latin. Same vendored files both apps use
- * (tools/fetch-arabic-font.sh).
+ * boxes until a local face was added. Thmanyah Sans leads the stack rather
+ * than trailing it, unlike the storefront: Q2 ships the staff UI
+ * Arabic-only, so Arabic is the primary script here.
  */
-@import "./fonts/cairo.css";
+@import "./fonts/thmanyah-sans.css";
 
 /* Admin — the real Larkon theme (Section 23), not a generic Bootstrap
  * substitute. The theme's own compiled CSS (vendor.min.css, icons.min.css,
@@ -35,6 +33,14 @@
  * by source order — no !important needed. */
 
 :root {
+    /* Single typeface for the whole admin: every theme rule chains through
+     * this variable (body, buttons, nav, tables), so repointing it covers
+     * all of them — including the dark-mode build, which never redefines
+     * font variables. The theme's Google Fonts import (Hanken Grotesk +
+     * Play) is removed from app.min.css/app-rtl.min.css, so nothing remote
+     * is fetched either. */
+    --bs-font-sans-serif: "Thmanyah Sans", system-ui, sans-serif;
+
     --bs-primary: #012c4e;
     --bs-primary-rgb: 1, 44, 78;
     --bs-primary-text-emphasis: #012c4e;
@@ -330,8 +336,9 @@ html[data-bs-theme='dark'] .wrapper .main-nav .navbar-nav .nav-item .nav-link.ac
 
 /* The theme sets font-family on body *and* separately on every heading
  * (`.h1,…,h6 { font-family: "Hanken Grotesk" }`), which is why the page
- * title alone still rendered as tofu after the body rule was in place —
- * headings never inherited it. Both are covered here. This file loads
+ * title alone still rendered in the wrong face after the body rule was in
+ * place — headings never inherited it. Both are covered here, plus the two
+ * hardcoded `Play` usages (jVectorMap tooltip/label). This file loads
  * after the theme, so plain source order wins without !important. */
 body,
 .h1,
@@ -345,6 +352,8 @@ h2,
 h3,
 h4,
 h5,
-h6 {
-    font-family: "Cairo", var(--bs-body-font-family, system-ui), sans-serif;
+h6,
+.jvm-tooltip,
+.jvectormap-label {
+    font-family: "Thmanyah Sans", var(--bs-body-font-family, system-ui), sans-serif;
 }

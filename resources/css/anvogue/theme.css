@@ -38,7 +38,6 @@
 /*** Newsletter ***/
 /*** Feature product ***/
 /* custom-swiper */
-@import url("https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap");
 .swiper.overflow-unset {
   overflow: unset;
 }
@@ -328,7 +327,7 @@ body {
   overflow-x: hidden;
   user-select: none;
   scroll-behavior: smooth;
-  font-family: "Instrument Sans", sans-serif;
+  font-family: "Thmanyah Sans", sans-serif;
 }
 
 body.overflow-unset {

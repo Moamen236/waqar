@@ -1,0 +1,39 @@
+/* Thmanyah Sans — admin typeface. Files are served statically from
+ * public/admin-theme (like Larkon's own CSS), so absolute URLs are used:
+ * Vite leaves them untouched and they resolve in dev and prod alike.
+ */
+@font-face {
+  font-family: 'Thmanyah Sans';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/admin-theme/assets/fonts/thmanyah-sans/thmanyah-sans-Light.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Thmanyah Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/admin-theme/assets/fonts/thmanyah-sans/thmanyah-sans-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Thmanyah Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/admin-theme/assets/fonts/thmanyah-sans/thmanyah-sans-Medium.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Thmanyah Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/admin-theme/assets/fonts/thmanyah-sans/thmanyah-sans-Bold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Thmanyah Sans';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url('/admin-theme/assets/fonts/thmanyah-sans/thmanyah-sans-Black.woff2') format('woff2');
+}

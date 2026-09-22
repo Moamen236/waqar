@@ -1,0 +1,39 @@
+/* Thmanyah Sans — storefront typeface. Files are served statically from
+ * public/storefront (like the template's own images), so absolute URLs are
+ * used: Vite leaves them untouched and they resolve in dev and prod alike.
+ */
+@font-face {
+  font-family: 'Thmanyah Sans';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/storefront/fonts/thmanyah-sans-Light.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Thmanyah Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/storefront/fonts/thmanyah-sans-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Thmanyah Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/storefront/fonts/thmanyah-sans-Medium.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Thmanyah Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/storefront/fonts/thmanyah-sans-Bold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Thmanyah Sans';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url('/storefront/fonts/thmanyah-sans-Black.woff2') format('woff2');
+}
