@@ -116,6 +116,37 @@ it('lets Vice Chairman create a product with variants, categories, and the type-
         ->and($product->variants()->first()->sku)->toBe($product->sku.'-001');
 });
 
+it('seeds a new variant with a zero stock row in the main warehouse only', function () {
+    [$viceChairman] = p4cEmployee('Vice Chairman');
+    $main = Warehouse::create(['name' => 'Main Warehouse', 'address' => 'Cairo', 'phone' => '01012345678']);
+    $other = Warehouse::create(['name' => 'Alex', 'address' => 'Alex', 'phone' => '01012345678']);
+
+    $this->actingAs($viceChairman, 'employee')->post(route('admin.products.store'), [
+        'name' => ['en' => 'Main Only Shirt'],
+        'price' => 199.99,
+        'status' => true,
+        'is_featured' => false,
+        'is_new' => false,
+        'is_on_sale' => false,
+        'sort_order' => 0,
+        'product_type' => 'real',
+        'variants' => [
+            ['id' => null, 'sku' => null, 'barcode' => null, 'price' => null, 'sale_price' => null, 'cost_price' => null, 'status' => true, 'attribute_value_ids' => []],
+        ],
+    ])->assertRedirect();
+
+    $variant = Product::where('slug', 'main-only-shirt')->firstOrFail()->variants()->firstOrFail();
+    $rows = WarehouseInventory::where('product_variant_id', $variant->id)->get();
+
+    // One row, in Main Warehouse — the operator stocks other warehouses
+    // later through an audited adjustment, not at product creation.
+    expect($rows)->toHaveCount(1)
+        ->and($rows->first()->warehouse_id)->toBe($main->id)
+        ->and($rows->first()->quantity)->toBe(0);
+
+    expect($other->id)->not->toBe($main->id);
+});
+
 it('deactivates rather than hard-deletes a variant that already has order history when removed from the form', function () {
     $geo = p4cGeo();
     $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '01012345678']);

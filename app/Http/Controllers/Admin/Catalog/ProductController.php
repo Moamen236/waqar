@@ -491,18 +491,23 @@ class ProductController extends Controller implements HasMiddleware
      * row (InventoryService only makes one inside restock/adjust, both of
      * which already need the variant to be reachable), so a product
      * created through the admin was stuck at "no stock, no way to add
-     * any". Give every variant a zero row in each active warehouse at
-     * save time; the real quantity still arrives through an audited
+     * any". Give every variant a zero row in the main warehouse at save
+     * time — other warehouses get their rows on first adjustment there,
+     * not up front. The real quantity still arrives through an audited
      * adjustment, never from this form.
      */
     private function seedStockRows(ProductVariant $variant): void
     {
-        foreach (Warehouse::query()->where('is_active', true)->pluck('id') as $warehouseId) {
-            WarehouseInventory::query()->firstOrCreate(
-                ['warehouse_id' => $warehouseId, 'product_variant_id' => $variant->id],
-                ['quantity' => 0, 'reserved_quantity' => 0],
-            );
+        $warehouse = Warehouse::main();
+
+        if ($warehouse === null) {
+            return;
         }
+
+        WarehouseInventory::query()->firstOrCreate(
+            ['warehouse_id' => $warehouse->id, 'product_variant_id' => $variant->id],
+            ['quantity' => 0, 'reserved_quantity' => 0],
+        );
     }
 
     /**
