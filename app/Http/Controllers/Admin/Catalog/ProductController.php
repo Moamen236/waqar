@@ -19,6 +19,7 @@ use App\Models\WarehouseInventory;
 use App\Services\Catalog\SkuGenerator;
 use App\Services\Content\RichTextSanitizer;
 use App\Support\ImageUpload;
+use App\Support\ProductPresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -52,7 +53,7 @@ class ProductController extends Controller implements HasMiddleware
             new Middleware('permission:products.view', only: ['index', 'show']),
             new Middleware('permission:products.export', only: ['export']),
             new Middleware('permission:products.create', only: ['create', 'store']),
-            new Middleware('permission:products.update', only: ['edit', 'update', 'destroyImage']),
+            new Middleware('permission:products.update', only: ['edit', 'update', 'destroyImage', 'updateImage']),
             new Middleware('permission:products.delete', only: ['destroy']),
         ];
     }
@@ -289,7 +290,13 @@ class ProductController extends Controller implements HasMiddleware
                 'images' => $product->getMedia('product_images')->map(fn (Media $media) => [
                     'id' => $media->id,
                     'url' => $media->getUrl(),
+                    // Which colour this photo shows, if anyone has said.
+                    // Null means "every colour" — see updateImage().
+                    'attribute_value_id' => $media->getCustomProperty('attribute_value_id'),
                 ]),
+                // Only the colours this product is actually made in, from
+                // the same presenter the storefront swatches come from.
+                'colors' => ProductPresenter::colours($product),
             ],
             ...$this->pickerOptions(),
         ]);
@@ -324,6 +331,35 @@ class ProductController extends Controller implements HasMiddleware
         $media->delete();
 
         return back()->with('success', __('Image removed.'));
+    }
+
+    /**
+     * Say which colour a photo shows, so the storefront gallery can swap
+     * when a swatch is picked.
+     *
+     * No migration and no column: MediaLibrary already keeps a
+     * custom_properties JSON blob on every media row, and one id is all
+     * this needs. Clearing it forgets the key outright rather than
+     * storing a null, so an untagged image reads the same whether it was
+     * never tagged or tagged and cleared.
+     */
+    public function updateImage(Request $request, Product $product, Media $media): RedirectResponse
+    {
+        abort_unless($media->model_id === $product->id, 404);
+
+        $data = $request->validate([
+            'attribute_value_id' => ['nullable', 'integer', 'exists:attribute_values,id'],
+        ]);
+
+        if (($data['attribute_value_id'] ?? null) !== null) {
+            $media->setCustomProperty('attribute_value_id', (int) $data['attribute_value_id']);
+        } else {
+            $media->forgetCustomProperty('attribute_value_id');
+        }
+
+        $media->save();
+
+        return back()->with('success', __('Image colour updated.'));
     }
 
     /**

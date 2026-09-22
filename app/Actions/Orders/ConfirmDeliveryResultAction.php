@@ -43,7 +43,10 @@ class ConfirmDeliveryResultAction
     ): Order {
         return DB::transaction(function () use ($order, $accountant, $treasury, $collectedMethod, $collectedAmount) {
             $order = $this->lockAssignedOrder($order);
-            $collectedAmount ??= (float) $order->total;
+            // The customer hands the courier the gross total; the courier
+            // keeps the shipping as their fee and hands over the goods
+            // money. That net figure is what Accounting actually banks.
+            $collectedAmount ??= $order->netDueToTreasury();
 
             foreach ($order->items()->with('productVariant.product')->get() as $item) {
                 $variant = $item->productVariant;
@@ -58,8 +61,12 @@ class ConfirmDeliveryResultAction
 
             $payment = $order->payments()->latest('id')->firstOrFail();
             // Short collection → the goods still went out, but the order
-            // keeps a balance Accounting has to come back for.
-            $paymentStatus = $collectedAmount < (float) $payment->amount
+            // keeps a balance Accounting has to come back for. Measured
+            // against the net owed, never payment->amount: that stays
+            // gross (what the customer paid) for the invoice's sake, so
+            // comparing against it would mark every settled order short
+            // by exactly the shipping.
+            $paymentStatus = $collectedAmount < $order->netOfShipping((float) $payment->amount)
                 ? PaymentStatus::PartiallyCollected
                 : PaymentStatus::Collected;
 
@@ -73,10 +80,16 @@ class ConfirmDeliveryResultAction
                 'collected_at' => now(),
             ]);
 
-            $this->treasury->recordTransaction(
-                $treasury, TreasuryTransactionType::Income, $collectedAmount, $accountant, $payment,
-                "COD collected for order #{$order->order_number}",
-            );
+            // Zero is reachable without being an error: a same-price
+            // replacement owes shipping only, and a 100%-coupon order
+            // owes nothing at all. Neither should take a treasury lock to
+            // write a row worth nothing.
+            if ($collectedAmount > 0) {
+                $this->treasury->recordTransaction(
+                    $treasury, TreasuryTransactionType::Income, $collectedAmount, $accountant, $payment,
+                    "COD collected for order #{$order->order_number}",
+                );
+            }
 
             return $this->transition(
                 $order, OrderStatus::Delivered, CustomerOrderStatus::Delivered, $paymentStatus, $accountant,
@@ -155,7 +168,9 @@ class ConfirmDeliveryResultAction
             // rather than trusted from the caller, so a short collection
             // is measured against a figure this Action owns.
             $due = $this->dueForKeptItems($order, $keptQuantities);
-            $paymentStatus = $collectedAmount < $due ? PaymentStatus::PartiallyCollected : PaymentStatus::Collected;
+            $paymentStatus = $collectedAmount < $order->netOfShipping($due)
+                ? PaymentStatus::PartiallyCollected
+                : PaymentStatus::Collected;
 
             $payment->update([
                 'amount' => $due,
@@ -166,10 +181,12 @@ class ConfirmDeliveryResultAction
                 'collected_at' => now(),
             ]);
 
-            $this->treasury->recordTransaction(
-                $treasury, TreasuryTransactionType::Income, $collectedAmount, $accountant, $payment,
-                "Partial COD collected for order #{$order->order_number}",
-            );
+            if ($collectedAmount > 0) {
+                $this->treasury->recordTransaction(
+                    $treasury, TreasuryTransactionType::Income, $collectedAmount, $accountant, $payment,
+                    "Partial COD collected for order #{$order->order_number}",
+                );
+            }
 
             return $this->transition(
                 $order, OrderStatus::PartiallyReturned, CustomerOrderStatus::PartiallyReturned, $paymentStatus, $accountant,
@@ -185,6 +202,11 @@ class ConfirmDeliveryResultAction
      * their sold price, less the share of any whole-order discount that
      * sat on them (pro-rata — the returned lines take their share back
      * with them), plus the delivery charge, which was earned either way.
+     *
+     * This is the GROSS figure — what the customer hands the courier —
+     * and it is what payment->amount is rewritten to. The courier keeps
+     * the shipping out of it; callers take Order::netOfShipping() to get
+     * the part that reaches the treasury.
      *
      * @param  array<int, int>  $keptQuantities  order_item_id => quantity kept
      */
@@ -226,14 +248,18 @@ class ConfirmDeliveryResultAction
             }
 
             $payment = $order->payments()->latest('id')->firstOrFail();
-            $outstanding = round((float) $payment->amount - (float) $payment->collected_amount, 2);
+            // Measured net: collected_amount only ever holds what reached
+            // the treasury, so the shipping the courier kept must come off
+            // payment->amount before the two are compared.
+            $netDue = $order->netOfShipping((float) $payment->amount);
+            $outstanding = round($netDue - (float) $payment->collected_amount, 2);
 
             if ($amount > $outstanding) {
                 throw new RuntimeException("Order #{$order->order_number} only owes {$outstanding}.");
             }
 
             $collected = round((float) $payment->collected_amount + $amount, 2);
-            $settled = $collected >= (float) $payment->amount;
+            $settled = $collected >= $netDue;
 
             $payment->update([
                 'collected_amount' => $collected,

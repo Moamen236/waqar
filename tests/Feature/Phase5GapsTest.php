@@ -30,7 +30,7 @@ use Spatie\Permission\Models\Role;
 function p5gEmployee(string $role): Employee
 {
     $employee = Employee::create([
-        'full_name' => $role.' User', 'email' => 'e-'.uniqid().'@waqar.test', 'phone' => '1',
+        'full_name' => $role.' User', 'email' => 'e-'.uniqid().'@waqar.test', 'phone' => '01012345678',
         'password' => 'password', 'residence_address' => 'N/A', 'national_id_number' => 'N/A',
     ]);
     $employee->assignRole(Role::findOrCreate($role, 'employee'));
@@ -58,7 +58,7 @@ it('lets a Delivery Manager configure a shipping rate that checkout then actuall
     // state the store ships in until someone uses this screen.
     $this->post(route('cart.store'), ['product_variant_id' => $variant->id, 'quantity' => 1]);
     $this->post(route('checkout.store'), [
-        'name' => 'Guest', 'email' => 'g@waqar.test', 'phone' => '1',
+        'name' => 'Guest', 'email' => 'g@waqar.test', 'phone' => '01012345678',
         'governorate_id' => $geo['governorate']->id,
         'city_id' => $geo['city']->id,
         'area_id' => $geo['area']->id,
@@ -81,7 +81,7 @@ it('lets a Delivery Manager configure a shipping rate that checkout then actuall
 
     // …and now the same checkout succeeds, at the rate just entered.
     $this->post(route('checkout.store'), [
-        'name' => 'Guest', 'email' => 'g@waqar.test', 'phone' => '1',
+        'name' => 'Guest', 'email' => 'g@waqar.test', 'phone' => '01012345678',
         'governorate_id' => $geo['governorate']->id,
         'city_id' => $geo['city']->id,
         'area_id' => $geo['area']->id,
@@ -294,7 +294,7 @@ it('refuses to attach a guest order to somebody\'s registered account', function
 
     $this->post(route('cart.store'), ['product_variant_id' => $variant->id, 'quantity' => 1]);
     $this->post(route('checkout.store'), [
-        'name' => 'Impostor', 'email' => $registered->email, 'phone' => '1',
+        'name' => 'Impostor', 'email' => $registered->email, 'phone' => '01012345678',
         'governorate_id' => $geo['governorate']->id,
         'city_id' => $geo['city']->id,
         'area_id' => $geo['area']->id,
@@ -313,7 +313,7 @@ it('reuses the same guest record across repeat guest orders instead of duplicati
         $this->post(route('cart.store'), ['product_variant_id' => $variant->id, 'quantity' => 1]);
 
         return $this->post(route('checkout.store'), [
-            'name' => $name, 'email' => 'repeat@waqar.test', 'phone' => '+2010',
+            'name' => $name, 'email' => 'repeat@waqar.test', 'phone' => '01000000001',
             'governorate_id' => $geo['governorate']->id,
             'city_id' => $geo['city']->id,
             'area_id' => $geo['area']->id,
@@ -340,7 +340,7 @@ it('lets someone who ordered as a guest register with that same email and keep t
 
     $this->post(route('cart.store'), ['product_variant_id' => $variant->id, 'quantity' => 1]);
     $this->post(route('checkout.store'), [
-        'name' => 'Guest', 'email' => 'claimme@waqar.test', 'phone' => '+2010',
+        'name' => 'Guest', 'email' => 'claimme@waqar.test', 'phone' => '01000000001',
         'governorate_id' => $geo['governorate']->id,
         'city_id' => $geo['city']->id,
         'area_id' => $geo['area']->id,
@@ -352,7 +352,7 @@ it('lets someone who ordered as a guest register with that same email and keep t
     $this->post(route('register.store'), [
         'name' => 'Real Name',
         'email' => 'claimme@waqar.test',
-        'phone' => '+2011',
+        'phone' => '01100000001',
         'password' => 'password123!',
         'password_confirmation' => 'password123!',
     ])->assertRedirect(route('account.dashboard'));
@@ -374,7 +374,7 @@ it('still blocks registering over a real account', function () {
     $this->post(route('register.store'), [
         'name' => 'Impostor',
         'email' => $registered->email,
-        'phone' => '1',
+        'phone' => '01012345678',
         'password' => 'password123!',
         'password_confirmation' => 'password123!',
     ])->assertSessionHasErrors('email');

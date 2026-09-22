@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\NotificationController;
 use App\Models\Cart;
 use App\Models\Category;
 use App\Models\Collection;
+use App\Reports\ReportRegistry;
 use App\Services\Cart\CartService;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
@@ -90,11 +91,11 @@ class HandleInertiaRequests extends Middleware
                     'full_name' => $employee->full_name,
                     'email' => $employee->email,
                     'roles' => $employee->getRoleNames(),
-                    // Super Admin never holds explicit permission rows —
-                    // it bypasses every check via the Gate::before hook
-                    // in AppServiceProvider — so the React side needs
-                    // this flag separately rather than inferring
-                    // "can do everything" from an empty permissions list.
+                    // Super Admin holds every permission explicitly (see
+                    // PermissionSeeder) plus the Gate::before bypass in
+                    // AppServiceProvider as a fallback — so the React side
+                    // still needs this flag rather than inferring
+                    // "can do everything" from the permissions list alone.
                     'is_super_admin' => $employee->hasRole('Super Admin'),
                     // Flattened once here rather than every admin page
                     // calling $employee->can() itself — the React side
@@ -123,6 +124,20 @@ class HandleInertiaRequests extends Middleware
                     ->limit(10)
                     ->get()
                     ->map(fn (DatabaseNotification $notification) => NotificationController::row($notification))
+                    ->all(),
+                // Report groups that actually have a report this employee
+                // can open — the sidebar renders from this rather than a
+                // hardcoded list of the eight planned groups.
+                //
+                // Holding the permission is not the same as there being
+                // anything to see: reports land group by group, and a menu
+                // entry that navigates to an empty catalogue reads to the
+                // user as a broken screen, not as "not built yet". This
+                // also means each new report appears in the menu the moment
+                // it is registered, with no second place to update.
+                'reportGroups' => fn () => app(ReportRegistry::class)
+                    ->visibleTo($employee)
+                    ->keys()
                     ->all(),
             ] : null,
             // Storefront shell data only — computed lazily and skipped

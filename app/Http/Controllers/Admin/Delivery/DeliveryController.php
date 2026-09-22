@@ -42,7 +42,7 @@ class DeliveryController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('permission:orders.view', only: ['index', 'orders']),
-            new Middleware('permission:orders.assign', only: ['assignForm', 'assign', 'assignBulk']),
+            new Middleware('permission:orders.assign', only: ['assignForm', 'assign', 'assignBulk', 'reassign']),
         ];
     }
 
@@ -66,7 +66,13 @@ class DeliveryController extends Controller implements HasMiddleware
         ]);
     }
 
-    /** Everything already handed off — Assigned and Out for Delivery. */
+    /**
+     * Everything already handed off — Assigned and Out for Delivery.
+     *
+     * Carries the assignee lists because this is where an order is moved
+     * to a different courier: the delivery *outcome* is Accounting's, but
+     * who is carrying the parcel stays Delivery's business.
+     */
     public function orders(Request $request): Response
     {
         return Inertia::render('Delivery/Orders', [
@@ -77,6 +83,8 @@ class DeliveryController extends Controller implements HasMiddleware
                 ->latest('id')
                 ->paginate(20)
                 ->withQueryString(),
+            'representatives' => DeliveryRepresentative::query()->where('status', 'active')->get(['id', 'name']),
+            'shippingCompanies' => ShippingCompany::query()->where('status', 'active')->get(['id', 'name']),
         ]);
     }
 
@@ -112,6 +120,41 @@ class DeliveryController extends Controller implements HasMiddleware
         return redirect()
             ->route('admin.delivery.index')
             ->with('success', __('Order #:number assigned.', ['number' => $order->order_number]));
+    }
+
+    /**
+     * Hand an order already on the road to a different courier. The status
+     * does not move — only who is carrying it — and the previous assignment
+     * stays in `delivery_assignments` so a missing parcel is still
+     * traceable to whoever had it.
+     */
+    public function reassign(Request $request, Order $order, AssignDeliveryAction $action): RedirectResponse
+    {
+        $data = $request->validate([
+            'assignment_type' => ['required', Rule::enum(DeliveryAssignmentType::class)],
+            'assignee_id' => ['required', 'integer'],
+            'notes' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        // visibleTo as a guard, not a filter: a data-scoped role must not
+        // reassign an order it cannot see by posting its id.
+        abort_unless(
+            Order::query()->visibleTo($request->user('employee'))->whereKey($order->getKey())->exists(),
+            403,
+        );
+
+        [$type, $assignee] = $this->resolveAssignee($data);
+
+        try {
+            $action->reassign($order, $request->user('employee'), $type, $assignee, $data['notes'] ?? null);
+        } catch (RuntimeException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return back()->with('success', __('Order #:number moved to :name.', [
+            'number' => $order->order_number,
+            'name' => $assignee->name,
+        ]));
     }
 
     /**

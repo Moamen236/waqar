@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Store\Account;
 
 use App\Http\Controllers\Controller;
 use App\Models\Address;
+use App\Rules\PhoneNumber;
 use App\Support\GeoTree;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -72,7 +73,7 @@ class AddressController extends Controller
         return $request->validate([
             'label' => ['required', 'string', 'max:50'],
             'recipient_name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'string', 'max:30'],
+            'phone' => PhoneNumber::rules(),
             'governorate_id' => ['required', 'exists:governorates,id'],
             'city_id' => ['required', 'exists:cities,id'],
             'district_id' => ['nullable', 'exists:districts,id'],

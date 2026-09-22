@@ -7,6 +7,8 @@ import type { LocaleProps } from '../lib/i18n';
  */
 
 export interface ProductColor {
+    /** The attribute_value_id — what an image is tagged with. */
+    id: number;
     name: string;
     hex: string | null;
 }
@@ -54,6 +56,12 @@ export interface ProductVariantData {
 export interface ProductDetailData extends ProductCardData {
     sku: string;
     description: string | null;
+    /**
+     * Colour name → that colour's photos, for products where someone has
+     * tagged the images. A colour missing from this map falls back to the
+     * full `images` set, so an untagged catalogue behaves as it always did.
+     */
+    images_by_color: Record<string, string[]>;
     variants: ProductVariantData[];
     collections: { slug: string; name: string }[];
 }

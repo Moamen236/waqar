@@ -17,6 +17,13 @@ interface NavItem {
     href: string;
     icon: string;
     permission?: string;
+    /**
+     * Report-group key. The item shows only when the server says that group
+     * actually contains a report this employee can open — holding the
+     * permission is not enough, because reports land group by group and a
+     * link into an empty catalogue reads as a broken screen.
+     */
+    reportGroup?: string;
 }
 
 interface NavGroup {
@@ -139,6 +146,12 @@ const NAV: NavGroup[] = [
                 permission: 'delivery.rates.view',
             },
             {
+                label: 'admin.navGeography',
+                href: route('admin.geo.index', 'governorates'),
+                icon: 'bx-map',
+                permission: 'geo.view',
+            },
+            {
                 label: 'admin.navReconciliation',
                 href: route('admin.accounting.reconciliation.index'),
                 icon: 'bx-receipt',
@@ -233,6 +246,70 @@ const NAV: NavGroup[] = [
         ],
     },
     {
+        // One entry per report *group*, not per report. The group page is
+        // the catalogue filtered to that group, so the sidebar stays eight
+        // lines however many reports the module grows to.
+        label: 'admin.navReports',
+        items: [
+            {
+                label: 'reports.group.executive',
+                href: `${route('admin.reports.index')}?group=executive`,
+                icon: 'bx-trending-up',
+                permission: 'reports.executive.view',
+                reportGroup: 'executive',
+            },
+            {
+                label: 'reports.group.orders',
+                href: `${route('admin.reports.index')}?group=orders`,
+                icon: 'bx-receipt',
+                permission: 'reports.orders.view',
+                reportGroup: 'orders',
+            },
+            {
+                label: 'reports.group.sales',
+                href: `${route('admin.reports.index')}?group=sales`,
+                icon: 'bx-line-chart',
+                permission: 'reports.sales.view',
+                reportGroup: 'sales',
+            },
+            {
+                label: 'reports.group.inventory',
+                href: `${route('admin.reports.index')}?group=inventory`,
+                icon: 'bx-package',
+                permission: 'reports.inventory.view',
+                reportGroup: 'inventory',
+            },
+            {
+                label: 'reports.group.returns',
+                href: `${route('admin.reports.index')}?group=returns`,
+                icon: 'bx-undo',
+                permission: 'reports.returns.view',
+                reportGroup: 'returns',
+            },
+            {
+                label: 'reports.group.finance',
+                href: `${route('admin.reports.index')}?group=finance`,
+                icon: 'bx-wallet',
+                permission: 'reports.finance.view',
+                reportGroup: 'finance',
+            },
+            {
+                label: 'reports.group.employees',
+                href: `${route('admin.reports.index')}?group=employees`,
+                icon: 'bx-user-check',
+                permission: 'reports.employees.view',
+                reportGroup: 'employees',
+            },
+            {
+                label: 'reports.group.audit',
+                href: `${route('admin.reports.index')}?group=audit`,
+                icon: 'bx-search-alt',
+                permission: 'reports.audit.view',
+                reportGroup: 'audit',
+            },
+        ],
+    },
+    {
         label: 'admin.navSystem',
         items: [
             {
@@ -267,10 +344,27 @@ export default function AdminLayout({
     actions?: ReactNode;
 }>) {
     const { t } = useTranslation();
-    const { flash } = usePage<SharedProps>().props;
+    const { flash, admin } = usePage<SharedProps>().props;
     const { employee, can } = usePermissions();
     const currentUrl = usePage().url;
     const currentPath = pathOf(currentUrl);
+
+    /**
+     * One predicate for both the active-section calculation and the render,
+     * so the sidebar can never highlight a section it does not draw.
+     *
+     * A report item needs the permission *and* a group the server says is
+     * populated; everything else needs only the permission.
+     */
+    const reportGroups = admin?.reportGroups ?? [];
+    const isVisible = useCallback(
+        (item: NavItem): boolean => {
+            if (item.permission && !can(item.permission)) return false;
+
+            return !item.reportGroup || reportGroups.includes(item.reportGroup);
+        },
+        [can, reportGroups],
+    );
 
     // One active link at a time: every href is a prefix of its own
     // sub-pages (`/orders` also prefixes `/orders/create`), and whole
@@ -280,9 +374,7 @@ export default function AdminLayout({
     // active on `/ar/admin/delivery/representatives`. Instead collect
     // every visible item whose path matches on a segment boundary and
     // keep only the longest — i.e. the most specific section.
-    const visiblePaths = NAV.flatMap((group) =>
-        group.items.filter((item) => !item.permission || can(item.permission)).map((item) => pathOf(item.href)),
-    );
+    const visiblePaths = NAV.flatMap((group) => group.items.filter(isVisible).map((item) => pathOf(item.href)));
     const longestActiveLength = visiblePaths
         .filter((itemPath) => currentPath === itemPath || currentPath.startsWith(`${itemPath}/`))
         .reduce((max, itemPath) => Math.max(max, itemPath.length), 0);
@@ -531,7 +623,7 @@ export default function AdminLayout({
                 <SimpleBar className="scrollbar">
                     <ul className="navbar-nav" id="navbar-nav">
                         {NAV.map((group) => {
-                            const items = group.items.filter((item) => !item.permission || can(item.permission));
+                            const items = group.items.filter(isVisible);
                             if (items.length === 0) return null;
 
                             return (

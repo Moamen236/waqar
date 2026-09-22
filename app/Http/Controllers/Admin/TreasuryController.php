@@ -7,6 +7,7 @@ use App\Enums\TreasuryType;
 use App\Http\Controllers\Controller;
 use App\Models\Treasury;
 use App\Services\Treasury\TreasuryService;
+use App\Support\DateRangeFilter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -48,11 +49,22 @@ class TreasuryController extends Controller implements HasMiddleware
             ? Treasury::findOrFail($request->integer('treasury_id'))
             : $treasuries->first();
 
+        // The movement list is a history and defaults to today. The
+        // balance beside it is not filtered and must not be — it is the
+        // account's real balance, not the sum of what is on screen.
+        $range = DateRangeFilter::fromRequest($request);
+
         return Inertia::render('Treasury/Index', [
             'treasuries' => $treasuries,
             'selected' => $selected,
+            'filters' => $range,
             'transactions' => $selected
-                ? $selected->transactions()->with('createdBy:id,full_name')->latest('id')->paginate(30)->withQueryString()
+                ? $selected->transactions()
+                    ->with('createdBy:id,full_name')
+                    ->tap(fn ($query) => DateRangeFilter::apply($query, $range))
+                    ->latest('id')
+                    ->paginate(30)
+                    ->withQueryString()
                 : null,
         ]);
     }

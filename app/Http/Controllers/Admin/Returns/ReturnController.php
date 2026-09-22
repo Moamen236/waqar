@@ -4,18 +4,27 @@ namespace App\Http\Controllers\Admin\Returns;
 
 use App\Actions\Returns\AcceptReturnShippingFeeAction;
 use App\Actions\Returns\ApproveReturnAction;
+use App\Actions\Returns\AssignReturnPickupAction;
+use App\Actions\Returns\CheckReturnAction;
+use App\Actions\Returns\CreateReplacementOrderAction;
 use App\Actions\Returns\ReceiveReturnAction;
 use App\Actions\Returns\RefundReturnAction;
 use App\Actions\Returns\RequestReturnAction;
+use App\Enums\DeliveryAssignmentType;
 use App\Enums\OrderStatus;
 use App\Enums\RefundMethod;
+use App\Exceptions\InsufficientStockException;
 use App\Exports\ReturnsExport;
 use App\Http\Controllers\Controller;
+use App\Models\DeliveryRepresentative;
 use App\Models\Order;
 use App\Models\OrderReturn;
+use App\Models\ProductVariant;
 use App\Models\ReturnReason;
+use App\Models\ShippingCompany;
 use App\Models\Treasury;
 use App\Models\Warehouse;
+use App\Support\DateRangeFilter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -23,6 +32,7 @@ use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
@@ -47,37 +57,53 @@ class ReturnController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:returns.create', only: ['index', 'create', 'store', 'show', 'acceptShippingFee']),
+            // returns.check reaches the list and one return too: Checking
+            // cannot phone a customer about a return it is not allowed to
+            // open. It gets no create/store — verifying a return is not
+            // the same as filing one.
+            new Middleware('permission:returns.create|returns.check', only: ['index', 'show']),
+            new Middleware('permission:returns.create', only: ['create', 'store', 'acceptShippingFee']),
+            new Middleware('permission:returns.check', only: ['check']),
             new Middleware('permission:returns.export', only: ['export']),
             new Middleware('permission:returns.approve', only: ['approve']),
-            new Middleware('permission:returns.receive', only: ['receive']),
-            new Middleware('permission:returns.refund', only: ['refund']),
+            new Middleware('permission:returns.receive', only: ['receive', 'assignPickup']),
+            new Middleware('permission:returns.refund', only: ['refund', 'replace']),
         ];
     }
 
     public function index(Request $request): Response
     {
+        $range = DateRangeFilter::fromRequest($request);
+
         $returns = OrderReturn::query()
             // Same Customer Service scoping the order book uses: an agent
             // sees returns on their own orders, a Team Leader their team's.
             ->visibleTo($request->user('employee'))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->query('status')))
+            ->tap(fn ($query) => DateRangeFilter::apply($query, $range))
             ->with(['order:id,order_number,total', 'customer:id,name,phone'])
             ->latest('id')
             ->paginate(20)
             ->withQueryString();
 
-        return Inertia::render('Returns/Index', ['returns' => $returns, 'status' => $request->query('status')]);
+        return Inertia::render('Returns/Index', [
+            'returns' => $returns,
+            'status' => $request->query('status'),
+            'filters' => $range,
+        ]);
     }
 
     /**
-     * The same rows index() renders — same optional status filter — as an
-     * .xlsx download.
+     * The same rows index() renders — same status filter, same date
+     * window — as an .xlsx download.
      */
     public function export(Request $request): BinaryFileResponse
     {
-        return (new ReturnsExport((string) $request->query('status', ''), $request->user('employee')))
-            ->download('returns-'.now()->format('Y-m-d_His').'.xlsx');
+        return (new ReturnsExport(
+            (string) $request->query('status', ''),
+            $request->user('employee'),
+            DateRangeFilter::fromRequest($request),
+        ))->download('returns-'.now()->format('Y-m-d_His').'.xlsx');
     }
 
     public function create(Request $request): Response
@@ -156,6 +182,9 @@ class ReturnController extends Controller implements HasMiddleware
             'items.orderItem.productVariant.product',
             'reason',
             'refund',
+            'checkedBy:id,full_name',
+            'deliveryRepresentative:id,name',
+            'shippingCompany:id,name',
         ]);
 
         return Inertia::render('Returns/Show', [
@@ -164,6 +193,23 @@ class ReturnController extends Controller implements HasMiddleware
             // the main warehouse, shown read-only (same arrangement as
             // admin order-create).
             'warehouse' => Warehouse::main()?->only(['id', 'name']),
+            // What can be sent as a replacement. Same flat list the admin
+            // order-create screen uses — a swap is chosen from the whole
+            // catalogue, not just the returned product's siblings.
+            'variants' => ProductVariant::query()
+                ->where('status', true)
+                ->whereHas('product')
+                ->with('product:id,name')
+                ->get()
+                ->map(fn (ProductVariant $variant) => [
+                    'id' => $variant->id,
+                    'label' => $variant->product->getTranslation('name', app()->getLocale()).' — '.$variant->sku,
+                    'price' => (float) $variant->effectivePrice(),
+                ])
+                ->values(),
+            // Who can be sent to collect the goods coming back.
+            'representatives' => DeliveryRepresentative::query()->where('status', 'active')->get(['id', 'name']),
+            'shippingCompanies' => ShippingCompany::query()->where('status', 'active')->get(['id', 'name']),
             'treasuries' => Treasury::query()->where('is_active', true)->get(['id', 'name', 'type']),
         ]);
     }
@@ -181,11 +227,95 @@ class ReturnController extends Controller implements HasMiddleware
         return back()->with('success', __('Return shipping fee recorded as accepted.'));
     }
 
+    /**
+     * Name (or change) who collects the goods coming back. Returns
+     * carried no assignee at all until now — the warehouse restocked
+     * whenever someone pressed Received and nothing said who had been
+     * sent to fetch the parcel.
+     */
+    public function assignPickup(Request $request, OrderReturn $return, AssignReturnPickupAction $action): RedirectResponse
+    {
+        $data = $request->validate([
+            'assignment_type' => ['required', Rule::enum(DeliveryAssignmentType::class)],
+            'assignee_id' => ['required', 'integer'],
+        ]);
+
+        $assignee = $data['assignment_type'] === DeliveryAssignmentType::Representative->value
+            ? DeliveryRepresentative::findOrFail($data['assignee_id'])
+            : ShippingCompany::findOrFail($data['assignee_id']);
+
+        try {
+            $action->execute(
+                $return,
+                $request->user('employee'),
+                DeliveryAssignmentType::from($data['assignment_type']),
+                $assignee,
+            );
+        } catch (RuntimeException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return back()->with('success', __('Collection assigned to :name.', ['name' => $assignee->name]));
+    }
+
+    /**
+     * Send a different item instead of refunding. Creates a new order
+     * linked to the one being replaced; the customer pays the shipping
+     * and any price difference.
+     */
+    public function replace(Request $request, OrderReturn $return, CreateReplacementOrderAction $action): RedirectResponse
+    {
+        $data = $request->validate([
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.product_variant_id' => ['required', 'integer', 'exists:product_variants,id'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+        ]);
+
+        try {
+            $order = $action->execute($return, $data['items'], $request->user('employee'));
+        } catch (RuntimeException $exception) {
+            return back()->with('error', $exception->getMessage());
+        } catch (InsufficientStockException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return redirect()->route('admin.orders.show', $order)
+            ->with('success', __('Replacement order #:number created.', ['number' => $order->order_number]));
+    }
+
     public function approve(Request $request, OrderReturn $return, ApproveReturnAction $action): RedirectResponse
     {
         $action->execute($return, $request->user('employee'));
 
         return back()->with('success', __('Return approved.'));
+    }
+
+    /**
+     * Checking's phone call: confirm the reason, reschedule if the
+     * customer could not be reached, or cancel it outright. One endpoint
+     * for the three outcomes — they are one decision taken on one call,
+     * not three unrelated transitions.
+     */
+    public function check(Request $request, OrderReturn $return, CheckReturnAction $action): RedirectResponse
+    {
+        $data = $request->validate([
+            'outcome' => ['required', Rule::in(['confirm', 'reschedule', 'cancel'])],
+            // Required on a cancel: rejecting a customer's return without
+            // recording why is how a dispute becomes unanswerable.
+            'notes' => [Rule::requiredIf($request->input('outcome') === 'cancel'), 'nullable', 'string', 'max:500'],
+        ]);
+
+        try {
+            match ($data['outcome']) {
+                'confirm' => $action->confirm($return, $request->user('employee'), $data['notes'] ?? null),
+                'reschedule' => $action->reschedule($return, $request->user('employee'), $data['notes'] ?? null),
+                'cancel' => $action->cancel($return, $request->user('employee'), $data['notes']),
+            };
+        } catch (RuntimeException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return back()->with('success', __('Return checked.'));
     }
 
     public function receive(Request $request, OrderReturn $return, ReceiveReturnAction $action): RedirectResponse

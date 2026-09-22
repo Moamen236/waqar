@@ -13,6 +13,7 @@ use App\Models\Treasury;
 use App\Models\WarehouseInventory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -84,10 +85,13 @@ class DashboardController extends Controller
             // Revenue counts Delivered orders only — the same point in the
             // lifecycle at which stock actually deducts (Section 07). An
             // order that is merely confirmed is not revenue.
+            // Net of shipping: the courier keeps that at the door, so it
+            // is never company revenue. Summing total here would report
+            // money that cannot be found in any treasury.
             'revenue_this_month' => (string) $visible()
                 ->where('status', OrderStatus::Delivered)
                 ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
-                ->sum('total'),
+                ->sum(DB::raw('total - shipping_amount')),
         ];
     }
 

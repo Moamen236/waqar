@@ -290,6 +290,7 @@
     "product.size": "Size",
     "product.sizeGuide": "Size Guide",
     "product.sizeGuideBody": "Pick the size that matches your weight range.",
+    "product.sizeFitsWeight": "Size :size fits :range",
     "product.skuLabel": "SKU:",
     "product.submitReview": "Submit review",
     "product.tabDescription": "Description",

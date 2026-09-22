@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DeliveryAssignmentType;
 use App\Enums\ReturnStage;
 use App\Enums\ReturnStatus;
 use App\Models\Concerns\RecordsActivity;
@@ -43,6 +44,9 @@ class OrderReturn extends Model
             'status',
             'reason_id',
             'return_shipping_fee',
+            'delivery_assignment_type',
+            'delivery_representative_id',
+            'shipping_company_id',
         ];
     }
 
@@ -57,6 +61,12 @@ class OrderReturn extends Model
         'return_shipping_fee',
         'customer_accepted_return_shipping_fee_at',
         'customer_notes',
+        'checked_by_employee_id',
+        'checked_at',
+        'checking_notes',
+        'delivery_assignment_type',
+        'delivery_representative_id',
+        'shipping_company_id',
     ];
 
     // Requested is the natural starting status of a new return.
@@ -69,6 +79,8 @@ class OrderReturn extends Model
         return [
             'return_shipping_fee' => 'decimal:2',
             'customer_accepted_return_shipping_fee_at' => 'datetime',
+            'checked_at' => 'datetime',
+            'delivery_assignment_type' => DeliveryAssignmentType::class,
             'stage' => ReturnStage::class,
             'status' => ReturnStatus::class,
         ];
@@ -112,6 +124,28 @@ class OrderReturn extends Model
     public function reason(): BelongsTo
     {
         return $this->belongsTo(ReturnReason::class, 'reason_id');
+    }
+
+    /**
+     * Who phoned the customer to verify this return.
+     */
+    public function checkedBy(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'checked_by_employee_id');
+    }
+
+    /**
+     * Who is going to collect the goods. Exactly one of the two is set,
+     * per delivery_assignment_type — the same arrangement as an order.
+     */
+    public function deliveryRepresentative(): BelongsTo
+    {
+        return $this->belongsTo(DeliveryRepresentative::class);
+    }
+
+    public function shippingCompany(): BelongsTo
+    {
+        return $this->belongsTo(ShippingCompany::class);
     }
 
     /**

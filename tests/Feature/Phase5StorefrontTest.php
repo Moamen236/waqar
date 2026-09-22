@@ -53,7 +53,7 @@ function p5Geo(): array
 
 function p5Warehouse(): Warehouse
 {
-    return Warehouse::create(['name' => 'Main', 'address' => 'N/A', 'phone' => '1', 'is_active' => true]);
+    return Warehouse::create(['name' => 'Main', 'address' => 'N/A', 'phone' => '01012345678', 'is_active' => true]);
 }
 
 function p5Product(int $warehouseId, int $stock = 10, array $overrides = []): Product
@@ -83,7 +83,7 @@ function p5Customer(string $password = 'password123!'): Customer
     return Customer::create([
         'name' => 'Shopper',
         'email' => 'shopper-'.uniqid().'@waqar.test',
-        'phone' => '+201000000000',
+        'phone' => '01000000000',
         'password' => $password,
     ]);
 }
@@ -121,7 +121,7 @@ it('walks a guest through browse → cart → COD checkout → order tracking, w
     $this->post(route('checkout.store'), [
         'name' => 'Guest Buyer',
         'email' => 'guest@waqar.test',
-        'phone' => '+201111111111',
+        'phone' => '01111111111',
         'governorate_id' => $geo['governorate']->id,
         'city_id' => $geo['city']->id,
         'area_id' => $geo['area']->id,
@@ -165,7 +165,7 @@ it('refuses a checkout for an address with no shipping rate anywhere up the chai
     $this->post(route('cart.store'), ['product_variant_id' => $variant->id, 'quantity' => 1]);
 
     $this->post(route('checkout.store'), [
-        'name' => 'Guest', 'email' => 'g@waqar.test', 'phone' => '1',
+        'name' => 'Guest', 'email' => 'g@waqar.test', 'phone' => '01012345678',
         'governorate_id' => $geo['governorate']->id,
         'city_id' => $geo['city']->id,
         'area_id' => $geo['area']->id,
@@ -274,13 +274,13 @@ it('registers a customer with the name and phone the template omits', function (
     $this->post(route('register.store'), [
         'name' => 'New Shopper',
         'email' => 'new@waqar.test',
-        'phone' => '+201234567890',
+        'phone' => '01234567890',
         'password' => 'password123!',
         'password_confirmation' => 'password123!',
     ])->assertRedirect(route('account.dashboard'));
 
     $customer = Customer::where('email', 'new@waqar.test')->firstOrFail();
-    expect($customer->name)->toBe('New Shopper')->and($customer->phone)->toBe('+201234567890');
+    expect($customer->name)->toBe('New Shopper')->and($customer->phone)->toBe('01234567890');
     $this->assertAuthenticatedAs($customer, 'customer');
 });
 
@@ -563,7 +563,7 @@ it('saves a customer address through the full geo cascade and keeps exactly one 
     $payload = [
         'label' => 'Home',
         'recipient_name' => 'Me',
-        'phone' => '1',
+        'phone' => '01012345678',
         'governorate_id' => $geo['governorate']->id,
         'city_id' => $geo['city']->id,
         'district_id' => null,
@@ -587,7 +587,7 @@ it('does not let a customer edit or delete another customer\'s address', functio
     $geo = p5Geo();
     $owner = p5Customer();
     $address = $owner->addresses()->create([
-        'label' => 'Home', 'recipient_name' => 'Owner', 'phone' => '1',
+        'label' => 'Home', 'recipient_name' => 'Owner', 'phone' => '01012345678',
         'governorate_id' => $geo['governorate']->id, 'city_id' => $geo['city']->id,
         'area_id' => $geo['area']->id, 'address_line' => 'X', 'is_default' => true,
     ]);
@@ -625,4 +625,33 @@ it('picks the storefront root view for storefront URLs and the admin one for /ad
         ->and($middleware->rootView(Request::create('/account/orders')))->toBe('storefront')
         ->and($middleware->rootView(Request::create('/admin')))->toBe('admin')
         ->and($middleware->rootView(Request::create('/admin/checking')))->toBe('admin');
+});
+
+// A3 — phone numbers are exactly 11 digits (feature-backlog-plan.md).
+// The rule lives in one place, App\Rules\PhoneNumber, because it was
+// previously ten separate copies of ['required','string','max:30'] that
+// checked nothing at all.
+
+it('rejects a phone number that is not exactly 11 digits, at every customer entry point', function () {
+    foreach (['0123456789', '012345678901', '+201234567890', '0123 456 789', 'not-a-phone'] as $bad) {
+        $this->post(route('register.store'), [
+            'name' => 'Shopper',
+            'email' => 'bad-'.uniqid().'@waqar.test',
+            'phone' => $bad,
+            'password' => 'password123!',
+            'password_confirmation' => 'password123!',
+        ])->assertSessionHasErrors('phone');
+    }
+
+    // Eleven digits gets through — including the leading zero every
+    // Egyptian mobile starts with, which a numeric cast would eat.
+    $this->post(route('register.store'), [
+        'name' => 'Shopper',
+        'email' => 'good@waqar.test',
+        'phone' => '01012345678',
+        'password' => 'password123!',
+        'password_confirmation' => 'password123!',
+    ])->assertSessionHasNoErrors();
+
+    expect(Customer::where('email', 'good@waqar.test')->firstOrFail()->phone)->toBe('01012345678');
 });

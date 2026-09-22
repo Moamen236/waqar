@@ -57,14 +57,14 @@ it('addresses a customer against all four base geo levels', function () {
     $customer = Customer::create([
         'name' => 'Test Customer',
         'email' => 'customer@waqar.test',
-        'phone' => '+201111111111',
+        'phone' => '01111111111',
         'password' => 'password',
     ]);
 
     $address = Address::create([
         'customer_id' => $customer->id,
         'recipient_name' => 'Test Customer',
-        'phone' => '+201111111111',
+        'phone' => '01111111111',
         'governorate_id' => $governorate->id,
         'city_id' => $city->id,
         'area_id' => $area->id,
@@ -83,7 +83,7 @@ it('seeds the 9 base roles plus Store Orders on the employee guard and assigns o
     $employee = Employee::create([
         'full_name' => 'Ada Lovelace',
         'email' => 'ada@waqar.test',
-        'phone' => '+201222222222',
+        'phone' => '01222222222',
         'password' => 'password',
         'residence_address' => 'N/A',
         'national_id_number' => 'N/A',
@@ -96,7 +96,7 @@ it('seeds the 9 base roles plus Store Orders on the employee guard and assigns o
 
 it('scopes a team leader hierarchy via team_leader_id', function () {
     $lead = Employee::create([
-        'full_name' => 'Team Lead', 'email' => 'lead@waqar.test', 'phone' => '1',
+        'full_name' => 'Team Lead', 'email' => 'lead@waqar.test', 'phone' => '01012345678',
         'password' => 'password', 'residence_address' => 'N/A', 'national_id_number' => 'N/A',
     ]);
     $agent = Employee::create([

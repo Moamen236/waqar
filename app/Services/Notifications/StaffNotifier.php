@@ -9,6 +9,7 @@ use App\Notifications\Staff\StaffNotification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
+use Spatie\Permission\Models\Role;
 
 /**
  * Who gets told, for every staff-facing event (Section 23's event list).
@@ -125,8 +126,25 @@ class StaffNotifier
             return new Collection;
         }
 
+        // Spatie's role() scope throws RoleDoesNotExist for a name that
+        // isn't in the table, and every caller reaches this from inside
+        // the business transaction that triggered the notification — so
+        // one role renamed through /admin/roles would roll back a cash
+        // collection or a stock deduction. Notifying nobody is the only
+        // acceptable failure mode for a notification lookup; narrowing to
+        // the roles that actually exist is what makes that possible.
+        $known = Role::query()
+            ->where('guard_name', 'employee')
+            ->whereIn('name', $roles)
+            ->pluck('name')
+            ->all();
+
+        if ($known === []) {
+            return new Collection;
+        }
+
         return new Collection(
-            Employee::query()->role($roles, 'employee')->where('is_active', true)->get()->all()
+            Employee::query()->role($known, 'employee')->where('is_active', true)->get()->all()
         );
     }
 

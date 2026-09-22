@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\DateRangeFilter;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -49,11 +50,13 @@ class ActivityLogController extends Controller implements HasMiddleware
         $log = $request->string('log')->toString();
         $event = $request->string('event')->toString();
         $search = trim((string) $request->string('search'));
+        $range = DateRangeFilter::fromRequest($request);
 
         $activities = Activity::query()
             ->with(['causer', 'subject'])
             ->when(in_array($log, self::LOGS, true), fn ($query) => $query->where('log_name', $log))
             ->when($event !== '', fn ($query) => $query->where('event', $event))
+            ->tap(fn ($query) => DateRangeFilter::apply($query, $range))
             // The label snapshot is what survives the subject, so it is
             // also the only thing worth searching — joining out to each
             // subject table would miss exactly the deleted rows someone
@@ -81,7 +84,7 @@ class ActivityLogController extends Controller implements HasMiddleware
             'activities' => $activities,
             'logs' => self::LOGS,
             'events' => Activity::query()->distinct()->orderBy('event')->pluck('event')->filter()->values(),
-            'filters' => ['log' => $log, 'event' => $event, 'search' => $search],
+            'filters' => ['log' => $log, 'event' => $event, 'search' => $search, ...$range],
         ]);
     }
 

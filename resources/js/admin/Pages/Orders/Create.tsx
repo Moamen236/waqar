@@ -2,15 +2,177 @@ import { Head, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import Select from 'react-select';
+import AsyncSelect from 'react-select/async';
 import AdminLayout from '../../Layouts/AdminLayout';
 import type { GeoTree, Warehouse } from '../../types';
 import { useTranslation } from '../../lib/useTranslation';
 
-interface VariantOption {
+interface VariantOptionValue {
+    attribute: string;
+    attribute_label: string;
+    value: string;
+    hex: string | null;
+}
+
+interface PickerVariant {
     id: number;
     sku: string;
-    label: string;
     price: number;
+    /** null when the product is not inventory-tracked (advertisement items). */
+    available: number | null;
+    options: VariantOptionValue[];
+}
+
+interface PickerProduct {
+    id: number;
+    name: string;
+    sku: string;
+    price: number;
+    tracked: boolean;
+    colors: { name: string; hex: string | null }[];
+    sizes: string[];
+    variants: PickerVariant[];
+}
+
+/**
+ * One order line's product picker: search a product, then pick its colour
+ * and size — the same two steps a customer takes on the storefront, which
+ * is what an agent is reading out over the phone.
+ *
+ * Replaces a flat dropdown of every SKU in the catalogue. Agents know the
+ * product and the colour the customer asked for; they do not know
+ * "WQ-4471-V".
+ */
+function VariantPicker({ onResolve }: { onResolve: (variant: PickerVariant | null) => void }) {
+    const { t, price } = useTranslation();
+    const [product, setProduct] = useState<PickerProduct | null>(null);
+    const [colour, setColour] = useState<string | null>(null);
+    const [size, setSize] = useState<string | null>(null);
+
+    const optionOf = (variant: PickerVariant, attribute: string) =>
+        variant.options.find((option) => option.attribute === attribute)?.value ?? null;
+
+    const hasColours = (product?.colors.length ?? 0) > 0;
+    const hasSizes = (product?.sizes.length ?? 0) > 0;
+
+    // A variant is only resolved once every axis the product actually
+    // differentiates on has been chosen — a product with one variant and
+    // no options resolves immediately.
+    const variant =
+        product === null
+            ? null
+            : (product.variants.find(
+                  (candidate) =>
+                      (!hasColours || optionOf(candidate, 'color') === colour) &&
+                      (!hasSizes || optionOf(candidate, 'size') === size),
+              ) ??
+              (product.variants.length === 1 ? product.variants[0] : null) ??
+              null);
+
+    useEffect(() => {
+        onResolve(variant ?? null);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [variant?.id]);
+
+    async function search(term: string): Promise<{ value: number; label: string; product: PickerProduct }[]> {
+        if (term.trim() === '') return [];
+
+        const response = await fetch(`${route('admin.orders.product-search')}?q=${encodeURIComponent(term)}`, {
+            headers: { Accept: 'application/json' },
+        });
+        if (!response.ok) return [];
+
+        const body: { products: PickerProduct[] } = await response.json();
+
+        return body.products.map((item) => ({
+            value: item.id,
+            label: `${item.name} — ${item.sku}`,
+            product: item,
+        }));
+    }
+
+    return (
+        <div className="d-flex flex-column gap-2">
+            <AsyncSelect
+                cacheOptions
+                defaultOptions={false}
+                loadOptions={search}
+                placeholder={t('admin.searchProduct')}
+                noOptionsMessage={() => t('admin.typeToSearchProducts')}
+                onChange={(option) => {
+                    setProduct(option?.product ?? null);
+                    setColour(null);
+                    setSize(null);
+                }}
+            />
+
+            {hasColours && (
+                <div className="d-flex align-items-center gap-1 flex-wrap">
+                    <span className="fs-12 text-muted me-1">{t('admin.color')}:</span>
+                    {product!.colors.map((option) => (
+                        <button
+                            key={option.name}
+                            type="button"
+                            title={option.name}
+                            aria-label={option.name}
+                            aria-pressed={colour === option.name}
+                            className={`btn btn-sm p-0 border rounded-circle ${
+                                colour === option.name ? 'border-dark border-2' : ''
+                            }`}
+                            style={{
+                                width: 26,
+                                height: 26,
+                                // No hex on the value (an unswatched colour):
+                                // fall back to the plain name as a chip so it
+                                // is still selectable.
+                                backgroundColor: option.hex ?? 'transparent',
+                            }}
+                            onClick={() => setColour(option.name)}
+                        >
+                            {option.hex === null && <span className="fs-11">{option.name.slice(0, 2)}</span>}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {hasSizes && (
+                <div className="d-flex align-items-center gap-1 flex-wrap">
+                    <span className="fs-12 text-muted me-1">{t('admin.size')}:</span>
+                    {product!.sizes.map((option) => (
+                        <button
+                            key={option}
+                            type="button"
+                            aria-pressed={size === option}
+                            className={`btn btn-sm ${size === option ? 'btn-dark' : 'btn-soft-secondary'}`}
+                            onClick={() => setSize(option)}
+                        >
+                            {option}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {product !== null && variant === null && (
+                <div className="fs-12 text-warning">{t('admin.chooseEveryOption')}</div>
+            )}
+
+            {variant !== null && (
+                <div className="fs-12 text-muted">
+                    <span dir="ltr">{variant.sku}</span>
+                    {variant.available !== null && (
+                        <span className={variant.available > 0 ? ' text-success' : ' text-danger'}>
+                            {' · '}
+                            {variant.available > 0
+                                ? t('admin.nInStock', { count: variant.available })
+                                : t('admin.outOfStock')}
+                        </span>
+                    )}
+                    {' · '}
+                    <span dir="ltr">{price(variant.price)}</span>
+                </div>
+            )}
+        </div>
+    );
 }
 
 /** What admin.orders.quote answers with — a null shipping means no rate is configured. */
@@ -59,12 +221,10 @@ interface FormValues {
 // Shipping Details / Order Summary card layout.
 export default function OrdersCreate({
     customers,
-    variants,
     warehouse,
     geoTree,
 }: {
     customers: CustomerOption[];
-    variants: VariantOption[];
     warehouse: Warehouse | null;
     geoTree: GeoTree;
 }) {
@@ -101,8 +261,13 @@ export default function OrdersCreate({
     const city = governorate?.cities.find((c) => c.id === cityId);
 
     const customerOptions = customers.map((c) => ({ value: c.id, label: `${c.name} — ${c.phone}` }));
-    const variantOptions = variants.map((v) => ({ value: v.id, label: v.label }));
     const savedAddresses = customers.find((c) => c.id === customerId)?.addresses ?? [];
+
+    // Each row remembers the product and the chosen colour/size so the
+    // resolved variant can be recomputed, and so the line can show its
+    // price without waiting for the debounced server summary. Display
+    // only — CreateOrderAction reprices everything on submit.
+    const [picked, setPicked] = useState<Record<number, PickerVariant | null>>({});
 
     /** Copy a saved address into the shipping card — the whole point of storing them. */
     function applyAddress(address: SavedAddress) {
@@ -156,8 +321,7 @@ export default function OrdersCreate({
                 headers: {
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
-                    'X-CSRF-TOKEN':
-                        document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '',
+                    'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '',
                 },
                 body: quoteRequest,
             })
@@ -260,8 +424,10 @@ export default function OrdersCreate({
                                                         // matches the one applyAddress() just used.
                                                         key={customerId}
                                                         defaultValue={
-                                                            (savedAddresses.find((a) => a.is_default) ??
-                                                                savedAddresses[0]).id
+                                                            (
+                                                                savedAddresses.find((a) => a.is_default) ??
+                                                                savedAddresses[0]
+                                                            ).id
                                                         }
                                                         onChange={(e) => {
                                                             const address = savedAddresses.find(
@@ -300,7 +466,12 @@ export default function OrdersCreate({
                                     </div>
                                     <div className="col-md-6">
                                         <label className="form-label">{t('admin.phone')}</label>
-                                        <input className="form-control" {...register('phone')} />
+                                        <input
+                                            className="form-control"
+                                            inputMode="numeric"
+                                            maxLength={11}
+                                            {...register('phone')}
+                                        />
                                         {serverErrors.phone && (
                                             <div className="text-danger fs-13 mt-1">{serverErrors.phone}</div>
                                         )}
@@ -397,46 +568,73 @@ export default function OrdersCreate({
                                         <thead className="bg-light-subtle">
                                             <tr>
                                                 <th>{t('admin.product')}</th>
+                                                <th style={{ width: 120 }} className="text-end">
+                                                    {t('admin.unitPrice')}
+                                                </th>
                                                 <th style={{ width: 100 }}>{t('admin.qty')}</th>
+                                                <th style={{ width: 120 }} className="text-end">
+                                                    {t('admin.lineTotal')}
+                                                </th>
                                                 <th />
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {fields.map((field, index) => (
-                                                <tr key={field.id}>
-                                                    <td>
-                                                        <Select
-                                                            options={variantOptions}
-                                                            placeholder={t('admin.searchProduct')}
-                                                            onChange={(option) =>
-                                                                setValue(
-                                                                    `items.${index}.product_variant_id`,
-                                                                    option?.value ?? null,
-                                                                )
-                                                            }
-                                                        />
-                                                    </td>
-                                                    <td>
-                                                        <input
-                                                            type="number"
-                                                            min={1}
-                                                            className="form-control form-control-sm"
-                                                            {...register(`items.${index}.quantity`, {
-                                                                valueAsNumber: true,
-                                                            })}
-                                                        />
-                                                    </td>
-                                                    <td>
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-soft-danger btn-sm"
-                                                            onClick={() => remove(index)}
-                                                        >
-                                                            <i className="bx bx-trash align-middle" />
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                            {fields.map((field, index) => {
+                                                const unitPrice = picked[index]?.price ?? null;
+                                                const quantity = Number(items?.[index]?.quantity) || 0;
+
+                                                return (
+                                                    <tr key={field.id}>
+                                                        <td style={{ minWidth: 280 }}>
+                                                            <VariantPicker
+                                                                onResolve={(variant) => {
+                                                                    setPicked((current) => ({
+                                                                        ...current,
+                                                                        [index]: variant,
+                                                                    }));
+                                                                    setValue(
+                                                                        `items.${index}.product_variant_id`,
+                                                                        variant?.id ?? null,
+                                                                    );
+                                                                }}
+                                                            />
+                                                        </td>
+                                                        <td className="text-end" dir="ltr">
+                                                            {unitPrice === null ? (
+                                                                <span className="text-muted">—</span>
+                                                            ) : (
+                                                                price(unitPrice)
+                                                            )}
+                                                        </td>
+                                                        <td>
+                                                            <input
+                                                                type="number"
+                                                                min={1}
+                                                                className="form-control form-control-sm"
+                                                                {...register(`items.${index}.quantity`, {
+                                                                    valueAsNumber: true,
+                                                                })}
+                                                            />
+                                                        </td>
+                                                        <td className="text-end fw-medium" dir="ltr">
+                                                            {unitPrice === null ? (
+                                                                <span className="text-muted">—</span>
+                                                            ) : (
+                                                                price(unitPrice * quantity)
+                                                            )}
+                                                        </td>
+                                                        <td>
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-soft-danger btn-sm"
+                                                                onClick={() => remove(index)}
+                                                            >
+                                                                <i className="bx bx-trash align-middle" />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
@@ -454,7 +652,12 @@ export default function OrdersCreate({
                         </div>
                     </div>
 
-                    <div className="col-xl-4">
+                    {/* Sticky beside the taller left column: totals and the
+                        create button stay visible while scrolling items.
+                        align-self keeps the column content-sized so there
+                        is distance to stick across; top clears the 100px
+                        fixed topbar with a small gap. */}
+                    <div className="col-xl-4 align-self-start position-sticky" style={{ top: 112 }}>
                         <div className="card">
                             <div className="card-header">
                                 <h4 className="card-title">{t('admin.orderSummary')}</h4>

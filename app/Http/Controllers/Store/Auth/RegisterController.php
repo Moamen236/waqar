@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Store\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Rules\PhoneNumber;
 use App\Services\Cart\CartService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -39,7 +40,7 @@ class RegisterController extends Controller
                 'required', 'email', 'max:255',
                 Rule::unique('customers', 'email')->where(fn ($query) => $query->where('is_guest', false)),
             ],
-            'phone' => ['required', 'string', 'max:30'],
+            'phone' => PhoneNumber::rules(),
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 

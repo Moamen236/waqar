@@ -135,6 +135,16 @@ export default function OrdersIndex({
 
     const [advancedOpen, setAdvancedOpen] = useState(advancedCount > 0);
 
+    // Ticked rows, for an export or a batch print of just those orders.
+    // Page-local on purpose: the checkboxes are on this page's rows, and
+    // a selection that survived pagination would be invisible to whoever
+    // made it. Same shape as the delivery board's batch assign.
+    const [selected, setSelected] = useState<number[]>([]);
+    const allSelected = orders.data.length > 0 && selected.length === orders.data.length;
+
+    const toggle = (id: number) =>
+        setSelected((current) => (current.includes(id) ? current.filter((i) => i !== id) : [...current, id]));
+
     // Text/date/number drafts apply on Enter (form submit), not per
     // keystroke — each apply is a server round-trip. Uncontrolled with a
     // key off the applied values: applying or clearing remounts the form
@@ -167,12 +177,27 @@ export default function OrdersIndex({
         const params: Record<string, string | number> = {};
         for (const [key, value] of Object.entries(base)) {
             if (value === '' || value === null || value === undefined) {
+                // date_from is the exception: the server reads an absent
+                // one as "hasn't chosen" and defaults it to today, so an
+                // empty one has to survive — it is how "all dates" is
+                // said. See App\Support\DateRangeFilter.
+                if (key === 'date_from' && value === '') {
+                    params[key] = '';
+                }
                 continue;
             }
             params[key] = value as string | number;
         }
         return params;
     };
+
+    // The ticked ids on top of whatever the table is already filtered by,
+    // so an export of a selection is still inside visibleTo() and the
+    // current filters — the ids only narrow, they never widen.
+    const selectionParams = (): Record<string, string | number | number[]> => ({
+        ...queryParams(f),
+        ids: selected,
+    });
 
     const apply = (next: Partial<OrderFilters>) =>
         router.get(route('admin.orders.index'), queryParams({ ...f, ...next }), {
@@ -286,6 +311,52 @@ export default function OrdersIndex({
                                 </Link>
                             )}
                         </div>
+
+                        {selected.length > 0 && (
+                            <div className="card-body border-top d-flex flex-wrap align-items-center gap-2">
+                                <span className="flex-grow-1 fw-medium">
+                                    {t('admin.ordersSelected', { count: selected.length })}
+                                </span>
+                                {/* Plain anchors, not Inertia links: the export
+                                    returns a binary download, and the print page
+                                    is opened in its own tab so the selection on
+                                    this one survives. */}
+                                {can('orders.export') && (
+                                    <a
+                                        href={route('admin.orders.export', selectionParams())}
+                                        className="btn btn-sm btn-soft-secondary d-flex align-items-center"
+                                    >
+                                        <i className="bx bx-download me-1" />
+                                        {t('admin.exportSelected')}
+                                    </a>
+                                )}
+                                <a
+                                    href={route('admin.orders.invoices', selectionParams())}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="btn btn-sm btn-soft-secondary d-flex align-items-center"
+                                >
+                                    <i className="bx bx-printer me-1" />
+                                    {t('admin.printSelected')}
+                                </a>
+                                <a
+                                    href={route('admin.orders.labels', selectionParams())}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="btn btn-sm btn-soft-secondary d-flex align-items-center"
+                                >
+                                    <i className="bx bx-package me-1" />
+                                    {t('admin.printLabels')}
+                                </a>
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-secondary"
+                                    onClick={() => setSelected([])}
+                                >
+                                    {t('admin.clearSelection')}
+                                </button>
+                            </div>
+                        )}
 
                         {advancedOpen && (
                             <div className="card-body border-top">
@@ -454,6 +525,17 @@ export default function OrdersIndex({
                                             >
                                                 {t('admin.clearFilters')}
                                             </button>
+                                            {/* Clearing the filters still leaves the order book on
+                                                today — it is a history and that is its default.
+                                                Opening the window back up is its own control. */}
+                                            <button
+                                                type="button"
+                                                className="btn btn-sm btn-soft-secondary"
+                                                disabled={f.date_from === '' && f.date_to === ''}
+                                                onClick={() => apply({ date_from: '', date_to: '' })}
+                                            >
+                                                {t('admin.allDates')}
+                                            </button>
                                         </div>
                                     </div>
                                 </form>
@@ -464,7 +546,19 @@ export default function OrdersIndex({
                             <table className="table align-middle mb-0 table-hover table-centered">
                                 <thead className="bg-light-subtle">
                                     <tr>
-                                        <th className="ps-3">{t('admin.orderNumber')}</th>
+                                        <th className="ps-3" style={{ width: 40 }}>
+                                            <input
+                                                type="checkbox"
+                                                className="form-check-input"
+                                                aria-label={t('admin.selectAll')}
+                                                checked={allSelected}
+                                                disabled={orders.data.length === 0}
+                                                onChange={() =>
+                                                    setSelected(allSelected ? [] : orders.data.map((order) => order.id))
+                                                }
+                                            />
+                                        </th>
+                                        <th>{t('admin.orderNumber')}</th>
                                         <th>{t('admin.date')}</th>
                                         <th>{t('admin.customer')}</th>
                                         <th>{t('admin.items')}</th>
@@ -479,6 +573,15 @@ export default function OrdersIndex({
                                     {orders.data.map((order) => (
                                         <tr key={order.id}>
                                             <td className="ps-3">
+                                                <input
+                                                    type="checkbox"
+                                                    className="form-check-input"
+                                                    aria-label={`#${order.order_number}`}
+                                                    checked={selected.includes(order.id)}
+                                                    onChange={() => toggle(order.id)}
+                                                />
+                                            </td>
+                                            <td>
                                                 <Link
                                                     href={route('admin.orders.show', order.id)}
                                                     className="fw-medium"
@@ -529,7 +632,7 @@ export default function OrdersIndex({
                                         </tr>
                                     ))}
                                     {orders.data.length === 0 && (
-                                        <EmptyRow colSpan={9} message={t('admin.noOrdersMatch')} icon="bx-cart" />
+                                        <EmptyRow colSpan={10} message={t('admin.noOrdersMatch')} icon="bx-cart" />
                                     )}
                                 </tbody>
                             </table>

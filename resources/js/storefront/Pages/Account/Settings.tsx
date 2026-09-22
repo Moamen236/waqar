@@ -58,6 +58,8 @@ export default function AccountSettings({ profile }: { profile: { name: string; 
                                                 id="phone"
                                                 className="border-line mt-2 px-4 py-3 w-full rounded-lg"
                                                 type="text"
+                                                inputMode="numeric"
+                                                maxLength={11}
                                                 value={profileForm.data.phone}
                                                 onChange={(event) => profileForm.setData('phone', event.target.value)}
                                                 required

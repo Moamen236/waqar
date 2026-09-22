@@ -35,6 +35,8 @@ interface VariantRow {
 interface ProductImage {
     id: number;
     url: string;
+    /** Which colour this photo shows. Null means every colour. */
+    attribute_value_id: number | null;
 }
 
 interface ProductRecord {
@@ -66,6 +68,8 @@ interface ProductRecord {
         attribute_values: { id: number }[];
     }[];
     images: ProductImage[];
+    /** The colours this product is actually made in, for image tagging. */
+    colors: { id: number; name: string; hex: string | null }[];
 }
 
 interface FormValues {
@@ -236,6 +240,22 @@ export default function ProductForm({
         });
     }
 
+    // Tagging a photo with a colour is its own small write, not part of
+    // the product save — the save posts new files, and the tag belongs to
+    // an image that already exists. Optimistic: the select shows the new
+    // value immediately and the PATCH follows.
+    function tagImageColour(image: ProductImage, attributeValueId: number | null) {
+        if (!product) return;
+        setExistingImages((prev) =>
+            prev.map((i) => (i.id === image.id ? { ...i, attribute_value_id: attributeValueId } : i)),
+        );
+        router.patch(
+            route('admin.products.images.update', [product.id, image.id]),
+            { attribute_value_id: attributeValueId },
+            { preserveScroll: true },
+        );
+    }
+
     function onSubmit(values: FormValues) {
         const payload = {
             name: { en: values.name_en, ar: values.name_ar || undefined },
@@ -404,20 +424,43 @@ export default function ProductForm({
                                 {(existingImages.length > 0 || newImages.length > 0) && (
                                     <div className="d-flex flex-wrap gap-3 mt-3">
                                         {existingImages.map((image) => (
-                                            <div key={image.id} className="position-relative">
-                                                <img
-                                                    src={image.url}
-                                                    alt=""
-                                                    style={{ width: 100, height: 100, objectFit: 'cover' }}
-                                                    className="rounded border"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-danger btn-sm position-absolute top-0 end-0"
-                                                    onClick={() => removeExistingImage(image)}
-                                                >
-                                                    &times;
-                                                </button>
+                                            <div key={image.id} style={{ width: 100 }}>
+                                                <div className="position-relative">
+                                                    <img
+                                                        src={image.url}
+                                                        alt=""
+                                                        style={{ width: 100, height: 100, objectFit: 'cover' }}
+                                                        className="rounded border"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-danger btn-sm position-absolute top-0 end-0"
+                                                        onClick={() => removeExistingImage(image)}
+                                                    >
+                                                        &times;
+                                                    </button>
+                                                </div>
+                                                {/* Only offered once the product has colours to tag
+                                                    with — a single-colour product has nothing to swap. */}
+                                                {(product?.colors.length ?? 0) > 0 && (
+                                                    <select
+                                                        className="form-select form-select-sm mt-1"
+                                                        value={image.attribute_value_id ?? ''}
+                                                        onChange={(e) =>
+                                                            tagImageColour(
+                                                                image,
+                                                                e.target.value === '' ? null : Number(e.target.value),
+                                                            )
+                                                        }
+                                                    >
+                                                        <option value="">{t('admin.allColors')}</option>
+                                                        {product?.colors.map((colour) => (
+                                                            <option key={colour.id} value={colour.id}>
+                                                                {colour.name}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                )}
                                             </div>
                                         ))}
                                         {newImageUrls.map((url) => (

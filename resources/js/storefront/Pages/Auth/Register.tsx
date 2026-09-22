@@ -33,7 +33,12 @@ export default function Register() {
                                     [
                                         { key: 'name', type: 'text', placeholder: t('auth.namePlaceholder') },
                                         { key: 'email', type: 'email', placeholder: t('auth.emailPlaceholder') },
-                                        { key: 'phone', type: 'text', placeholder: t('auth.phonePlaceholder') },
+                                        {
+                                            key: 'phone',
+                                            type: 'text',
+                                            placeholder: t('auth.phonePlaceholder'),
+                                            numeric: true,
+                                        },
                                         {
                                             key: 'password',
                                             type: 'password',
@@ -51,6 +56,8 @@ export default function Register() {
                                             className="border-line px-4 pt-3 pb-3 w-full rounded-lg"
                                             id={field.key}
                                             type={field.type}
+                                            inputMode={'numeric' in field ? 'numeric' : undefined}
+                                            maxLength={'numeric' in field ? 11 : undefined}
                                             placeholder={field.placeholder}
                                             value={form.data[field.key]}
                                             onChange={(event) => form.setData(field.key, event.target.value)}

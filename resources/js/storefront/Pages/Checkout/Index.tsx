@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import GeoCascade from '../../Components/GeoCascade';
 import StorefrontLayout from '../../Layouts/StorefrontLayout';
@@ -164,6 +164,8 @@ export default function CheckoutIndex({
                                     <div>
                                         <input
                                             type="text"
+                                            inputMode="numeric"
+                                            maxLength={11}
                                             className="border-line px-4 py-3 w-full rounded-lg"
                                             placeholder={t('checkout.phonePlaceholder')}
                                             value={form.data.phone}
@@ -313,8 +315,23 @@ export default function CheckoutIndex({
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex flex-col gap-1">
+                                        <div className="flex flex-col items-end gap-1">
                                             <strong className="text-title price">{price(item.subtotal)}</strong>
+                                            {/* Same control and route as the cart page — a customer
+                                                who changes their mind here shouldn't have to go back
+                                                to the cart to drop a line. */}
+                                            <button
+                                                type="button"
+                                                aria-label={t('common.remove')}
+                                                className="caption1 text-secondary underline hover:text-black duration-300"
+                                                onClick={() =>
+                                                    router.delete(route('cart.destroy', item.id), {
+                                                        preserveScroll: true,
+                                                    })
+                                                }
+                                            >
+                                                {t('cart.remove')}
+                                            </button>
                                         </div>
                                     </div>
                                 ))}

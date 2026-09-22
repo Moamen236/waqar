@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers\Admin\Delivery;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\DeliveryRepresentative;
 use App\Models\DeliveryRepresentativeArea;
+use App\Models\Order;
+use App\Models\Payment;
 use App\Support\GeoTree;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,7 +28,7 @@ class RepresentativeController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:delivery.representatives.view', only: ['index', 'areas']),
+            new Middleware('permission:delivery.representatives.view', only: ['index', 'show', 'areas']),
             new Middleware('permission:delivery.representatives.create', only: ['create', 'store']),
             // Coverage-area add/remove folds into .update rather than getting
             // its own permission — it isn't a separate screen, just part of
@@ -38,6 +42,93 @@ class RepresentativeController extends Controller implements HasMiddleware
     {
         return Inertia::render('Delivery/Representatives/Index', [
             'representatives' => DeliveryRepresentative::query()->withCount('areas')->latest('id')->paginate(20),
+        ]);
+    }
+
+    /**
+     * One delivery man's profile: who they are, where they deliver
+     * (coverage areas), and every order currently or previously on
+     * their back — with delivered orders split into settled vs.
+     * still-owed, so Accounting can see at a glance what cash is
+     * still out with this courier.
+     *
+     * Money math reuses Order::netOfShipping(), the single source of
+     * the "courier keeps the shipping" rule (see Order), measured
+     * against the latest payment exactly like
+     * ConfirmDeliveryResultAction::collectBalance() does — never
+     * against the gross total, which would mark every settled order
+     * short by exactly the shipping.
+     */
+    public function show(Request $request, DeliveryRepresentative $representative): Response
+    {
+        $employee = $request->user('employee');
+
+        $base = Order::query()
+            ->visibleTo($employee)
+            ->where('delivery_representative_id', $representative->id);
+
+        $totalOrders = (clone $base)->count();
+        $activeOrders = (clone $base)->whereIn('status', [OrderStatus::Assigned, OrderStatus::OutForDelivery])->count();
+        $deliveredOrders = (clone $base)->where('status', OrderStatus::Delivered)->count();
+        $partiallyReturnedOrders = (clone $base)->where('status', OrderStatus::PartiallyReturned)->count();
+        $returnedOrders = (clone $base)->where('status', OrderStatus::Returned)->count();
+        $outstandingOrders = (clone $base)->where('payment_status', PaymentStatus::PartiallyCollected)->count();
+
+        // Still-owed cash sitting with this courier. The outstanding set
+        // is small by construction (delivered-but-short only), so sum in
+        // PHP over the loaded payments rather than approximating in SQL.
+        $outstandingBalance = (clone $base)
+            ->where('payment_status', PaymentStatus::PartiallyCollected)
+            ->with(['payments' => fn ($query) => $query->latest('id')->limit(1)])
+            ->get(['id', 'total', 'shipping_amount', 'payment_status'])
+            ->sum(fn (Order $order) => $this->stillOwed($order));
+
+        $collectedTotal = (float) Payment::query()
+            ->where('status', PaymentStatus::Collected)
+            ->whereIn('order_id', (clone $base)->select('id'))
+            ->sum('collected_amount');
+
+        $orders = (clone $base)
+            ->with([
+                'customer:id,name,phone',
+                'payments' => fn ($query) => $query->latest('id')->limit(1),
+                'shippingGovernorate:id,name',
+                'shippingCity:id,name',
+                'shippingDistrict:id,name',
+                'shippingArea:id,name',
+            ])
+            ->latest('id')
+            ->paginate(20)
+            ->withQueryString()
+            ->through(function (Order $order) {
+                $payment = $order->payments->first();
+                $gross = $payment !== null ? (float) $payment->amount : (float) $order->total;
+                $collected = $payment !== null ? (float) $payment->collected_amount : 0.0;
+
+                return [
+                    ...$order->toArray(),
+                    'net_due' => round($order->netOfShipping($gross), 2),
+                    'collected_amount' => $collected,
+                    'still_owed' => $this->stillOwed($order),
+                    'is_delivered' => in_array($order->status, [OrderStatus::Delivered, OrderStatus::PartiallyReturned], true),
+                ];
+            });
+
+        return Inertia::render('Delivery/Representatives/Show', [
+            'representative' => $representative->loadCount('areas'),
+            'areas' => $representative->areas()->latest('id')->get(),
+            'geoTree' => GeoTree::tree(),
+            'stats' => [
+                'total_orders' => $totalOrders,
+                'active_orders' => $activeOrders,
+                'delivered_orders' => $deliveredOrders,
+                'partially_returned_orders' => $partiallyReturnedOrders,
+                'returned_orders' => $returnedOrders,
+                'outstanding_orders' => $outstandingOrders,
+                'outstanding_balance' => round($outstandingBalance, 2),
+                'collected_total' => round($collectedTotal, 2),
+            ],
+            'orders' => $orders,
         ]);
     }
 
@@ -119,6 +210,30 @@ class RepresentativeController extends Controller implements HasMiddleware
         $area->delete();
 
         return back()->with('success', __('Coverage area removed.'));
+    }
+
+    /**
+     * What this order still owes the treasury: net of shipping (what
+     * reaches the drawer once the courier keeps their fee) less what
+     * was already collected. Non-zero only while the payment sits at
+     * partially_collected — settled, pending and refused orders owe
+     * nothing here by definition.
+     */
+    private function stillOwed(Order $order): float
+    {
+        if ($order->payment_status !== PaymentStatus::PartiallyCollected) {
+            return 0.0;
+        }
+
+        $payment = $order->relationLoaded('payments')
+            ? $order->payments->sortByDesc('id')->first()
+            : $order->payments()->latest('id')->first();
+
+        if ($payment === null) {
+            return 0.0;
+        }
+
+        return max(0.0, round($order->netOfShipping((float) $payment->amount) - (float) $payment->collected_amount, 2));
     }
 
     /**

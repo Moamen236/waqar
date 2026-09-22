@@ -43,6 +43,11 @@ interface ReturnDetail {
     stage: string;
     return_shipping_fee: string | null;
     customer_accepted_return_shipping_fee_at: string | null;
+    checked_at: string | null;
+    checking_notes: string | null;
+    checked_by: { id: number; full_name: string } | null;
+    delivery_representative: { id: number; name: string } | null;
+    shipping_company: { id: number; name: string } | null;
     customer_notes: string | null;
     order: {
         id: number;
@@ -75,6 +80,12 @@ interface Option {
     name: string;
 }
 
+interface VariantOption {
+    id: number;
+    label: string;
+    price: number;
+}
+
 interface Treasury extends Option {
     type: string;
 }
@@ -95,12 +106,18 @@ export default function ReturnsShow({
     return: ret,
     warehouse,
     treasuries,
+    variants,
+    representatives,
+    shippingCompanies,
 }: {
     return: ReturnDetail;
     warehouse: { id: number; name: string } | null;
     treasuries: Treasury[];
+    variants: VariantOption[];
+    representatives: Option[];
+    shippingCompanies: Option[];
 }) {
-    const { t, price } = useTranslation();
+    const { t, price, dateTime } = useTranslation();
     const { can } = usePermissions();
 
     // What the customer is sending back, priced at the as-sold unit price —
@@ -111,6 +128,10 @@ export default function ReturnsShow({
     const [treasuryId, setTreasuryId] = useState<number | ''>(treasuries[0]?.id ?? '');
     const [method, setMethod] = useState('bank_transfer');
     const [reference, setReference] = useState('');
+    const [checkNotes, setCheckNotes] = useState('');
+    const [checkError, setCheckError] = useState<string | null>(null);
+    const [replacementVariant, setReplacementVariant] = useState<string>('');
+    const [pickupCourier, setPickupCourier] = useState<string>('');
 
     function handleMethodChange(next: string) {
         setMethod(next);
@@ -126,6 +147,56 @@ export default function ReturnsShow({
         can('returns.approve');
     const canReceive = ret.status === 'approved' && can('returns.receive');
     const canRefund = ret.status === 'inspected' && can('returns.refund');
+    // Checking's call. Available on a requested return regardless of the
+    // shipping-fee consent: the call is often where that consent is
+    // obtained, so gating it behind consent would be circular.
+    const canCheck = ret.status === 'requested' && can('returns.check');
+    // Once the swap is agreed and the goods are on their way back. Shares
+    // returns.refund because replacing and refunding are the two ways a
+    // return ends — the same decision, one of which moves money.
+    const canReplace = ['approved', 'inspected'].includes(ret.status) && can('returns.refund');
+    // Naming a courier is warehouse work — the same grant that receives
+    // the goods when they arrive.
+    const canAssignPickup = ['approved', 'inspected'].includes(ret.status) && can('returns.receive');
+
+    function assignPickup() {
+        if (pickupCourier === '') return;
+        const [type, id] = pickupCourier.split(':');
+        router.post(
+            route('admin.returns.assign-pickup', ret.id),
+            { assignment_type: type, assignee_id: Number(id) },
+            { preserveScroll: true, onSuccess: () => setPickupCourier('') },
+        );
+    }
+
+    async function sendReplacement() {
+        if (replacementVariant === '') return;
+        if (!(await confirmAction({ title: t('admin.createReplacementQ') }))) return;
+
+        router.post(route('admin.returns.replace', ret.id), {
+            items: [{ product_variant_id: Number(replacementVariant), quantity: 1 }],
+        });
+    }
+
+    async function check(outcome: 'confirm' | 'reschedule' | 'cancel') {
+        if (outcome === 'cancel' && checkNotes.trim() === '') {
+            setCheckError(t('admin.cancelReasonRequired'));
+            return;
+        }
+
+        const confirmed = await confirmAction({
+            title: t(`admin.checkReturn_${outcome}_q`),
+            danger: outcome === 'cancel',
+        });
+        if (!confirmed) return;
+
+        setCheckError(null);
+        router.post(
+            route('admin.returns.check', ret.id),
+            { outcome, notes: checkNotes || null },
+            { preserveScroll: true },
+        );
+    }
 
     async function acceptFee() {
         if (!(await confirmAction({ title: t('admin.recordAcceptedReturnFee') }))) return;
@@ -221,9 +292,7 @@ export default function ReturnsShow({
 
                     <div className="card">
                         <div className="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-                            <h4 className="card-title">
-                                {t('admin.orderTitle', { number: ret.order.order_number })}
-                            </h4>
+                            <h4 className="card-title">{t('admin.orderTitle', { number: ret.order.order_number })}</h4>
                             <div className="d-flex gap-2">
                                 <StatusBadge status={ret.order.status} />
                                 <StatusBadge status={ret.order.payment_status} />
@@ -242,10 +311,7 @@ export default function ReturnsShow({
                                 </thead>
                                 <tbody>
                                     {ret.order.items.map((item) => (
-                                        <tr
-                                            key={item.id}
-                                            className={returnedIds.has(item.id) ? 'table-warning' : ''}
-                                        >
+                                        <tr key={item.id} className={returnedIds.has(item.id) ? 'table-warning' : ''}>
                                             <td>{item.product_name_snapshot}</td>
                                             <td className="text-muted">{item.variant_sku_snapshot}</td>
                                             <td>{item.quantity}</td>
@@ -302,12 +368,8 @@ export default function ReturnsShow({
                             </p>
                             <p className="mb-1 text-muted">{ret.order.customer.phone}</p>
                             <p className="mb-1">
-                                <Link
-                                    href={route('admin.orders.show', ret.order.id)}
-                                    className="link-primary fs-13"
-                                >
-                                    {t('admin.view')} —{' '}
-                                    {t('admin.orderTitle', { number: ret.order.order_number })}
+                                <Link href={route('admin.orders.show', ret.order.id)} className="link-primary fs-13">
+                                    {t('admin.view')} — {t('admin.orderTitle', { number: ret.order.order_number })}
                                 </Link>
                             </p>
                             <p className="mb-1">
@@ -339,6 +401,64 @@ export default function ReturnsShow({
                             <StatusBadge status={ret.status} />
                         </div>
                         <div className="card-body">
+                            {/* Checking's phone call. Sits above the
+                                warehouse actions because it is the step
+                                that comes first — though it is a
+                                verification, not a gate, so approve stays
+                                reachable without it. */}
+                            {canCheck && (
+                                <div className="border rounded p-3 mb-3">
+                                    <div className="fw-semibold">{t('admin.checkWithCustomer')}</div>
+                                    <p className="text-muted fs-13 mb-2">{t('admin.checkWithCustomerHint')}</p>
+                                    <textarea
+                                        className="form-control mb-2"
+                                        rows={2}
+                                        placeholder={t('admin.callNotesPlaceholder')}
+                                        value={checkNotes}
+                                        onChange={(event) => {
+                                            setCheckNotes(event.target.value);
+                                            setCheckError(null);
+                                        }}
+                                    />
+                                    {checkError !== null && <div className="text-danger fs-13 mb-2">{checkError}</div>}
+                                    <div className="d-flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            className="btn btn-success btn-sm"
+                                            onClick={() => check('confirm')}
+                                        >
+                                            {t('admin.checkReturn_confirm')}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-soft-secondary btn-sm"
+                                            onClick={() => check('reschedule')}
+                                        >
+                                            {t('admin.checkReturn_reschedule')}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-soft-danger btn-sm"
+                                            onClick={() => check('cancel')}
+                                        >
+                                            {t('admin.checkReturn_cancel')}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {ret.checked_at !== null && (
+                                <div className="alert alert-light border fs-13" role="status">
+                                    <div className="fw-semibold">
+                                        {t('admin.checkedBy', {
+                                            name: ret.checked_by?.full_name ?? '—',
+                                            at: dateTime(ret.checked_at),
+                                        })}
+                                    </div>
+                                    {ret.checking_notes && <div className="mt-1">{ret.checking_notes}</div>}
+                                </div>
+                            )}
+
                             {needsShippingFeeConsent && (
                                 <>
                                     <p className="fs-13 text-muted">{t('admin.returnShippingFeeExplainer')}</p>
@@ -437,9 +557,86 @@ export default function ReturnsShow({
                                 </>
                             )}
 
-                            {!needsShippingFeeConsent && !canApprove && !canReceive && !canRefund && (
-                                <p className="text-muted mb-0">{t('admin.noActionAvailableAtThisStatus')}</p>
+                            {/* Who goes and gets it. Returns named nobody at
+                                all before — the warehouse simply restocked
+                                whenever someone pressed Received. */}
+                            {canAssignPickup && (
+                                <div className="border rounded p-3 mt-3">
+                                    <div className="fw-semibold">{t('admin.collectionCourier')}</div>
+                                    <p className="text-muted fs-13 mb-2">
+                                        {ret.delivery_representative?.name ??
+                                            ret.shipping_company?.name ??
+                                            t('admin.noCourierAssignedYet')}
+                                    </p>
+                                    <div className="d-flex gap-2">
+                                        <select
+                                            className="form-select"
+                                            value={pickupCourier}
+                                            onChange={(event) => setPickupCourier(event.target.value)}
+                                        >
+                                            <option value="">{t('admin.chooseCourier')}</option>
+                                            {representatives.map((rep) => (
+                                                <option key={`r${rep.id}`} value={`representative:${rep.id}`}>
+                                                    {rep.name}
+                                                </option>
+                                            ))}
+                                            {shippingCompanies.map((company) => (
+                                                <option key={`c${company.id}`} value={`shipping_company:${company.id}`}>
+                                                    {company.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <button
+                                            type="button"
+                                            className="btn btn-soft-primary"
+                                            disabled={pickupCourier === ''}
+                                            onClick={assignPickup}
+                                        >
+                                            {t('admin.send')}
+                                        </button>
+                                    </div>
+                                </div>
                             )}
+
+                            {/* Send a different item instead of refunding.
+                                Sits beside the refund because they are the
+                                two ways a return ends, and only one of them
+                                moves money out. */}
+                            {canReplace && (
+                                <div className="border rounded p-3 mt-3">
+                                    <div className="fw-semibold">{t('admin.sendReplacement')}</div>
+                                    <p className="text-muted fs-13 mb-2">{t('admin.sendReplacementHint')}</p>
+                                    <select
+                                        className="form-select mb-2"
+                                        value={replacementVariant}
+                                        onChange={(event) => setReplacementVariant(event.target.value)}
+                                    >
+                                        <option value="">{t('admin.chooseTheItemToSend')}</option>
+                                        {variants.map((variant) => (
+                                            <option key={variant.id} value={variant.id}>
+                                                {variant.label} — {price(variant.price)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary w-100"
+                                        disabled={replacementVariant === ''}
+                                        onClick={sendReplacement}
+                                    >
+                                        {t('admin.createReplacementOrder')}
+                                    </button>
+                                </div>
+                            )}
+
+                            {!canCheck &&
+                                !canReplace &&
+                                !needsShippingFeeConsent &&
+                                !canApprove &&
+                                !canReceive &&
+                                !canRefund && (
+                                    <p className="text-muted mb-0">{t('admin.noActionAvailableAtThisStatus')}</p>
+                                )}
                         </div>
                     </div>
                 </div>

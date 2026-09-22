@@ -44,12 +44,23 @@ interface OrderDetail {
     status_history: StatusHistoryEntry[];
 }
 
-// What Resume would find in the main warehouse right now — the server
-// builds this only while the order sits in Backorder.
+// What the main warehouse holds for this order right now. `available` is
+// free stock, which is what Resume reserves from; `reserved` is the hold
+// this order already has, which only Confirm gets to count — see
+// CheckingController::stockCheck().
+interface StockItem {
+    name: string;
+    required: number;
+    available: number;
+    reserved: number;
+    tracked: boolean;
+}
+
 interface StockCheck {
     warehouse: string | null;
-    items: { name: string; required: number; available: number; tracked: boolean }[];
+    items: StockItem[];
     can_resume: boolean;
+    can_confirm: boolean;
 }
 
 type ReasonAction = 'postpone' | 'cancel' | 'backorder';
@@ -74,15 +85,64 @@ const ALLOWED_FROM: Record<'confirm' | ReasonAction, string[]> = {
     cancel: ['New', 'Checking', 'Confirmed', 'Postponed', 'Backorder'],
 };
 
+// The per-line stock panel, shown above whichever button it gates —
+// Resume on a Backorder order, Confirm on everything else. `covered` is
+// the number the reader actually needs: what this line can draw on.
+function StockPanel({ stock, countHold }: { stock: StockCheck; countHold: boolean }) {
+    const { t } = useTranslation();
+
+    return (
+        <>
+            <h5 className="mb-2">{t('admin.stockIn', { warehouse: stock.warehouse ?? '—' })}</h5>
+            <div className="table-responsive mb-3">
+                <table className="table table-sm align-middle mb-0">
+                    <thead className="bg-light-subtle">
+                        <tr>
+                            <th>{t('admin.product')}</th>
+                            <th className="text-end">{t('admin.required')}</th>
+                            <th className="text-end">{t('admin.held')}</th>
+                            <th className="text-end">{t('admin.available')}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {stock.items.map((item, i) => {
+                            const covered = item.available + (countHold ? item.reserved : 0);
+
+                            return (
+                                <tr key={i}>
+                                    <td>{item.name}</td>
+                                    <td className="text-end">{item.required}</td>
+                                    <td className="text-end text-muted">{item.tracked ? item.reserved : '—'}</td>
+                                    <td
+                                        className={`text-end fw-medium ${
+                                            item.tracked && covered >= item.required ? 'text-success' : 'text-danger'
+                                        }`}
+                                    >
+                                        {/* An Advertisement product has no inventory row at
+                                            all, so "0" would read as a stock problem rather
+                                            than the conversion it actually needs. */}
+                                        {item.tracked ? covered : t('admin.notConvertedToReal')}
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </>
+    );
+}
+
 // Ported from Admin Template/order-detail.html: Product table, Order
 // Timeline (the dashed vertical line + circular markers), Customer
 // Details card, plus an Actions card for this department's slice of the
 // order lifecycle.
-export default function CheckingShow({ order, stock }: { order: OrderDetail; stock: StockCheck | null }) {
+export default function CheckingShow({ order, stock }: { order: OrderDetail; stock: StockCheck }) {
     const { t, price, dateTime, isRtl } = useTranslation();
     const [reason, setReason] = useState('');
 
     async function confirm() {
+        if (!stock.can_confirm) return;
         if (!(await confirmAction({ title: t('admin.confirmThisOrder') }))) return;
         router.post(route('admin.checking.confirm', order.id), { notes: reason || undefined });
     }
@@ -103,7 +163,7 @@ export default function CheckingShow({ order, stock }: { order: OrderDetail; sto
     }
 
     async function resume() {
-        if (!stock?.can_resume) return;
+        if (!stock.can_resume) return;
         if (
             !(await confirmAction({
                 title: t('admin.resumeFromBackorder'),
@@ -249,44 +309,9 @@ export default function CheckingShow({ order, stock }: { order: OrderDetail; sto
                             <StatusBadge status={order.status} />
                         </div>
                         <div className="card-body">
-                            {order.status === 'Backorder' && stock ? (
+                            {order.status === 'Backorder' ? (
                                 <>
-                                    <h5 className="mb-2">
-                                        {t('admin.stockIn', { warehouse: stock.warehouse ?? '—' })}
-                                    </h5>
-                                    <div className="table-responsive mb-3">
-                                        <table className="table table-sm align-middle mb-0">
-                                            <thead className="bg-light-subtle">
-                                                <tr>
-                                                    <th>{t('admin.product')}</th>
-                                                    <th className="text-end">{t('admin.required')}</th>
-                                                    <th className="text-end">{t('admin.available')}</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {stock.items.map((item, i) => (
-                                                    <tr key={i}>
-                                                        <td>{item.name}</td>
-                                                        <td className="text-end">{item.required}</td>
-                                                        <td
-                                                            className={`text-end fw-medium ${
-                                                                item.tracked && item.available >= item.required
-                                                                    ? 'text-success'
-                                                                    : 'text-danger'
-                                                            }`}
-                                                        >
-                                                            {/* An Advertisement product has no inventory row at
-                                                                all, so "0" would read as a stock problem rather
-                                                                than the conversion it actually needs. */}
-                                                            {item.tracked
-                                                                ? item.available
-                                                                : t('admin.notConvertedToReal')}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                    <StockPanel stock={stock} countHold={false} />
                                     {!stock.can_resume && (
                                         <p className="text-danger fs-13">{t('admin.notEnoughStockToResume')}</p>
                                     )}
@@ -301,6 +326,7 @@ export default function CheckingShow({ order, stock }: { order: OrderDetail; sto
                                 </>
                             ) : canAct ? (
                                 <>
+                                    {allows('confirm') && <StockPanel stock={stock} countHold={true} />}
                                     <div className="mb-3">
                                         <label className="form-label">{t('admin.reasonNotes')}</label>
                                         <textarea
@@ -312,9 +338,21 @@ export default function CheckingShow({ order, stock }: { order: OrderDetail; sto
                                     </div>
                                     <div className="d-grid gap-2">
                                         {allows('confirm') && (
-                                            <button type="button" className="btn btn-success" onClick={confirm}>
-                                                {t('admin.confirm')}
-                                            </button>
+                                            <>
+                                                {!stock.can_confirm && (
+                                                    <p className="text-danger fs-13 mb-0">
+                                                        {t('admin.notEnoughStockToConfirm')}
+                                                    </p>
+                                                )}
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-success"
+                                                    disabled={!stock.can_confirm}
+                                                    onClick={confirm}
+                                                >
+                                                    {t('admin.confirm')}
+                                                </button>
+                                            </>
                                         )}
                                         {allows('postpone') && (
                                             <button

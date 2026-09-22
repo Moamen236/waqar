@@ -184,6 +184,8 @@ export default function AccountAddresses({
                                                 id="phone"
                                                 className="border-line mt-2 px-4 py-3 w-full rounded-lg"
                                                 type="text"
+                                                inputMode="numeric"
+                                                maxLength={11}
                                                 value={form.data.phone}
                                                 onChange={(event) => form.setData('phone', event.target.value)}
                                                 required

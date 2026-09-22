@@ -1,5 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
+import DateRangeFilter from '../../Components/DateRangeFilter';
 import { PaginationFooter } from '../../Components/Pagination';
 import SearchFilter from '../../Components/SearchFilter';
 import AdminLayout from '../../Layouts/AdminLayout';
@@ -34,15 +35,26 @@ export default function ActivityLogIndex({
     activities: PaginatedData<ActivityRow>;
     logs: string[];
     events: string[];
-    filters: { log: string; event: string; search: string };
+    filters: { log: string; event: string; search: string; date_from: string | null; date_to: string | null };
 }) {
     const { t } = useTranslation();
     const [expanded, setExpanded] = useState<number | null>(null);
 
-    const apply = (next: Partial<{ log: string; event: string; search: string }>) => {
+    // date_from rides along on every navigation, empty string included:
+    // the server reads an absent one as "hasn't chosen" and puts the log
+    // back on today, so dropping it would reset the window on every
+    // search. See App\Support\DateRangeFilter.
+    const apply = (next: Partial<Record<string, string>>) => {
         router.get(
             route('admin.activity-log.index'),
-            { log: filters.log, event: filters.event, search: filters.search ?? '', ...next },
+            {
+                log: filters.log,
+                event: filters.event,
+                search: filters.search ?? '',
+                date_from: filters.date_from ?? '',
+                date_to: filters.date_to ?? '',
+                ...next,
+            },
             { preserveState: true, replace: true },
         );
     };
@@ -56,6 +68,12 @@ export default function ActivityLogIndex({
                     <div className="card">
                         <div className="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
                             <h4 className="card-title flex-grow-1">{t('admin.auditTrail')}</h4>
+
+                            <DateRangeFilter
+                                from={filters.date_from}
+                                to={filters.date_to}
+                                onApply={(range) => apply(range)}
+                            />
 
                             <SearchFilter
                                 value={filters.search ?? ''}

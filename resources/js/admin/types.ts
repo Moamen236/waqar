@@ -44,6 +44,12 @@ export interface SharedProps {
     admin: {
         notificationCount: number;
         notifications: StaffNotification[];
+        /**
+         * Report groups with at least one report this employee can open.
+         * Holding the permission is not enough — a group only appears once
+         * a report has actually been registered in it.
+         */
+        reportGroups: string[];
     } | null;
 }
 
@@ -103,6 +109,10 @@ export interface OrderSummary {
     customer_status: string;
     payment_status: string;
     total: string;
+    // Optional because some listings select an explicit column list. Where
+    // it is present the screen can show the net figure — what actually
+    // reaches the treasury once the courier keeps their fee.
+    shipping_amount?: string;
     created_at: string;
     customer?: Customer;
     delivery_representative?: { id: number; name: string } | null;

@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\CollectionController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\Delivery\DeliveryController;
+use App\Http\Controllers\Admin\Delivery\GeoController;
 use App\Http\Controllers\Admin\Delivery\RepresentativeController;
 use App\Http\Controllers\Admin\Delivery\ShippingCompanyController;
 use App\Http\Controllers\Admin\Delivery\ShippingRateController;
@@ -20,6 +21,7 @@ use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PromotionController;
+use App\Http\Controllers\Admin\Reports\ReportController;
 use App\Http\Controllers\Admin\Returns\ReturnController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\TreasuryController;
@@ -73,6 +75,10 @@ Route::middleware('auth:employee')->group(function () {
     // Live totals for that screen — server-priced, same services the
     // Action uses, so the browser never computes a shipping or coupon figure.
     Route::post('orders/quote', [OrderController::class, 'quote'])->name('orders.quote');
+    // The product picker searches on demand rather than the page carrying
+    // every SKU in the catalogue. Gated on orders.create, not
+    // products.view — see OrderController::productSearch().
+    Route::get('orders/product-search', [OrderController::class, 'productSearch'])->name('orders.product-search');
     Route::post('orders', [OrderController::class, 'store'])->name('orders.store');
 
     // The whole order book. Every other order screen below is a role's work
@@ -91,10 +97,14 @@ Route::middleware('auth:employee')->group(function () {
     // Registered ahead of orders/{order} for the same wildcard-collision
     // reason as orders/create above.
     Route::get('orders/export', [OrderController::class, 'export'])->name('orders.export');
+    // Ahead of orders/{order} too, or "invoices" is read as an order id.
+    Route::get('orders/invoices', [OrderController::class, 'invoices'])->name('orders.invoices');
+    Route::get('orders/labels', [OrderController::class, 'labels'])->name('orders.labels');
     Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
     // Three segments, so no wildcard collision with orders/{order} above —
     // kept adjacent so the order-book routes stay together.
     Route::get('orders/{order}/invoice', [OrderController::class, 'invoice'])->name('orders.invoice');
+    Route::get('orders/{order}/label', [OrderController::class, 'label'])->name('orders.label');
 
     // Removing an order from the book. Soft delete, and only reachable once
     // the order is already Cancelled — see OrderController::destroy().
@@ -119,6 +129,9 @@ Route::middleware('auth:employee')->group(function () {
     Route::post('delivery/assign', [DeliveryController::class, 'assignBulk'])->name('delivery.assign.bulk');
     Route::get('delivery/{order}/assign', [DeliveryController::class, 'assignForm'])->name('delivery.assign.form');
     Route::post('delivery/{order}/assign', [DeliveryController::class, 'assign'])->name('delivery.assign');
+    // Change who is carrying an order already on the road. Appends to the
+    // assignment trail rather than editing it.
+    Route::post('delivery/{order}/reassign', [DeliveryController::class, 'reassign'])->name('delivery.reassign');
 
     Route::get('delivery/representatives', [RepresentativeController::class, 'index'])->name('delivery.representatives.index');
     Route::get('delivery/representatives/{representative}/areas', [RepresentativeController::class, 'areas'])->name('delivery.representatives.areas');
@@ -128,6 +141,9 @@ Route::middleware('auth:employee')->group(function () {
     // own permission — it isn't a separate screen, just part of editing
     // what a representative covers.
     Route::get('delivery/representatives/{representative}/edit', [RepresentativeController::class, 'edit'])->name('delivery.representatives.edit');
+    // Two segments like representatives/create above — registered after
+    // it so the create wildcard collision stays resolved in create's favour.
+    Route::get('delivery/representatives/{representative}', [RepresentativeController::class, 'show'])->name('delivery.representatives.show');
     Route::put('delivery/representatives/{representative}', [RepresentativeController::class, 'update'])->name('delivery.representatives.update');
     Route::post('delivery/representatives/{representative}/areas', [RepresentativeController::class, 'storeArea'])->name('delivery.representatives.areas.store');
     Route::delete('delivery/representatives/{representative}/areas/{area}', [RepresentativeController::class, 'destroyArea'])->name('delivery.representatives.areas.destroy');
@@ -139,6 +155,16 @@ Route::middleware('auth:employee')->group(function () {
     Route::get('delivery/shipping-rates/{shippingRate}/edit', [ShippingRateController::class, 'edit'])->name('delivery.shipping-rates.edit');
     Route::put('delivery/shipping-rates/{shippingRate}', [ShippingRateController::class, 'update'])->name('delivery.shipping-rates.update');
     Route::delete('delivery/shipping-rates/{shippingRate}', [ShippingRateController::class, 'destroy'])->name('delivery.shipping-rates.destroy');
+
+    // The geography behind every address. One controller over a {level}
+    // segment — the four tables differ only by parent and active-flag
+    // column. Constrained so a typo 404s rather than reaching config().
+    Route::where(['level' => 'governorates|cities|districts|areas'])->group(function () {
+        Route::get('geo/{level}', [GeoController::class, 'index'])->name('geo.index');
+        Route::post('geo/{level}', [GeoController::class, 'store'])->name('geo.store');
+        Route::put('geo/{level}/{id}', [GeoController::class, 'update'])->name('geo.update');
+        Route::delete('geo/{level}/{id}', [GeoController::class, 'destroy'])->name('geo.destroy');
+    });
 
     Route::get('delivery/shipping-companies', [ShippingCompanyController::class, 'index'])->name('delivery.shipping-companies.index');
     Route::get('delivery/shipping-companies/create', [ShippingCompanyController::class, 'create'])->name('delivery.shipping-companies.create');
@@ -159,6 +185,12 @@ Route::middleware('auth:employee')->group(function () {
     Route::post('accounting/reconciliation/statements/{statement}/transfer', [ReconciliationController::class, 'recordTransfer'])->name('accounting.reconciliation.transfer');
     Route::get('accounting', [AccountingController::class, 'index'])->name('accounting.index');
     Route::get('accounting/{order}', [AccountingController::class, 'show'])->name('accounting.show');
+    // Settle a whole courier's round at once. Registered ahead of the
+    // accounting/{order}/… routes so "settle" is never read as an order id.
+    Route::post('accounting/settle', [AccountingController::class, 'settleBulk'])->name('accounting.settle.bulk');
+    // Signing the goods out to the courier. Optional — an order can still
+    // go straight from Assigned to a delivery outcome below.
+    Route::post('accounting/{order}/handover', [AccountingController::class, 'handover'])->name('accounting.handover');
     Route::post('accounting/{order}/delivered', [AccountingController::class, 'delivered'])->name('accounting.delivered');
     Route::post('accounting/{order}/returned', [AccountingController::class, 'returned'])->name('accounting.returned');
     Route::post('accounting/{order}/partially-returned', [AccountingController::class, 'partiallyReturned'])->name('accounting.partially-returned');
@@ -194,6 +226,7 @@ Route::middleware('auth:employee')->group(function () {
     Route::get('products/{product}', [ProductController::class, 'show'])->name('products.show');
     Route::get('products/{product}/edit', [ProductController::class, 'edit'])->name('products.edit');
     Route::put('products/{product}', [ProductController::class, 'update'])->name('products.update');
+    Route::patch('products/{product}/images/{media}', [ProductController::class, 'updateImage'])->name('products.images.update');
     Route::delete('products/{product}/images/{media}', [ProductController::class, 'destroyImage'])->name('products.images.destroy');
     Route::delete('products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
 
@@ -235,9 +268,17 @@ Route::middleware('auth:employee')->group(function () {
     Route::get('returns/export', [ReturnController::class, 'export'])->name('returns.export');
     Route::get('returns/{return}', [ReturnController::class, 'show'])->name('returns.show');
     Route::post('returns/{return}/accept-shipping-fee', [ReturnController::class, 'acceptShippingFee'])->name('returns.accept-shipping-fee');
+    // Checking's phone call — confirm / reschedule / cancel, one endpoint
+    // because they are one decision taken on one call.
+    Route::post('returns/{return}/check', [ReturnController::class, 'check'])->name('returns.check');
     Route::post('returns/{return}/approve', [ReturnController::class, 'approve'])->name('returns.approve');
     Route::post('returns/{return}/receive', [ReturnController::class, 'receive'])->name('returns.receive');
     Route::post('returns/{return}/refund', [ReturnController::class, 'refund'])->name('returns.refund');
+    // Send a different item instead of refunding — a new order linked to
+    // the one it replaces. See CreateReplacementOrderAction.
+    // Who goes to collect the goods coming back.
+    Route::post('returns/{return}/assign-pickup', [ReturnController::class, 'assignPickup'])->name('returns.assign-pickup');
+    Route::post('returns/{return}/replace', [ReturnController::class, 'replace'])->name('returns.replace');
 
     // Collections (Vice Chairman) — no template counterpart, built from scratch.
     Route::get('collections', [CollectionController::class, 'index'])->name('collections.index');
@@ -278,6 +319,24 @@ Route::middleware('auth:employee')->group(function () {
     Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index');
     Route::get('inventory/export', [InventoryController::class, 'export'])->name('inventory.export');
     Route::post('inventory/adjust', [InventoryController::class, 'adjust'])->name('inventory.adjust');
+
+    // Reporting & analytics. Four routes for the whole module, not one per
+    // report: the report is a route *parameter*, resolved through
+    // ReportRegistry, so adding a report adds no route and no sidebar
+    // entry. Per-report permission is checked in the controller against
+    // each definition's own permission(), since middleware cannot see a
+    // parameter. Read-only by construction — no write route exists here.
+    //
+    // The {report} constraint keeps keys to the `group.slug` shape the
+    // registry uses, so a bad key 404s at the router rather than reaching
+    // a lookup.
+    Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('reports/{report}', [ReportController::class, 'show'])
+        ->where('report', '[a-z]+\.[a-z0-9-]+')->name('reports.show');
+    Route::get('reports/{report}/export', [ReportController::class, 'export'])
+        ->where('report', '[a-z]+\.[a-z0-9-]+')->name('reports.export');
+    Route::get('reports/{report}/print', [ReportController::class, 'print'])
+        ->where('report', '[a-z]+\.[a-z0-9-]+')->name('reports.print');
 
     // The audit trail (Section 23). Read-only by construction — there is
     // no write/delete route here at all, not merely no permission for one.

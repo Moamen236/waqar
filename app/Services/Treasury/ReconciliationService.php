@@ -45,8 +45,15 @@ class ReconciliationService
         $returnedCount = $orders->where('status', OrderStatus::Returned)->count();
 
         $expectedCollection = $orders->sum(fn (Order $order) => (float) $order->payments->sum('collected_amount'));
-        $deliveryFeesOwed = round($deliveredCount * (float) $company->delivery_fee, 2);
-        $returnFeesOwed = round($returnedCount * (float) $company->return_fee, 2);
+
+        // The courier takes their fee out of the cash at the door — the
+        // shipping the customer pays on a delivery, and the same fee on a
+        // refused one — so collected_amount is ALREADY net of everything
+        // they are owed. Subtracting a fee here would charge them twice.
+        // shipping_companies.delivery_fee / return_fee are dead columns
+        // kept only so historical statements still read back.
+        $deliveryFeesOwed = 0.0;
+        $returnFeesOwed = 0.0;
         $net = round($expectedCollection - $deliveryFeesOwed - $returnFeesOwed, 2);
 
         return [
@@ -80,7 +87,11 @@ class ReconciliationService
             $statement->update([
                 'transferred_amount' => $transferred,
                 'outstanding_amount' => $outstanding,
-                'status' => $outstanding <= 0 ? 'settled' : 'open',
+                // Only a balanced statement is settled. A NEGATIVE
+                // outstanding means we owe the company, not that they
+                // have finished paying us — closing it here would leave
+                // them silently unpaid with no row saying so.
+                'status' => abs($outstanding) < 0.01 ? 'settled' : 'open',
             ]);
 
             $this->treasury->recordTransaction(

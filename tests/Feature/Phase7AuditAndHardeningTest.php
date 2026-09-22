@@ -45,7 +45,7 @@ use Spatie\Permission\Models\Role;
 function p7Employee(string $role): Employee
 {
     $employee = Employee::create([
-        'full_name' => $role.' User', 'email' => 'e7-'.uniqid().'@waqar.test', 'phone' => '1',
+        'full_name' => $role.' User', 'email' => 'e7-'.uniqid().'@waqar.test', 'phone' => '01012345678',
         'password' => 'password', 'residence_address' => 'N/A', 'national_id_number' => '29001010100000',
     ]);
     $employee->assignRole(Role::findOrCreate($role, 'employee'));
@@ -69,7 +69,7 @@ function p7Product(string $name = 'Linen Shirt'): Product
  */
 function p7Stock(int $quantity = 10, int $reserved = 0): array
 {
-    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '1']);
+    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '01012345678']);
     $variant = ProductVariant::create(['product_id' => p7Product()->id, 'sku' => 'V7-'.strtoupper(uniqid())]);
     WarehouseInventory::create([
         'warehouse_id' => $warehouse->id,
@@ -190,7 +190,7 @@ it('attributes an action to the employee guard even though the default guard is 
 });
 
 it('records a customer as the causer for a storefront action', function () {
-    $customer = Customer::create(['name' => 'Nour', 'email' => 'n7@waqar.test', 'phone' => '1', 'password' => 'password']);
+    $customer = Customer::create(['name' => 'Nour', 'email' => 'n7@waqar.test', 'phone' => '01012345678', 'password' => 'password']);
 
     $this->actingAs($customer, 'customer');
     $customer->update(['phone' => '01000000000']);
@@ -364,8 +364,8 @@ it('will not record a stock correction without a stated reason', function () {
 */
 
 it('soft-deletes every model the roadmap names, keeping the row and the audit trail', function () {
-    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '1']);
-    $customer = Customer::create(['name' => 'Nour', 'email' => 's7@waqar.test', 'phone' => '1', 'password' => 'password']);
+    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '01012345678']);
+    $customer = Customer::create(['name' => 'Nour', 'email' => 's7@waqar.test', 'phone' => '01012345678', 'password' => 'password']);
 
     $country = Country::create(['name' => ['ar' => 'مصر', 'en' => 'Egypt'], 'code' => 'EG']);
     $governorate = Governorate::create(['country_id' => $country->id, 'name' => ['ar' => 'القاهرة', 'en' => 'Cairo']]);

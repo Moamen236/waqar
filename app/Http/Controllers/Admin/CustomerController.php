@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Address;
 use App\Models\Customer;
+use App\Rules\PhoneNumber;
 use App\Support\GeoTree;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -76,7 +77,7 @@ class CustomerController extends Controller implements HasMiddleware
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'string', 'max:30'],
+            'phone' => PhoneNumber::rules(),
             'is_active' => ['required', 'boolean'],
             ...self::addressesRules(),
         ]);
@@ -144,7 +145,7 @@ class CustomerController extends Controller implements HasMiddleware
             // (store() above) has none, and editing their phone number
             // shouldn't be blocked on inventing one.
             'email' => ['nullable', 'email', 'max:255', Rule::unique('customers', 'email')->ignore($customer->id)],
-            'phone' => ['required', 'string', 'max:30'],
+            'phone' => PhoneNumber::rules(),
             'password' => ['nullable', 'string', 'min:8'],
             'is_active' => ['required', 'boolean'],
             ...self::addressesRules(true),

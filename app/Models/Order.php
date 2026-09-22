@@ -40,6 +40,7 @@ class Order extends Model
         return [
             'order_number',
             'customer_id',
+            'replaces_order_id',
             'status',
             'customer_status',
             'payment_status',
@@ -64,6 +65,7 @@ class Order extends Model
     protected $fillable = [
         'order_number',
         'customer_id',
+        'replaces_order_id',
         'created_by_employee_id',
         'order_source',
         'status',
@@ -114,6 +116,30 @@ class Order extends Model
                 $order->order_number = (static::max('order_number') ?? 1000) + 1;
             }
         });
+    }
+
+    /**
+     * The shipping the customer pays is the courier's fee, and they keep
+     * it at the door — so only the goods ever reach the treasury. This is
+     * the single source of that rule: every place that decides how much
+     * cash an order owes the company subtracts shipping through here, so
+     * delivered orders, partial returns and later instalments can never
+     * drift apart.
+     *
+     * Pass the gross figure the customer owed — the order total, or a
+     * payment's amount once a partial return has rewritten it.
+     */
+    public function netOfShipping(float $gross): float
+    {
+        return max(0.0, round($gross - (float) $this->shipping_amount, 2));
+    }
+
+    /**
+     * What the courier hands over for a full delivery: goods only.
+     */
+    public function netDueToTreasury(): float
+    {
+        return $this->netOfShipping((float) $this->total);
     }
 
     /**
@@ -213,6 +239,10 @@ class Order extends Model
             ->when(! empty($filters['area_id']), fn (Builder $inner) => $inner->where('shipping_area_id', (int) $filters['area_id']))
             ->when(! empty($filters['representative_id']), fn (Builder $inner) => $inner->where('delivery_representative_id', (int) $filters['representative_id']))
             ->when(! empty($filters['shipping_company_id']), fn (Builder $inner) => $inner->where('shipping_company_id', (int) $filters['shipping_company_id']))
+            // A hand-picked selection from the table (H2). It narrows the
+            // same query everything else does, so an export of ticked rows
+            // still can't reach past visibleTo() or the other filters.
+            ->when(! empty($filters['ids']), fn (Builder $inner) => $inner->whereIn('id', (array) $filters['ids']))
             ->when(! empty($filters['date_from']), fn (Builder $inner) => $inner->whereDate('created_at', '>=', (string) $filters['date_from']))
             ->when(! empty($filters['date_to']), fn (Builder $inner) => $inner->whereDate('created_at', '<=', (string) $filters['date_to']))
             ->when($qtyMin !== null, fn (Builder $inner) => $inner->whereRaw("{$quantitySql} >= ?", [$qtyMin]))
@@ -225,6 +255,21 @@ class Order extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * The delivered order this one replaces, when it is an exchange.
+     * Null on every ordinary order — and non-null IS what makes this a
+     * replacement, so there is no second flag to disagree with it.
+     */
+    public function replacesOrder(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'replaces_order_id');
+    }
+
+    public function isReplacement(): bool
+    {
+        return $this->replaces_order_id !== null;
     }
 
     public function createdByEmployee(): BelongsTo

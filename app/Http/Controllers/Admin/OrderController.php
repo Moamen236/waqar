@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Actions\Checkout\CreateOrderAction;
+use App\Actions\Search\SearchProductsAction;
 use App\Enums\OrderSource;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
@@ -12,17 +13,22 @@ use App\Models\Address;
 use App\Models\Customer;
 use App\Models\DeliveryRepresentative;
 use App\Models\Order;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\ShippingCompany;
 use App\Models\Warehouse;
+use App\Rules\PhoneNumber;
 use App\Services\Checkout\CouponService;
 use App\Services\Shipping\ShippingRateResolver;
+use App\Support\DateRangeFilter;
 use App\Support\GeoTree;
+use App\Support\ProductPresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -38,11 +44,49 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  */
 class OrderController extends Controller implements HasMiddleware
 {
+    /**
+     * Everything an invoice sheet renders. Shared by the single invoice
+     * and the batch print so one can't quietly start missing a field the
+     * other loads.
+     *
+     * @var list<string>
+     */
+    private const INVOICE_RELATIONS = [
+        'customer:id,name,email,phone',
+        'items.productVariant.product:id,name',
+        'payments',
+        'deliveryRepresentative:id,name,phone',
+        'shippingCompany:id,name',
+        'createdByEmployee:id,full_name',
+        'coupon:id,code',
+        'shippingGovernorate:id,name',
+        'shippingCity:id,name',
+        'shippingDistrict:id,name',
+        'shippingArea:id,name',
+    ];
+
+    /**
+     * Everything a courier label renders — leaner than an invoice's: no
+     * customer account, no payments, no coupon. None of that belongs on
+     * a pouch.
+     *
+     * @var list<string>
+     */
+    private const LABEL_RELATIONS = [
+        'items.productVariant.product:id,name',
+        'deliveryRepresentative:id,name,phone',
+        'shippingCompany:id,name',
+        'shippingGovernorate:id,name',
+        'shippingCity:id,name',
+        'shippingDistrict:id,name',
+        'shippingArea:id,name',
+    ];
+
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:orders.create', only: ['create', 'store', 'quote']),
-            new Middleware('permission:orders.view', only: ['index', 'show', 'invoice']),
+            new Middleware('permission:orders.create', only: ['create', 'store', 'quote', 'productSearch']),
+            new Middleware('permission:orders.view', only: ['index', 'show', 'invoice', 'invoices', 'label', 'labels']),
             new Middleware('permission:orders.export', only: ['export']),
             new Middleware('permission:orders.delete', only: ['destroy']),
         ];
@@ -67,7 +111,11 @@ class OrderController extends Controller implements HasMiddleware
     public function index(Request $request): Response
     {
         $employee = $request->user('employee');
-        $filters = self::orderFilters($request);
+        // `ids` belongs to the export and the batch print, not the table:
+        // it is what the operator ticked *on* this listing, and feeding it
+        // back in would pin the page to that selection — including on the
+        // next filter change, since the page echoes these filters back.
+        $filters = Arr::except(self::orderFilters($request), 'ids');
 
         $orders = Order::query()
             ->visibleTo($employee)
@@ -106,6 +154,77 @@ class OrderController extends Controller implements HasMiddleware
     }
 
     /**
+     * /admin/orders/invoices?ids[]= — the ticked orders as one print job
+     * (H2). The same sheet the single invoice renders, one per page.
+     *
+     * Runs through the same `visibleTo()` scope and the same
+     * `orderFilters()` the table does, so a hand-typed id outside the
+     * employee's book simply is not in the result — there is no per-row
+     * guard to forget, because the ids only ever narrow a query that was
+     * already scoped.
+     */
+    public function invoices(Request $request): Response
+    {
+        $filters = self::orderFilters($request);
+
+        abort_if(empty($filters['ids']), 404);
+
+        return Inertia::render('Orders/Invoices', [
+            'orders' => Order::query()
+                ->visibleTo($request->user('employee'))
+                ->filtered($filters)
+                ->with(self::INVOICE_RELATIONS)
+                ->orderBy('id')
+                ->get(),
+            'logo' => '/admin-theme/assets/images/logo-dark.png',
+        ]);
+    }
+
+    /**
+     * /admin/orders/labels?ids[]= — the ticked orders' courier labels as
+     * one print job (H2). Scoped and filtered exactly as invoices() is.
+     *
+     * The COD amount is decided here, per order, by the same rule the
+     * single label uses — whether an order is already paid is a server
+     * fact, not something the print page should work out.
+     */
+    public function labels(Request $request): Response
+    {
+        $filters = self::orderFilters($request);
+
+        abort_if(empty($filters['ids']), 404);
+
+        $orders = Order::query()
+            ->visibleTo($request->user('employee'))
+            ->filtered($filters)
+            ->with(self::LABEL_RELATIONS)
+            ->orderBy('id')
+            ->get();
+
+        return Inertia::render('Orders/Labels', [
+            'labels' => $orders->map(fn (Order $order) => [
+                'order' => $order,
+                'cod_amount' => self::codAmount($order),
+            ])->all(),
+            'logo' => '/admin-theme/assets/images/logo-dark.png',
+            'sender' => Warehouse::main()?->only(['name', 'address', 'phone']),
+        ]);
+    }
+
+    /**
+     * What the courier must take at the door, or null when there is
+     * nothing left to collect.
+     *
+     * The courier keeps the shipping either way; what a label must get
+     * right is the gross the customer owes — not the net that reaches the
+     * treasury (Phase C).
+     */
+    private static function codAmount(Order $order): ?float
+    {
+        return $order->payment_status === PaymentStatus::Collected ? null : (float) $order->total;
+    }
+
+    /**
      * The same rows index() renders — same visibleTo() scope, same
      * filters — as an .xlsx download.
      */
@@ -117,6 +236,32 @@ class OrderController extends Controller implements HasMiddleware
         );
 
         return $export->download('orders-'.now()->format('Y-m-d_His').'.xlsx');
+    }
+
+    /**
+     * Product search for the order-create picker.
+     *
+     * Gated on `orders.create`, not `products.view`: Customer Service
+     * takes orders all day and holds no catalogue permission at all, so
+     * gating this the obvious way would lock the picker to people who
+     * never use it.
+     *
+     * Returns products with their colours, sizes and per-variant stock —
+     * the same shape the storefront product page binds to, so choosing a
+     * colour and size means the same thing on both sides.
+     */
+    public function productSearch(Request $request, SearchProductsAction $search): JsonResponse
+    {
+        $data = $request->validate([
+            'q' => ['required', 'string', 'max:255'],
+        ]);
+
+        $products = $search->execute($data['q'], app()->getLocale(), 15)
+            ->load(['variants.attributeValues.attribute']);
+
+        return response()->json([
+            'products' => $products->map(fn (Product $product) => ProductPresenter::picker($product))->values(),
+        ]);
     }
 
     /**
@@ -138,10 +283,12 @@ class OrderController extends Controller implements HasMiddleware
             'area_id' => ['nullable', 'integer', 'exists:areas,id'],
             'representative_id' => ['nullable', 'integer', 'exists:delivery_representatives,id'],
             'shipping_company_id' => ['nullable', 'integer', 'exists:shipping_companies,id'],
-            'date_from' => ['nullable', 'date'],
-            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
             'qty_min' => ['nullable', 'integer', 'min:0', 'max:1000000'],
             'qty_max' => ['nullable', 'integer', 'min:0', 'max:1000000'],
+            // Rows ticked on the table, for an export or a batch print.
+            // Capped because these ride in the query string.
+            'ids' => ['nullable', 'array', 'max:200'],
+            'ids.*' => ['integer'],
         ]);
 
         return [
@@ -154,8 +301,11 @@ class OrderController extends Controller implements HasMiddleware
             'area_id' => $validated['area_id'] ?? null,
             'representative_id' => $validated['representative_id'] ?? null,
             'shipping_company_id' => $validated['shipping_company_id'] ?? null,
-            'date_from' => $validated['date_from'] ?? null,
-            'date_to' => $validated['date_to'] ?? null,
+            // Defaults to today, because the order book is a history and
+            // not a work queue — and the export reads the same filters, so
+            // the download cannot show a wider window than the table.
+            ...DateRangeFilter::fromRequest($request),
+            'ids' => $validated['ids'] ?? null,
             'qty_min' => $validated['qty_min'] ?? null,
             'qty_max' => $validated['qty_max'] ?? null,
         ];
@@ -229,23 +379,40 @@ class OrderController extends Controller implements HasMiddleware
             403,
         );
 
-        $order->load([
-            'customer:id,name,email,phone',
-            'items.productVariant.product:id,name',
-            'payments',
-            'deliveryRepresentative:id,name,phone',
-            'shippingCompany:id,name',
-            'createdByEmployee:id,full_name',
-            'coupon:id,code',
-            'shippingGovernorate:id,name',
-            'shippingCity:id,name',
-            'shippingDistrict:id,name',
-            'shippingArea:id,name',
-        ]);
+        $order->load(self::INVOICE_RELATIONS);
 
         return Inertia::render('Orders/Invoice', [
             'order' => $order,
             'logo' => '/admin-theme/assets/images/logo-dark.png',
+        ]);
+    }
+
+    /**
+     * /admin/orders/{order}/label — the courier shipping label.
+     *
+     * Everything on it already exists: the order's own address snapshot,
+     * the geo names, the items, and the payment state that decides
+     * whether the courier collects cash or must not.
+     *
+     * The sender is Warehouse::main() rather than the order's warehouse
+     * because orders carry no warehouse_id — the same single-warehouse
+     * assumption CreateOrderAction already makes when an operator does
+     * not pick one.
+     */
+    public function label(Request $request, Order $order): Response
+    {
+        abort_unless(
+            Order::query()->visibleTo($request->user('employee'))->whereKey($order->getKey())->exists(),
+            403,
+        );
+
+        $order->load(self::LABEL_RELATIONS);
+
+        return Inertia::render('Orders/Label', [
+            'order' => $order,
+            'logo' => '/admin-theme/assets/images/logo-dark.png',
+            'sender' => Warehouse::main()?->only(['name', 'address', 'phone']),
+            'codAmount' => self::codAmount($order),
         ]);
     }
 
@@ -309,22 +476,11 @@ class OrderController extends Controller implements HasMiddleware
                         'is_default' => (bool) $address->is_default,
                     ])->values()->all(),
                 ]),
-            'variants' => ProductVariant::query()
-                ->where('status', true)
-                // whereHas() respects the product's soft-delete scope, so
-                // a deleted product's variants drop out of the picker.
-                // Without it `$variant->product` is null for them and this
-                // screen 500s outright — a deleted product cannot be sold,
-                // and should not be offerable.
-                ->whereHas('product')
-                ->with('product:id,name,sku')
-                ->get()
-                ->map(fn ($variant) => [
-                    'id' => $variant->id,
-                    'sku' => $variant->sku,
-                    'label' => $variant->product->getTranslation('name', app()->getLocale()).' — '.$variant->sku,
-                    'price' => $variant->effectivePrice(),
-                ]),
+            // No variant list: the whole catalogue used to be serialised
+            // into this page so a flat dropdown could hold every SKU. The
+            // picker now searches on demand (productSearch below), which
+            // is both smaller and how an agent actually works — they know
+            // the product, not the SKU.
             // No warehouse picker on this screen — orders always reserve
             // against the main warehouse; it is shown read-only for context.
             'warehouse' => Warehouse::main()?->only(['id', 'name']),
@@ -420,7 +576,7 @@ class OrderController extends Controller implements HasMiddleware
             'customer_id' => ['required_without:new_customer', 'nullable', 'exists:customers,id'],
             'new_customer' => ['required_without:customer_id', 'nullable', 'array'],
             'new_customer.name' => ['required_with:new_customer', 'string', 'max:255'],
-            'new_customer.phone' => ['required_with:new_customer', 'string', 'max:30'],
+            'new_customer.phone' => ['required_with:new_customer', ...PhoneNumber::optional()],
             'warehouse_id' => ['nullable', 'exists:warehouses,id'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_variant_id' => ['required', 'exists:product_variants,id'],
@@ -431,7 +587,7 @@ class OrderController extends Controller implements HasMiddleware
             'area_id' => ['required', 'exists:areas,id'],
             'address_line' => ['required', 'string', 'max:500'],
             'recipient_name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'string', 'max:30'],
+            'phone' => PhoneNumber::rules(),
             'coupon_code' => ['nullable', 'string', 'max:50'],
         ]);
 

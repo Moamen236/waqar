@@ -4,6 +4,7 @@ namespace App\Exports;
 
 use App\Models\Employee;
 use App\Models\OrderReturn;
+use App\Support\DateRangeFilter;
 use Illuminate\Database\Eloquent\Builder;
 use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\FromQuery;
@@ -19,18 +20,24 @@ class ReturnsExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMapp
 {
     use Exportable;
 
+    /**
+     * @param  array{date_from: string|null, date_to: string|null}  $range
+     */
     public function __construct(
         private readonly string $status = '',
         private readonly ?Employee $employee = null,
+        private readonly array $range = ['date_from' => null, 'date_to' => null],
     ) {}
 
     public function query(): Builder
     {
         return OrderReturn::query()
             // Same Customer Service scoping the screen applies, so a
-            // download can never be wider than the list it came from.
+            // download can never be wider than the list it came from —
+            // and for the same reason, the same date window.
             ->when($this->employee !== null, fn ($query) => $query->visibleTo($this->employee))
             ->when($this->status !== '', fn ($query) => $query->where('status', $this->status))
+            ->tap(fn ($query) => DateRangeFilter::apply($query, $this->range))
             ->with(['order:id,order_number,total', 'customer:id,name,phone'])
             ->orderByDesc('id');
     }

@@ -65,7 +65,11 @@ export default function RepresentativesIndex({ representatives }: { representati
                                 <tbody>
                                     {representatives.data.map((rep) => (
                                         <tr key={rep.id}>
-                                            <td className="fw-medium">{rep.name}</td>
+                                            <td className="fw-medium">
+                                                <Link href={route('admin.delivery.representatives.show', rep.id)}>
+                                                    {rep.name}
+                                                </Link>
+                                            </td>
                                             <td>{rep.phone}</td>
                                             <td>
                                                 <StatusBadge status={rep.status} />
@@ -73,6 +77,13 @@ export default function RepresentativesIndex({ representatives }: { representati
                                             <td>{rep.areas_count}</td>
                                             <td>
                                                 <div className="d-flex gap-2">
+                                                    <Link
+                                                        href={route('admin.delivery.representatives.show', rep.id)}
+                                                        className="btn btn-light btn-sm"
+                                                        title={t('admin.viewProfile')}
+                                                    >
+                                                        <i className="bx bx-user align-middle fs-18" />
+                                                    </Link>
                                                     <Link
                                                         href={route('admin.delivery.representatives.areas', rep.id)}
                                                         className="btn btn-light btn-sm"

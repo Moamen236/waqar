@@ -39,7 +39,7 @@ function p6Employee(string $role = 'Vice Chairman'): array
     (new PermissionSeeder)->run();
 
     $employee = Employee::create([
-        'full_name' => $role.' User', 'email' => 'e6-'.uniqid().'@waqar.test', 'phone' => '1',
+        'full_name' => $role.' User', 'email' => 'e6-'.uniqid().'@waqar.test', 'phone' => '01012345678',
         'password' => 'password', 'residence_address' => 'N/A', 'national_id_number' => '29001010100000',
     ]);
     $employee->assignRole(Role::findOrCreate($role, 'employee'));
@@ -119,7 +119,7 @@ it('keeps controller arguments correct even though every route gained a leading 
 it('translates server-side strings, not just the React UI', function () {
     $customer = Customer::create([
         'name' => 'Shopper', 'email' => 'i18n@waqar.test',
-        'phone' => '+201000000000', 'password' => 'password123!',
+        'phone' => '01000000000', 'password' => 'password123!',
     ]);
 
     // Validation messages come from lang/{locale}/validation.php…

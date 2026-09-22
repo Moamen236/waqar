@@ -57,7 +57,7 @@ it('resolves an area through an optional district, per Question 12', function ()
 
 it('creates a full order with items, a coupon, a promotion, and a COD payment', function () {
     $geo = makeGeo();
-    $customer = Customer::create(['name' => 'Test Customer', 'email' => 'c@waqar.test', 'phone' => '1', 'password' => 'password']);
+    $customer = Customer::create(['name' => 'Test Customer', 'email' => 'c@waqar.test', 'phone' => '01012345678', 'password' => 'password']);
 
     $product = Product::create(['name' => ['ar' => 'قميص', 'en' => 'Shirt'], 'slug' => 'shirt', 'sku' => 'SH-1', 'price' => 300]);
     $variant = ProductVariant::create(['product_id' => $product->id, 'sku' => 'SH-1-M']);
@@ -127,13 +127,13 @@ it('creates a full order with items, a coupon, a promotion, and a COD payment', 
 it('reserves and later deducts stock via inventory_movements, and assigns delivery', function () {
     $product = Product::create(['name' => ['ar' => 'حذاء', 'en' => 'Shoe'], 'slug' => 'shoe', 'sku' => 'SK-1', 'price' => 500]);
     $variant = ProductVariant::create(['product_id' => $product->id, 'sku' => 'SK-1-42']);
-    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '1']);
+    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '01012345678']);
     $stock = WarehouseInventory::create(['warehouse_id' => $warehouse->id, 'product_variant_id' => $variant->id, 'quantity' => 100, 'reserved_quantity' => 10]);
 
     expect($stock->available)->toBe(90);
 
     $employee = Employee::create([
-        'full_name' => 'Warehouse Clerk', 'email' => 'wc@waqar.test', 'phone' => '1',
+        'full_name' => 'Warehouse Clerk', 'email' => 'wc@waqar.test', 'phone' => '01012345678',
         'password' => 'password', 'residence_address' => 'N/A', 'national_id_number' => 'N/A',
     ]);
 
@@ -142,8 +142,8 @@ it('reserves and later deducts stock via inventory_movements, and assigns delive
         'type' => 'sale', 'quantity' => -1, 'created_by' => $employee->id,
     ]);
 
-    $rep = DeliveryRepresentative::create(['name' => 'Ahmed', 'phone' => '1']);
-    $company = ShippingCompany::create(['name' => 'FastShip', 'phone' => '1', 'address' => 'Cairo', 'delivery_fee' => 30, 'return_fee' => 15]);
+    $rep = DeliveryRepresentative::create(['name' => 'Ahmed', 'phone' => '01012345678']);
+    $company = ShippingCompany::create(['name' => 'FastShip', 'phone' => '01012345678', 'address' => 'Cairo', 'delivery_fee' => 30, 'return_fee' => 15]);
 
     $statement = ShippingCompanyStatement::create([
         'shipping_company_id' => $company->id, 'period_start' => now()->subWeek(), 'period_end' => now(),
@@ -162,7 +162,7 @@ it('unifies at_delivery and post_delivery returns under one stage field, with a 
     expect(ReturnReason::count())->toBe(6);
 
     $geo = makeGeo();
-    $customer = Customer::create(['name' => 'C', 'email' => 'c2@waqar.test', 'phone' => '1', 'password' => 'password']);
+    $customer = Customer::create(['name' => 'C', 'email' => 'c2@waqar.test', 'phone' => '01012345678', 'password' => 'password']);
     $order = Order::create([
         'customer_id' => $customer->id, 'order_source' => 'website', 'customer_status' => 'Delivered',
         'subtotal' => 200, 'shipping_amount' => 20, 'total' => 220,
@@ -193,7 +193,7 @@ it('unifies at_delivery and post_delivery returns under one stage field, with a 
 it('records treasury transactions and cart contents', function () {
     $treasury = Treasury::create(['name' => 'Main Cash', 'type' => 'cash']);
     $employee = Employee::create([
-        'full_name' => 'Accountant', 'email' => 'acc@waqar.test', 'phone' => '1',
+        'full_name' => 'Accountant', 'email' => 'acc@waqar.test', 'phone' => '01012345678',
         'password' => 'password', 'residence_address' => 'N/A', 'national_id_number' => 'N/A',
     ]);
     $transaction = TreasuryTransaction::create([

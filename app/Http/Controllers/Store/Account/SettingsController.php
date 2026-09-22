@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Store\Account;
 
 use App\Http\Controllers\Controller;
+use App\Rules\PhoneNumber;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -40,7 +41,7 @@ class SettingsController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:customers,email,'.$customer->id],
-            'phone' => ['required', 'string', 'max:30'],
+            'phone' => PhoneNumber::rules(),
         ]);
 
         $customer->update($data);

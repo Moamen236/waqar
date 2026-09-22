@@ -65,11 +65,7 @@ export default function DeliveryIndex({
                             <label className="form-label">
                                 {t('admin.assignSelected', { count: selected.length })}
                             </label>
-                            <select
-                                className="form-control"
-                                value={choice}
-                                onChange={(e) => setChoice(e.target.value)}
-                            >
+                            <select className="form-control" value={choice} onChange={(e) => setChoice(e.target.value)}>
                                 <option value="">{t('admin.select')}</option>
                                 <optgroup label={t('admin.representatives')}>
                                     {representatives.map((rep) => (

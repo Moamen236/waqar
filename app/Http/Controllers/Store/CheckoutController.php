@@ -10,6 +10,7 @@ use App\Models\Address;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Warehouse;
+use App\Rules\PhoneNumber;
 use App\Services\Cart\CartService;
 use App\Support\GeoTree;
 use Illuminate\Http\RedirectResponse;
@@ -73,7 +74,7 @@ class CheckoutController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
-            'phone' => ['required', 'string', 'max:30'],
+            'phone' => PhoneNumber::rules(),
             'governorate_id' => ['required', 'exists:governorates,id'],
             'city_id' => ['required', 'exists:cities,id'],
             'district_id' => ['nullable', 'exists:districts,id'],

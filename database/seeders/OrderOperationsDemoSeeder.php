@@ -6,6 +6,7 @@ use App\Actions\Checkout\CreateOrderAction;
 use App\Actions\Orders\AssignDeliveryAction;
 use App\Actions\Orders\CancelOrderAction;
 use App\Actions\Orders\ConfirmDeliveryResultAction;
+use App\Actions\Orders\ConfirmHandoverAction;
 use App\Actions\Orders\ConfirmOrderAction;
 use App\Actions\Orders\MarkOrderBackorderAction;
 use App\Actions\Orders\PostponeOrderAction;
@@ -211,19 +212,14 @@ class OrderOperationsDemoSeeder extends Seeder
     }
 
     /**
-     * No Action models the Assigned → Out for Delivery hop yet (it isn't a
-     * business-rule transition — no stock or payment changes, just the
-     * courier confirming pickup), so it's recorded directly here the same
-     * way StorefrontDemoSeeder does for its own Out for Delivery order.
+     * The Assigned → Out for Delivery hop, through the same Action the
+     * Accounting screen uses. This used to be written inline here because
+     * no Action modelled it; ConfirmHandoverAction now does, and going
+     * through it keeps the seeded data reachable by the same guard and
+     * lock real traffic passes.
      */
     private function markOutForDelivery(Order $order, Employee $employee): void
     {
-        $order->update(['status' => OrderStatus::OutForDelivery, 'customer_status' => OrderStatus::OutForDelivery->customerStatus()]);
-        $order->statusHistory()->create([
-            'from_status' => OrderStatus::Assigned->value,
-            'to_status' => OrderStatus::OutForDelivery->value,
-            'changed_by' => $employee->id,
-            'reason' => 'Handed to courier',
-        ]);
+        app(ConfirmHandoverAction::class)->execute($order, $employee, 'Handed to courier');
     }
 }

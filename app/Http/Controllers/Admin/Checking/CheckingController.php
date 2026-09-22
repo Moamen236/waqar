@@ -7,10 +7,12 @@ use App\Actions\Orders\ConfirmOrderAction;
 use App\Actions\Orders\MarkOrderBackorderAction;
 use App\Actions\Orders\PostponeOrderAction;
 use App\Actions\Orders\ResumeBackorderAction;
+use App\Enums\InventoryMovementType;
 use App\Enums\OrderStatus;
 use App\Exceptions\InsufficientStockException;
 use App\Exports\CheckingExport;
 use App\Http\Controllers\Controller;
+use App\Models\InventoryMovement;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Warehouse;
@@ -69,17 +71,28 @@ class CheckingController extends Controller implements HasMiddleware
 
         return Inertia::render('Checking/Show', [
             'order' => $order,
-            'stock' => $order->status === OrderStatus::Backorder ? $this->stockCheck($order) : null,
+            'stock' => $this->stockCheck($order),
         ]);
     }
 
     /**
-     * What Resume would find in the main warehouse if it ran now. Resume
-     * reserves there and nowhere else, so the page can say up front
-     * whether every line is coverable instead of letting
-     * ResumeBackorderAction throw its way to an error page.
+     * What the main warehouse holds for this order right now, per line.
      *
-     * @return array{warehouse: string|null, items: list<array{name: string, required: int, available: int, tracked: bool}>, can_resume: bool}
+     * Two buttons read this and they need different numbers.
+     * ResumeBackorderAction reserves every line from scratch, so it needs
+     * *free* stock. Confirm only needs the order to be covered — and an
+     * order reserved at creation already is, except `quantity -
+     * reserved_quantity` subtracts that order's own hold straight back
+     * out, which would read as a shortage on a perfectly healthy order and
+     * lock Confirm on the entire queue. So `reserved` carries what this
+     * order itself holds and only Confirm adds it back.
+     *
+     * `reserved` is the ledger's claim capped by what the inventory row
+     * actually holds back, not the claim alone. The two only diverge when
+     * the shelf was emptied out from under a live reservation, and there
+     * the shelf is what Confirm has to believe.
+     *
+     * @return array{warehouse: string|null, items: list<array{name: string, required: int, available: int, reserved: int, tracked: bool}>, can_resume: bool, can_confirm: bool}
      */
     private function stockCheck(Order $order): array
     {
@@ -91,13 +104,25 @@ class CheckingController extends Controller implements HasMiddleware
             ->get()
             ->keyBy('product_variant_id');
 
-        $items = $order->items->map(function (OrderItem $item) use ($available) {
+        // Release records a negative quantity, so the sum is the net hold.
+        $held = InventoryMovement::query()
+            ->where('reference_type', $order->getMorphClass())
+            ->where('reference_id', $order->getKey())
+            ->whereIn('type', [InventoryMovementType::Reservation, InventoryMovementType::Release])
+            ->groupBy('product_variant_id')
+            ->selectRaw('product_variant_id, SUM(quantity) as net')
+            ->pluck('net', 'product_variant_id');
+
+        $items = $order->items->map(function (OrderItem $item) use ($available, $held) {
             $inventory = $available->get($item->product_variant_id);
 
             return [
                 'name' => $item->product_name_snapshot,
                 'required' => $item->quantity,
                 'available' => $inventory ? $inventory->quantity - $inventory->reserved_quantity : 0,
+                'reserved' => $inventory
+                    ? max(0, min((int) $held->get($item->product_variant_id, 0), $inventory->reserved_quantity))
+                    : 0,
                 // An Advertisement product carries no inventory at all, so
                 // it can't be reserved however the numbers read (Q14).
                 // data_get, not a nullsafe chain: a soft-deleted product
@@ -111,12 +136,31 @@ class CheckingController extends Controller implements HasMiddleware
             'items' => $items,
             'can_resume' => $warehouse !== null
                 && collect($items)->every(fn (array $i) => $i['tracked'] && $i['available'] >= $i['required']),
+            // An Advertisement line is unstocked by design (Section 05) and
+            // must not block Confirm — Backorder is where it gets caught,
+            // after Confirm, which is the flow Question 14 settled on.
+            'can_confirm' => collect($items)->every(
+                fn (array $i) => ! $i['tracked'] || $i['required'] <= $i['available'] + $i['reserved'],
+            ),
         ];
     }
 
     public function confirm(Request $request, Order $order, ConfirmOrderAction $action): RedirectResponse
     {
         $data = $request->validate(['notes' => ['nullable', 'string', 'max:1000']]);
+
+        // The disabled button is the UI half of this; this is the guard.
+        // Another order can take the stock between the page load and the
+        // click, exactly as it can for Resume below.
+        $order->loadMissing('items.productVariant.product');
+        $stock = $this->stockCheck($order);
+
+        if (! $stock['can_confirm']) {
+            return back()->with('error', __('Order #:number cannot be confirmed — :warehouse does not have every item in stock.', [
+                'number' => $order->order_number,
+                'warehouse' => $stock['warehouse'] ?? __('The warehouse'),
+            ]));
+        }
 
         return $this->attempt(
             $order,

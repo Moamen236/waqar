@@ -60,7 +60,7 @@ function p8Geo(): array
 function p8Employee(string $role): Employee
 {
     $employee = Employee::create([
-        'full_name' => $role.' User', 'email' => 'e8-'.uniqid().'@waqar.test', 'phone' => '1',
+        'full_name' => $role.' User', 'email' => 'e8-'.uniqid().'@waqar.test', 'phone' => '01012345678',
         'password' => 'password', 'residence_address' => 'N/A', 'national_id_number' => '29001010100000',
     ]);
     $employee->assignRole(Role::findOrCreate($role, 'employee'));
@@ -70,7 +70,7 @@ function p8Employee(string $role): Employee
 
 function p8Stock(int $quantity = 10): ProductVariant
 {
-    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'N/A', 'phone' => '1', 'is_active' => true]);
+    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'N/A', 'phone' => '01012345678', 'is_active' => true]);
     $product = Product::create([
         'name' => ['ar' => 'قميص', 'en' => 'Cutover Shirt'],
         'slug' => 'cutover-'.uniqid(), 'sku' => 'CUT-'.strtoupper(uniqid()),
@@ -110,7 +110,7 @@ it('walks a real storefront order all the way to Delivered with stock, payment a
     $this->post(route('checkout.store'), [
         'name' => 'Cutover Buyer',
         'email' => 'cutover@waqar.test',
-        'phone' => '+201111111111',
+        'phone' => '01111111111',
         'governorate_id' => $geo['governorate']->id,
         'city_id' => $geo['city']->id,
         'area_id' => $geo['area']->id,
@@ -143,7 +143,7 @@ it('walks a real storefront order all the way to Delivered with stock, payment a
 
     // ── Delivery Manager assigns ──────────────────────────────────────
     $representative = DeliveryRepresentative::create([
-        'name' => 'Rep One', 'phone' => '1', 'status' => true,
+        'name' => 'Rep One', 'phone' => '01012345678', 'status' => true,
     ]);
 
     $this->actingAs(p8Employee('Delivery Manager'), 'employee')
@@ -172,11 +172,14 @@ it('walks a real storefront order all the way to Delivered with stock, payment a
     expect($order->status)->toBe(OrderStatus::Delivered)
         ->and($order->payment_status)->toBe(PaymentStatus::Collected);
 
-    // Treasury: the cash actually landed somewhere.
+    // Treasury: the cash actually landed somewhere — the goods half of
+    // it. The customer handed the courier all 540; the 40 of shipping is
+    // the courier's fee and they kept it at the door.
     $transaction = TreasuryTransaction::where('treasury_id', $treasury->id)->latest('id')->firstOrFail();
     expect($transaction->type)->toBe(TreasuryTransactionType::Income)
-        ->and((float) $transaction->amount)->toBe(540.0)
-        ->and((float) $treasury->fresh()->current_balance)->toBe(540.0);
+        ->and((float) $transaction->amount)->toBe(500.0)
+        ->and((float) $treasury->fresh()->current_balance)->toBe(500.0)
+        ->and($order->netDueToTreasury())->toBe(500.0);
 });
 
 /*
@@ -193,7 +196,7 @@ it('queues customer notifications instead of sending them inside the request', f
 
     $this->post(route('cart.store'), ['product_variant_id' => $variant->id, 'quantity' => 1]);
     $this->post(route('checkout.store'), [
-        'name' => 'Queued Buyer', 'email' => 'queued@waqar.test', 'phone' => '1',
+        'name' => 'Queued Buyer', 'email' => 'queued@waqar.test', 'phone' => '01012345678',
         'governorate_id' => $geo['governorate']->id,
         'city_id' => $geo['city']->id,
         'area_id' => $geo['area']->id,
@@ -211,7 +214,7 @@ it('captures the locale at dispatch so a worker does not mail in the wrong langu
     $order = Order::create([
         'order_number' => (string) random_int(10000, 99999),
         'customer_id' => Customer::create([
-            'name' => 'Nour', 'email' => 'loc@waqar.test', 'phone' => '1', 'password' => 'password',
+            'name' => 'Nour', 'email' => 'loc@waqar.test', 'phone' => '01012345678', 'password' => 'password',
         ])->id,
         'order_source' => OrderSource::Website,
         'customer_status' => CustomerOrderStatus::Processing,

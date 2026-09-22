@@ -62,7 +62,7 @@ function setUpGeoAndShipping(): array
     // Rate configured at governorate level — resolver should fall back to it.
     ShippingRate::create(['geo_type' => 'governorate', 'geo_id' => $governorate->id, 'price' => 50]);
 
-    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '1']);
+    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '01012345678']);
 
     return compact('country', 'governorate', 'city', 'area', 'warehouse');
 }
@@ -77,13 +77,13 @@ function makeTrackedVariant(int $stock): array
 
 function makeCustomer(?string $email = null): Customer
 {
-    return Customer::create(['name' => 'Test', 'email' => $email ?? 'c-'.uniqid().'@waqar.test', 'phone' => '1', 'password' => 'password']);
+    return Customer::create(['name' => 'Test', 'email' => $email ?? 'c-'.uniqid().'@waqar.test', 'phone' => '01012345678', 'password' => 'password']);
 }
 
 function makeEmployee(?string $email = null): Employee
 {
     return Employee::create([
-        'full_name' => 'Staff', 'email' => $email ?? 'e-'.uniqid().'@waqar.test', 'phone' => '1',
+        'full_name' => 'Staff', 'email' => $email ?? 'e-'.uniqid().'@waqar.test', 'phone' => '01012345678',
         'password' => 'password', 'residence_address' => 'N/A', 'national_id_number' => 'N/A',
     ]);
 }
@@ -173,7 +173,7 @@ it('records a treasury transaction only when Accounting confirms Delivered, and 
     $manager = makeEmployee();
     $accountant = makeEmployee();
     $treasury = Treasury::create(['name' => 'Main Cash', 'type' => 'cash']);
-    $rep = DeliveryRepresentative::create(['name' => 'Rep', 'phone' => '1']);
+    $rep = DeliveryRepresentative::create(['name' => 'Rep', 'phone' => '01012345678']);
 
     $order = app(CreateOrderAction::class)->execute(
         $customer, [['product_variant_id' => $variant->id, 'quantity' => 2]], $geo['warehouse'],
@@ -196,7 +196,12 @@ it('records a treasury transaction only when Accounting confirms Delivered, and 
         ->and($stockAfterDelivery->reserved_quantity)->toBe(0)
         ->and(treasuryTransactions()->count())->toBe(1)
         ->and(treasuryTransactions()->first()->type)->toBe(TreasuryTransactionType::Income)
-        ->and((float) $treasury->fresh()->current_balance)->toBe((float) $order->total)
+        // Goods only: the customer handed the courier the gross total and
+        // the courier kept the shipping as their fee, so the treasury sees
+        // the difference — never order->total.
+        ->and((float) $treasury->fresh()->current_balance)->toBe($order->netDueToTreasury())
+        ->and((float) $treasury->fresh()->current_balance)
+        ->toBe(round((float) $order->total - (float) $order->shipping_amount, 2))
         ->and($order->fresh()->status)->toBe(OrderStatus::Delivered)
         ->and($order->fresh()->payment_status)->toBe(PaymentStatus::Collected);
 });
@@ -373,7 +378,7 @@ it('runs the full return → refund workflow: restocks on receipt, deducts the a
     $accountant = makeEmployee();
     $warehouseClerk = makeEmployee();
     $treasury = Treasury::create(['name' => 'Main Cash', 'type' => 'cash']);
-    $rep = DeliveryRepresentative::create(['name' => 'Rep', 'phone' => '1']);
+    $rep = DeliveryRepresentative::create(['name' => 'Rep', 'phone' => '01012345678']);
     $reason = ReturnReason::first();
 
     $order = app(CreateOrderAction::class)->execute(
@@ -413,4 +418,102 @@ it('searches products with plain MySQL, no Scout', function () {
 
     expect($results)->toHaveCount(1)
         ->and($results->first()->sku)->toBe('BS-1');
+});
+
+// ---------------------------------------------------------------------
+// The courier keeps the shipping (feature-backlog-plan.md, Phase C).
+// The customer hands over the gross total at the door; the shipping in
+// it IS the courier's fee and they keep it, so only the goods money ever
+// reaches a treasury. Every figure Accounting works with is therefore
+// net, and `payments.amount` stays gross because that is what the
+// customer actually paid and what the invoice must show.
+// ---------------------------------------------------------------------
+
+/**
+ * Builds the worked example from the spec: 100 of goods + 50 shipping,
+ * confirmed all the way to Assigned and ready for Accounting.
+ *
+ * @return array{0: Order, 1: Employee, 2: Treasury}
+ */
+function orderReadyForAccounting(int $quantity = 1): array
+{
+    $geo = setUpGeoAndShipping(); // governorate rate of 50
+    [$product, $variant] = makeTrackedVariant(10);
+    WarehouseInventory::create(['warehouse_id' => $geo['warehouse']->id, 'product_variant_id' => $variant->id, 'quantity' => 10, 'reserved_quantity' => 0]);
+
+    $order = app(CreateOrderAction::class)->execute(
+        makeCustomer(), [['product_variant_id' => $variant->id, 'quantity' => $quantity]], $geo['warehouse'],
+        $geo['governorate']->id, $geo['city']->id, null, $geo['area']->id, 'Line', 'Test', '1',
+    );
+
+    $accountant = makeEmployee();
+    app(ConfirmOrderAction::class)->execute($order, makeEmployee());
+    app(AssignDeliveryAction::class)->execute(
+        $order->fresh(), makeEmployee(), DeliveryAssignmentType::Representative,
+        DeliveryRepresentative::create(['name' => 'Rep', 'phone' => '01012345678']),
+    );
+
+    return [$order->fresh(), $accountant, Treasury::create(['name' => 'Main Cash', 'type' => 'cash'])];
+}
+
+it('banks only the goods money on delivery — the courier keeps the shipping, and the order still reads fully Collected', function () {
+    [$order, $accountant, $treasury] = orderReadyForAccounting();
+
+    // The worked example: 100 goods + 50 shipping = 150 at the door.
+    expect((float) $order->subtotal)->toBe(100.0)
+        ->and((float) $order->shipping_amount)->toBe(50.0)
+        ->and((float) $order->total)->toBe(150.0)
+        ->and($order->netDueToTreasury())->toBe(100.0);
+
+    app(ConfirmDeliveryResultAction::class)->confirmDelivered($order, $accountant, $treasury, CollectedMethod::Cash);
+
+    $payment = $order->fresh()->payments()->latest('id')->first();
+
+    expect((float) $treasury->fresh()->current_balance)->toBe(100.0)
+        // The regression this guards: measuring the 100 against the gross
+        // 150 marked every correctly-settled order Partially Collected and
+        // parked it in the Awaiting Balance queue chasing a phantom 50.
+        ->and($order->fresh()->payment_status)->toBe(PaymentStatus::Collected)
+        ->and((float) $payment->collected_amount)->toBe(100.0)
+        // Gross on purpose: it is what the customer paid, and what the
+        // invoice and the label's COD banner have to show.
+        ->and((float) $payment->amount)->toBe(150.0);
+});
+
+it('measures a genuinely short collection against the net, and settles it with a balance instalment', function () {
+    [$order, $accountant, $treasury] = orderReadyForAccounting();
+
+    // 60 of the 100 goods money — a real shortfall, not the shipping.
+    app(ConfirmDeliveryResultAction::class)->confirmDelivered($order, $accountant, $treasury, CollectedMethod::Cash, 60.0);
+
+    expect($order->fresh()->payment_status)->toBe(PaymentStatus::PartiallyCollected)
+        ->and((float) $treasury->fresh()->current_balance)->toBe(60.0);
+
+    // Outstanding is 40 (100 − 60), never 90 (150 − 60): asking for the
+    // shipping back would be asking for money the courier already has.
+    expect(fn () => app(ConfirmDeliveryResultAction::class)
+        ->collectBalance($order->fresh(), $accountant, $treasury, CollectedMethod::Cash, 41.0))
+        ->toThrow(RuntimeException::class);
+
+    app(ConfirmDeliveryResultAction::class)->collectBalance($order->fresh(), $accountant, $treasury, CollectedMethod::Cash, 40.0);
+
+    expect($order->fresh()->payment_status)->toBe(PaymentStatus::Collected)
+        ->and((float) $treasury->fresh()->current_balance)->toBe(100.0);
+});
+
+it('writes no treasury row at all when an order owes nothing but shipping', function () {
+    [$order, $accountant, $treasury] = orderReadyForAccounting();
+
+    // The shape a same-price replacement and a 100%-coupon order share:
+    // the goods are fully discounted, so only the courier's fee is left.
+    $order->update(['discount_amount' => 100, 'total' => 50]);
+    $order->payments()->latest('id')->first()->update(['amount' => 50]);
+
+    app(ConfirmDeliveryResultAction::class)->confirmDelivered($order->fresh(), $accountant, $treasury, CollectedMethod::Cash);
+
+    expect($order->fresh()->netDueToTreasury())->toBe(0.0)
+        ->and(treasuryTransactions()->count())->toBe(0)
+        ->and((float) $treasury->fresh()->current_balance)->toBe(0.0)
+        ->and($order->fresh()->payment_status)->toBe(PaymentStatus::Collected)
+        ->and($order->fresh()->status)->toBe(OrderStatus::Delivered);
 });

@@ -96,16 +96,13 @@ export default function DeliveryAssign({
                                     </optgroup>
                                 </select>
                             </div>
-                            <button
-                                type="button"
-                                className="btn btn-primary"
-                                disabled={!choice}
-                                onClick={assign}
-                            >
+                            <button type="button" className="btn btn-primary" disabled={!choice} onClick={assign}>
                                 {t('admin.assign')}
                             </button>
                         </div>
                     </div>
+
+                    <ShippingAddressCard order={order} />
                 </div>
 
                 <div className="col-xl-4">
@@ -122,12 +119,9 @@ export default function DeliveryAssign({
                         </div>
                     </div>
 
-                    <ShippingAddressCard order={order} />
-
                     <OrderSummaryCard order={order} />
                 </div>
             </div>
         </AdminLayout>
     );
 }
-

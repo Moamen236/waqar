@@ -11,10 +11,10 @@ use Spatie\Permission\PermissionRegistrar;
 /**
  * Granular, resource.action permissions (spec Section 15: "every screen or
  * action is gated by a granular permission ... never by role name
- * directly"). Super Admin isn't assigned any of these explicitly — it
- * bypasses every check entirely via the Gate::before hook in
- * AppServiceProvider, per Spatie's own recommended pattern for a
- * super-user role.
+ * directly"). Super Admin is explicitly granted every permission below —
+ * plus the Gate::before bypass in AppServiceProvider as a safety net for
+ * any permission added in code but not yet re-seeded — per Spatie's own
+ * recommended pattern for a super-user role.
  *
  * Every CRUD-shaped resource is split into .view/.create/.update/.delete
  * rather than one bundled .manage permission — seeing a list and being
@@ -72,6 +72,11 @@ class PermissionSeeder extends Seeder
         // they do instead (Warehouse Manager/Accounting).
         'returns.create',
         'returns.approve', 'returns.receive', 'returns.refund',
+        // Checking's phone call before a return goes to the warehouse:
+        // confirm the reason, reschedule, or reject it. Its own grant
+        // rather than folding into returns.approve, because Checking
+        // must not be able to approve one without making the call.
+        'returns.check',
         'delivery.representatives.view', 'delivery.representatives.create',
         'delivery.representatives.update', 'delivery.representatives.delete',
         'delivery.companies.view', 'delivery.companies.create',
@@ -82,6 +87,11 @@ class PermissionSeeder extends Seeder
         // developer-only seeder concern.
         'delivery.rates.view', 'delivery.rates.create',
         'delivery.rates.update', 'delivery.rates.delete',
+        // The geography every address is built from. Two grants rather
+        // than four: these are low-churn reference tables, and the only
+        // distinction that matters is who may read the list versus who
+        // may reshape the map the whole storefront cascades through.
+        'geo.view', 'geo.manage',
         // Not CRUD-shaped: .view covers index/show, .create records a new
         // statement, .transfer settles one — there's no "update" of a
         // statement's own fields at all.
@@ -103,9 +113,28 @@ class PermissionSeeder extends Seeder
         // here — only which permissions each one carries changes.
         'roles.view', 'roles.update',
 
-        // Reporting (screens are later phases — permission exists now so
-        // it can be attached ahead of that UI landing)
+        // Reporting. `reports.view` is the module gate — it opens
+        // /admin/reports itself; each group below decides which reports
+        // appear in the catalogue once inside.
         'reports.view',
+        'reports.orders.view',
+        'reports.sales.view',
+        'reports.inventory.view',
+        'reports.returns.view',
+        'reports.finance.view',
+        'reports.employees.view',
+        'reports.audit.view',
+        'reports.executive.view',
+        // Column-level, not screen-level: unlocks cost price, COGS and
+        // margin columns wherever they appear. `products.cost_price` is
+        // documented internal-only in the schema, and the same logic
+        // applies to an operations employee who can legitimately see stock
+        // levels but not what the company pays for goods.
+        'reports.cost.view',
+        // Downloads, deliberately separate from the view grants above —
+        // the same principle as orders.export: everyone who can read a
+        // report should not automatically be able to walk out with it.
+        'reports.export',
 
         // Excel downloads. Deliberately separate from the matching
         // .view/.create permission each export sits alongside in its
@@ -127,7 +156,9 @@ class PermissionSeeder extends Seeder
      * @var array<string, array<int, string>>
      */
     private const ROLE_DEFAULTS = [
-        // Super Admin deliberately omitted — Gate::before bypasses it.
+        // Super Admin gets every permission explicitly (synced in run()
+        // below) — Gate::before remains as a fallback for permissions
+        // added in code but not yet re-seeded.
         'Chairman' => [
             'products.view', 'products.create', 'products.update', 'products.delete',
             'categories.view', 'categories.create', 'categories.update', 'categories.delete',
@@ -136,6 +167,12 @@ class PermissionSeeder extends Seeder
             'orders.view', 'orders.delete', 'employees.view', 'customers.view',
             'reports.view', 'activity.view',
             'orders.export', 'products.export',
+            // Chairman is the one role that sees the whole reporting
+            // module, audit and cost included (spec E.2).
+            'reports.orders.view', 'reports.sales.view', 'reports.inventory.view',
+            'reports.returns.view', 'reports.finance.view', 'reports.employees.view',
+            'reports.audit.view', 'reports.executive.view',
+            'reports.cost.view', 'reports.export',
         ],
         'Vice Chairman' => [
             'products.view', 'products.create', 'products.update', 'products.delete',
@@ -146,12 +183,21 @@ class PermissionSeeder extends Seeder
             'promotions.view', 'promotions.create', 'promotions.update', 'promotions.delete',
             'reviews.moderate',
             'products.export',
+            // Catalogue authority, so sales and inventory reporting — but
+            // deliberately not finance or audit (spec E.2).
+            'reports.view', 'reports.orders.view', 'reports.sales.view',
+            'reports.inventory.view', 'reports.returns.view', 'reports.executive.view',
+            'reports.cost.view', 'reports.export',
         ],
         'Warehouse Manager' => [
             'inventory.view', 'inventory.adjust', 'inventory.transfer',
             'warehouses.manage',
             'returns.create', 'returns.approve', 'returns.receive', 'returns.refund',
             'inventory.export', 'returns.export',
+            // Stock and returns reporting, plus its own team's activity —
+            // no cost columns: it manages stock levels, not purchase prices.
+            'reports.view', 'reports.inventory.view', 'reports.returns.view',
+            'reports.employees.view', 'reports.export',
         ],
         'Customer Service' => [
             'customers.view', 'customers.create', 'customers.update',
@@ -166,6 +212,11 @@ class PermissionSeeder extends Seeder
             'orders.view', 'orders.create',
             'returns.create',
             'employees.view',
+            // Every report a leader opens is narrowed to their own team by
+            // Order::scopeVisibleTo() — the same scope their order queue
+            // uses — so these need no separate "team only" permission (Q16).
+            'reports.view', 'reports.orders.view', 'reports.sales.view',
+            'reports.returns.view', 'reports.employees.view',
         ],
         // Read-only by design: it watches the storefront order book and
         // nothing else. Order::scopeVisibleTo() narrows what it reads to
@@ -173,10 +224,17 @@ class PermissionSeeder extends Seeder
         // keeps it from editing customers or filing returns.
         'Store Orders' => [
             'orders.view',
+            // Order reporting only, and scopeVisibleTo() narrows every row
+            // to website-sourced orders — the same rule as its queue.
+            'reports.view', 'reports.orders.view',
         ],
         'Checking' => [
             'orders.view', 'orders.status.update',
             'checking.export',
+            'returns.check',
+            // Orders reporting, plus low-stock: a Backorder decision needs
+            // to know what is actually out of stock (spec E.2 note 2).
+            'reports.view', 'reports.orders.view', 'reports.inventory.view',
         ],
         'Delivery Manager' => [
             'orders.view', 'orders.assign',
@@ -186,6 +244,11 @@ class PermissionSeeder extends Seeder
             'delivery.companies.update', 'delivery.companies.delete',
             'delivery.rates.view', 'delivery.rates.create',
             'delivery.rates.update', 'delivery.rates.delete',
+            'geo.view', 'geo.manage',
+            // Carrier performance and geographic demand, plus its own
+            // assignment activity — no sales value, no cost.
+            'reports.view', 'reports.orders.view', 'reports.sales.view',
+            'reports.employees.view', 'reports.export',
         ],
         'Accounting' => [
             'orders.view', 'orders.confirm_delivery',
@@ -193,6 +256,12 @@ class PermissionSeeder extends Seeder
             'treasury.view', 'treasury.create', 'treasury.transactions.create', 'treasury.transfer',
             'returns.create', 'returns.approve', 'returns.receive', 'returns.refund', 'expenses.manage',
             'returns.export',
+            // The finance reader: everything with money in it, including
+            // cost and margin. Inventory is granted for valuation and
+            // shrinkage, not the operational stock screens.
+            'reports.view', 'reports.orders.view', 'reports.sales.view',
+            'reports.inventory.view', 'reports.returns.view', 'reports.finance.view',
+            'reports.cost.view', 'reports.export',
         ],
     ];
 
@@ -216,5 +285,13 @@ class PermissionSeeder extends Seeder
             $role = Role::findOrCreate($roleName, 'employee');
             $role->syncPermissions($permissions);
         }
+
+        // Super Admin holds every permission that exists on the system —
+        // sourced from the same PERMISSIONS list just created above, so a
+        // newly added permission is picked up on the next seed.
+        $superAdmin = Role::findOrCreate('Super Admin', 'employee');
+        $superAdmin->syncPermissions(self::PERMISSIONS);
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }

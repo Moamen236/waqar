@@ -23,7 +23,7 @@ class ProductPresenter
      * @return array{
      *     id: int, slug: string, name: string, short_description: string|null,
      *     price: float, origin_price: float|null, sale_percent: int,
-     *     images: array<int, string>, colors: array<int, array{name: string, hex: string|null}>,
+     *     images: array<int, string>, colors: array<int, array{id: int, name: string, hex: string|null}>,
      *     sizes: array<int, string>, categories: array<int, string>,
      *     is_new: bool, is_on_sale: bool, rating: float, review_count: int,
      *     in_stock: bool, tracked: bool
@@ -72,6 +72,7 @@ class ProductPresenter
             ...self::card($product),
             'sku' => (string) $product->sku,
             'description' => $product->getTranslation('description', $locale),
+            'images_by_color' => self::imagesByColour($product),
             'variants' => $product->variants
                 ->where('status', true)
                 ->map(fn (ProductVariant $variant) => self::variant($variant, (bool) $product->inventory_tracking_enabled))
@@ -106,6 +107,39 @@ class ProductPresenter
             'size_guide_weight_max' => $variant->size_guide_weight_max !== null ? (float) $variant->size_guide_weight_max : null,
             'options' => $variant->attributeValues
                 ->map(fn (AttributeValue $value) => self::option($value))
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * What an order-taking screen needs to pick a variant the way a
+     * customer does: the product, its colours and sizes, and every
+     * variant's own SKU, price and availability.
+     *
+     * Deliberately leaner than detail() — no media, categories,
+     * collections or review averages, none of which help an agent on the
+     * phone, and all of which would need eager loading per search hit.
+     * It reuses the same option/variant shaping the storefront binds to,
+     * so "choose a colour and size" means the same thing on both sides.
+     *
+     * @return array<string, mixed>
+     */
+    public static function picker(Product $product): array
+    {
+        $tracked = (bool) $product->inventory_tracking_enabled;
+
+        return [
+            'id' => $product->id,
+            'name' => $product->getTranslation('name', app()->getLocale()),
+            'sku' => (string) $product->sku,
+            'price' => self::effectivePrice($product),
+            'tracked' => $tracked,
+            'colors' => self::optionValues($product, 'color'),
+            'sizes' => array_column(self::optionValues($product, 'size'), 'name'),
+            'variants' => $product->variants
+                ->where('status', true)
+                ->map(fn (ProductVariant $variant) => self::variant($variant, $tracked))
                 ->values()
                 ->all(),
         ];
@@ -161,10 +195,23 @@ class ProductPresenter
     }
 
     /**
+     * The colours this product actually comes in. Public because the
+     * admin product form needs the same list to tag an image with a
+     * colour — there is no point offering a colour the product isn't
+     * made in, and no point deciding twice what "its colours" means.
+     *
+     * @return array<int, array{id: int, name: string, hex: string|null}>
+     */
+    public static function colours(Product $product): array
+    {
+        return self::optionValues($product, 'color');
+    }
+
+    /**
      * Distinct variant option values for one attribute (Color, Size),
      * in the order the attribute's own sort_order defines.
      *
-     * @return array<int, array{name: string, hex: string|null}>
+     * @return array<int, array{id: int, name: string, hex: string|null}>
      */
     private static function optionValues(Product $product, string $attribute): array
     {
@@ -178,10 +225,41 @@ class ProductPresenter
                 }
 
                 $name = $value->getTranslation('value', $locale);
-                $seen[$name] = ['name' => $name, 'hex' => $value->color_hex];
+                $seen[$name] = ['id' => $value->id, 'name' => $name, 'hex' => $value->color_hex];
             }
         }
 
         return array_values($seen);
+    }
+
+    /**
+     * Which images belong to which colour, so picking a swatch swaps the
+     * gallery instead of leaving it on the first colour's photos.
+     *
+     * Keyed by the translated colour name the swatches already render, so
+     * the client compares one string and nothing else. What's stored on
+     * the media row is the attribute_value_id, though — a name is
+     * translated and editable, an id is neither.
+     *
+     * Untagged images stay out of this map entirely, which is what makes
+     * the client's fallback ("no images for this colour? show them all")
+     * the behaviour for a product nobody has tagged.
+     *
+     * @return array<string, list<string>>
+     */
+    private static function imagesByColour(Product $product): array
+    {
+        $names = array_column(self::colours($product), 'name', 'id');
+        $map = [];
+
+        foreach ($product->getMedia('product_images') as $media) {
+            $name = $names[(int) $media->getCustomProperty('attribute_value_id')] ?? null;
+
+            if ($name !== null) {
+                $map[$name][] = $media->getUrl();
+            }
+        }
+
+        return $map;
     }
 }

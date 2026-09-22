@@ -106,6 +106,14 @@ export default function OrderShow({
                         <i className="bx bx-printer" />
                         {t('admin.invoice')}
                     </Link>
+                    <Link
+                        href={route('admin.orders.label', order.id)}
+                        target="_blank"
+                        className="btn btn-sm btn-soft-primary d-flex align-items-center gap-1"
+                    >
+                        <i className="bx bx-package" />
+                        {t('admin.shippingLabel')}
+                    </Link>
                     {workflow.checking && (
                         <Link
                             href={route('admin.checking.show', order.id)}

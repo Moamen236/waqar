@@ -69,6 +69,32 @@ export default function ProductShow({
 
     const outOfStock = variant !== null && variant.available !== null && variant.available <= 0;
 
+    // Picking a colour swaps the gallery to that colour's photos. An
+    // untagged catalogue has an empty map and every colour falls through
+    // to the full set, so this changes nothing until someone tags images
+    // in the admin product form.
+    const gallery = useMemo(() => {
+        const tagged = colour === null ? [] : (product.images_by_color[colour] ?? []);
+
+        return tagged.length > 0 ? tagged : product.images;
+    }, [product.images, product.images_by_color, colour]);
+
+    // The weight range for the size just picked, shown inline so the
+    // customer doesn't have to open the whole table to check one size.
+    // Matched on size alone, not the fully-resolved variant: the range is
+    // a property of the size, so it should appear before a colour is
+    // chosen rather than waiting for both halves of the selection.
+    const sizeGuide = useMemo(() => {
+        if (size === null) return null;
+
+        const match = product.variants.find((candidate) => optionOf(candidate, 'size') === size);
+        if (!match || match.size_guide_weight_min === null || match.size_guide_weight_max === null) {
+            return null;
+        }
+
+        return `${match.size_guide_weight_min} – ${match.size_guide_weight_max} kg`;
+    }, [product.variants, size]);
+
     const addToCart = (thenCheckout = false) => {
         if (variant === null) {
             return;
@@ -102,15 +128,17 @@ export default function ProductShow({
                                 <div className="rounded-2xl overflow-hidden bg-surface">
                                     <img
                                         src={
-                                            product.images[activeImage] ?? '/storefront/images/generated/collection.svg'
+                                            gallery[activeImage] ??
+                                            gallery[0] ??
+                                            '/storefront/images/generated/collection.svg'
                                         }
                                         alt={product.name}
                                         className="w-full h-full object-cover aspect-[3/4]"
                                     />
                                 </div>
-                                {product.images.length > 1 && (
+                                {gallery.length > 1 && (
                                     <div className="grid grid-cols-4 gap-3 mt-3">
-                                        {product.images.map((image, index) => (
+                                        {gallery.map((image, index) => (
                                             <div
                                                 key={image}
                                                 className={`rounded-xl overflow-hidden cursor-pointer border ${
@@ -195,7 +223,13 @@ export default function ProductShow({
                                                         colour === option.name ? 'border-black border-2' : 'border-line'
                                                     }`}
                                                     style={{ backgroundColor: option.hex ?? 'transparent' }}
-                                                    onClick={() => setColour(option.name)}
+                                                    onClick={() => {
+                                                        setColour(option.name);
+                                                        // The gallery under this swatch may be a
+                                                        // different set of photos — reset here rather
+                                                        // than in an effect that watches `gallery`.
+                                                        setActiveImage(0);
+                                                    }}
                                                 >
                                                     <div className="tag-action bg-black text-white caption2 capitalize px-1.5 py-0.5 rounded-sm">
                                                         {option.name}
@@ -234,6 +268,13 @@ export default function ProductShow({
                                                 </div>
                                             ))}
                                         </div>
+                                        {size !== null && (
+                                            <div className="caption1 text-secondary mt-3">
+                                                {sizeGuide !== null
+                                                    ? t('product.sizeFitsWeight', { size, range: sizeGuide })
+                                                    : t('common.notSpecified')}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 

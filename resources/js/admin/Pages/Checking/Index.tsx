@@ -19,6 +19,17 @@ export default function CheckingIndex({ orders }: { orders: PaginatedData<OrderS
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center gap-2">
                             <h4 className="card-title flex-grow-1">{t('admin.ordersAwaitingReview')}</h4>
+                            {/* Returns needing the same phone call. They live
+                                on the returns screen rather than being copied
+                                here, so there is one place a return is read. */}
+                            {can('returns.check') && (
+                                <Link
+                                    href={route('admin.returns.index', { status: 'requested' })}
+                                    className="btn btn-sm btn-soft-primary"
+                                >
+                                    {t('admin.returnsAwaitingCheck')}
+                                </Link>
+                            )}
                             {can('checking.export') && <ExportButton href={route('admin.checking.export')} />}
                         </div>
                         <div className="table-responsive">

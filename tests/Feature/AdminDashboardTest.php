@@ -49,7 +49,7 @@ function adtEmployee(string $role): Employee
     $employee = Employee::create([
         'full_name' => $role.' User',
         'email' => 'adt-'.uniqid().'@waqar.test',
-        'phone' => '1',
+        'phone' => '01012345678',
         'password' => 'password',
         'residence_address' => 'N/A',
         'national_id_number' => '29001010100000',

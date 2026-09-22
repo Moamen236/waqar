@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import Chart from 'react-apexcharts';
+import DateRangeFilter from '../../Components/DateRangeFilter';
 import EmptyState, { EmptyRow } from '../../Components/EmptyState';
 import { PaginationFooter } from '../../Components/Pagination';
 import AdminLayout from '../../Layouts/AdminLayout';
@@ -30,10 +31,12 @@ export default function TreasuryIndex({
     treasuries,
     selected,
     transactions,
+    filters,
 }: {
     treasuries: TreasuryRecord[];
     selected: TreasuryRecord | null;
     transactions: PaginatedData<TransactionRecord> | null;
+    filters: { date_from: string | null; date_to: string | null };
 }) {
     const { t, price, date, dateTime } = useTranslation();
     const { can } = usePermissions();
@@ -46,8 +49,18 @@ export default function TreasuryIndex({
     const [newType, setNewType] = useState('cash');
     const [newBalance, setNewBalance] = useState('0');
 
+    // Switching accounts keeps the window you are looking at: drop
+    // date_from and the server reads it as "hasn't chosen" and puts the
+    // ledger back on today. See App\Support\DateRangeFilter.
+    const query = (next: Partial<Record<string, string | number>> = {}) => ({
+        treasury_id: selected?.id ?? '',
+        date_from: filters.date_from ?? '',
+        date_to: filters.date_to ?? '',
+        ...next,
+    });
+
     function selectTreasury(id: number) {
-        router.get(route('admin.treasury.index'), { treasury_id: id }, { preserveState: true });
+        router.get(route('admin.treasury.index'), query({ treasury_id: id }), { preserveState: true });
     }
 
     async function recordTransaction() {
@@ -289,8 +302,21 @@ export default function TreasuryIndex({
                             )}
 
                             <div className="card">
-                                <div className="card-header">
-                                    <h4 className="card-title">{t('admin.ledger')}</h4>
+                                <div className="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                    <h4 className="card-title flex-grow-1">{t('admin.ledger')}</h4>
+                                    {/* Filters the movement list only. The balance card
+                                        above is the account's real balance and is not
+                                        the sum of what is on screen. */}
+                                    <DateRangeFilter
+                                        from={filters.date_from}
+                                        to={filters.date_to}
+                                        onApply={(range) =>
+                                            router.get(route('admin.treasury.index'), query(range), {
+                                                preserveState: true,
+                                                replace: true,
+                                            })
+                                        }
+                                    />
                                 </div>
                                 <div className="table-responsive">
                                     <table className="table align-middle mb-0 table-centered">

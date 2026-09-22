@@ -53,6 +53,7 @@ interface OrderDetail {
     subtotal: string;
     discount_amount: string;
     shipping_amount: string;
+    replaces_order: { id: number; order_number: number } | null;
     total: string;
     customer: { name: string; email: string; phone: string };
     shipping_recipient_name: string;
@@ -84,12 +85,26 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
     const { t, price, dateTime } = useTranslation();
     const [treasuryId, setTreasuryId] = useState<number | ''>(treasuries[0]?.id ?? '');
     const [collectedMethod, setCollectedMethod] = useState('cash');
-    const [collectedAmount, setCollectedAmount] = useState(order.total);
+
+    // Mirrors Order::netOfShipping() on the server. The courier keeps the
+    // shipping out of the cash at the door, so every figure on this page
+    // that means "hand this to the treasury" is net of it — the gross is
+    // shown beside it so the accountant can see where it went.
+    const shipping = Number(order.shipping_amount);
+    const netOf = (gross: number) => Math.max(0, round2(gross - shipping));
+    const netDue = netOf(Number(order.total));
+
+    const [collectedAmount, setCollectedAmount] = useState(String(netDue));
     const [keptQuantities, setKeptQuantities] = useState<Record<number, number>>(
         Object.fromEntries(order.items.map((item) => [item.id, item.quantity])),
     );
 
     const canAct = ['Assigned', 'Out for Delivery'].includes(order.status);
+    // Still in the building: offer the handover as the obvious next step.
+    // The delivery outcomes stay available underneath it, because handover
+    // is a record rather than a gate — a courier who skipped the desk must
+    // not leave the order stuck here.
+    const awaitingHandover = order.status === 'Assigned';
 
     // Whoever went out with the goods — exactly one of the two, per
     // delivery_assignment_type. contact_person only exists on a company.
@@ -105,9 +120,9 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
     const outstanding =
         order.payment_status === 'partially_collected' && payment !== null
             ? {
-                  due: Number(payment.amount),
+                  due: netOf(Number(payment.amount)),
                   collected: Number(payment.collected_amount ?? 0),
-                  remaining: round2(Number(payment.amount) - Number(payment.collected_amount ?? 0)),
+                  remaining: round2(netOf(Number(payment.amount)) - Number(payment.collected_amount ?? 0)),
               }
             : null;
     const [balanceAmount, setBalanceAmount] = useState(outstanding ? String(outstanding.remaining) : '');
@@ -125,7 +140,10 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
     // share sitting on kept lines survives the return.
     const discountShare =
         Number(order.subtotal) > 0 ? (Number(order.discount_amount) * keptValue) / Number(order.subtotal) : 0;
-    const suggestedTotal = Math.max(0, round2(keptValue - discountShare + Number(order.shipping_amount)));
+    // Gross is what the customer hands over; the courier keeps the
+    // shipping out of it, so the suggestion Accounting types is the net.
+    const suggestedGross = Math.max(0, round2(keptValue - discountShare + shipping));
+    const suggestedTotal = netOf(suggestedGross);
 
     async function confirmDelivered() {
         if (!treasuryId) return;
@@ -355,11 +373,67 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                             <StatusBadge status={order.status} />
                         </div>
                         <div className="card-body">
+                            {/* The customer already paid for these goods once.
+                                Without this line an accountant reads the item
+                                prices and collects the lot. */}
+                            {order.replaces_order !== null && (
+                                <div className="alert alert-info d-flex align-items-center gap-2" role="status">
+                                    <i className="bx bx-refresh fs-20" />
+                                    <div>
+                                        <div className="fw-semibold">
+                                            {t('admin.replacementForOrder', {
+                                                number: order.replaces_order.order_number,
+                                            })}
+                                        </div>
+                                        <div className="fs-13">
+                                            {t('admin.replacementCollectOnly', { amount: price(netDue) })}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {awaitingHandover && (
+                                <div className="border rounded p-3 mb-3">
+                                    <div className="fw-semibold">{t('admin.confirmHandover')}</div>
+                                    <p className="text-muted fs-13 mb-2">{t('admin.confirmHandoverHint')}</p>
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary w-100"
+                                        onClick={() =>
+                                            router.post(
+                                                route('admin.accounting.handover', order.id),
+                                                {},
+                                                { preserveScroll: true },
+                                            )
+                                        }
+                                    >
+                                        {t('admin.confirmHandover')}
+                                    </button>
+                                </div>
+                            )}
                             {!canAct ? (
                                 <p className="text-muted mb-0">{t('admin.orderNotOutForDelivery')}</p>
                             ) : (
                                 <Tabs defaultActiveKey="delivered" className="nav-tabs-custom mb-3">
                                     <Tab eventKey="delivered" title={t('admin.delivered')}>
+                                        {/* The one place the split has to be legible: the
+                                            courier collected the gross and kept the shipping,
+                                            so only the net should reach the drawer. */}
+                                        <div className="bg-light-subtle border rounded p-2 mb-3 fs-13">
+                                            <div className="d-flex justify-content-between text-muted">
+                                                <span>{t('admin.customerPaysCourier')}</span>
+                                                <span dir="ltr">{price(Number(order.total))}</span>
+                                            </div>
+                                            <div className="d-flex justify-content-between text-muted">
+                                                <span>{t('admin.courierKeepsShipping')}</span>
+                                                <span dir="ltr">−{price(shipping)}</span>
+                                            </div>
+                                            <hr className="my-1" />
+                                            <div className="d-flex justify-content-between fw-semibold">
+                                                <span>{t('admin.dueToTreasury')}</span>
+                                                <span dir="ltr">{price(netDue)}</span>
+                                            </div>
+                                        </div>
                                         <TreasuryFields
                                             treasuries={treasuries}
                                             treasuryId={treasuryId}

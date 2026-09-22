@@ -61,7 +61,7 @@ function p4cVariant(int $warehouseId, int $stock = 10): ProductVariant
 
 function p4cCustomer(): Customer
 {
-    return Customer::create(['name' => 'Test Customer', 'email' => 'c-'.uniqid().'@waqar.test', 'phone' => '1', 'password' => 'password']);
+    return Customer::create(['name' => 'Test Customer', 'email' => 'c-'.uniqid().'@waqar.test', 'phone' => '01012345678', 'password' => 'password']);
 }
 
 /**
@@ -70,7 +70,7 @@ function p4cCustomer(): Customer
 function p4cEmployee(string $role): array
 {
     $employee = Employee::create([
-        'full_name' => $role.' User', 'email' => 'e-'.uniqid().'@waqar.test', 'phone' => '1',
+        'full_name' => $role.' User', 'email' => 'e-'.uniqid().'@waqar.test', 'phone' => '01012345678',
         'password' => 'password', 'residence_address' => 'N/A', 'national_id_number' => 'N/A',
     ]);
     $roleModel = Role::findOrCreate($role, 'employee');
@@ -115,7 +115,7 @@ it('lets Vice Chairman create a product with variants, categories, and the type-
 
 it('deactivates rather than hard-deletes a variant that already has order history when removed from the form', function () {
     $geo = p4cGeo();
-    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '1']);
+    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '01012345678']);
     ShippingRate::create(['geo_type' => 'governorate', 'geo_id' => $geo['governorate']->id, 'price' => 0]);
     $orderedVariant = p4cVariant($warehouse->id);
     $product = $orderedVariant->product;
@@ -206,7 +206,7 @@ it('blocks a Checking employee from the catalog screens (no products.view)', fun
 
 it('scopes the returns screens to the agent who placed the order, and opens them to their Team Leader', function () {
     $geo = p4cGeo();
-    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '1']);
+    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '01012345678']);
     ShippingRate::create(['geo_type' => 'governorate', 'geo_id' => $geo['governorate']->id, 'price' => 0]);
     $variant = p4cVariant($warehouse->id, stock: 5);
     $customer = p4cCustomer();
@@ -231,7 +231,7 @@ it('scopes the returns screens to the agent who placed the order, and opens them
             OrderSource::CustomerService, $agent,
         );
         app(ConfirmOrderAction::class)->execute($order, $checker);
-        $rep = DeliveryRepresentative::create(['name' => 'Ahmed', 'phone' => '1']);
+        $rep = DeliveryRepresentative::create(['name' => 'Ahmed', 'phone' => '01012345678']);
         app(AssignDeliveryAction::class)->execute($order, $deliveryManager, DeliveryAssignmentType::Representative, $rep);
         $treasury = Treasury::firstOrCreate(['name' => 'Cash'], ['type' => 'cash', 'current_balance' => 0]);
         app(ConfirmDeliveryResultAction::class)->confirmDelivered($order, $accountant, $treasury, CollectedMethod::Cash);
@@ -281,7 +281,7 @@ it('scopes the returns screens to the agent who placed the order, and opens them
 
 it('walks a post-delivery return through the full admin workflow — approve, receive (restocks), refund', function () {
     $geo = p4cGeo();
-    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '1']);
+    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '01012345678']);
     ShippingRate::create(['geo_type' => 'governorate', 'geo_id' => $geo['governorate']->id, 'price' => 0]);
     $variant = p4cVariant($warehouse->id, stock: 5);
     $customer = p4cCustomer();
@@ -308,7 +308,7 @@ it('walks a post-delivery return through the full admin workflow — approve, re
         OrderSource::CustomerService, $csAgent,
     );
     app(ConfirmOrderAction::class)->execute($order, $checker);
-    $rep = DeliveryRepresentative::create(['name' => 'Ahmed', 'phone' => '1']);
+    $rep = DeliveryRepresentative::create(['name' => 'Ahmed', 'phone' => '01012345678']);
     app(AssignDeliveryAction::class)->execute($order, $deliveryManager, DeliveryAssignmentType::Representative, $rep);
     $treasury = Treasury::create(['name' => 'Cash', 'type' => 'cash', 'current_balance' => 0]);
     app(ConfirmDeliveryResultAction::class)->confirmDelivered($order, $accountant, $treasury, CollectedMethod::Cash);
@@ -373,7 +373,7 @@ it('walks a post-delivery return through the full admin workflow — approve, re
 
 it('refunds a return in cash against the cash treasury', function () {
     $geo = p4cGeo();
-    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '1']);
+    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '01012345678']);
     ShippingRate::create(['geo_type' => 'governorate', 'geo_id' => $geo['governorate']->id, 'price' => 0]);
     $variant = p4cVariant($warehouse->id, stock: 5);
     $customer = p4cCustomer();
@@ -393,7 +393,7 @@ it('refunds a return in cash against the cash treasury', function () {
         OrderSource::CustomerService, $csAgent,
     );
     app(ConfirmOrderAction::class)->execute($order, $checker);
-    $rep = DeliveryRepresentative::create(['name' => 'Ahmed', 'phone' => '1']);
+    $rep = DeliveryRepresentative::create(['name' => 'Ahmed', 'phone' => '01012345678']);
     app(AssignDeliveryAction::class)->execute($order, $deliveryManager, DeliveryAssignmentType::Representative, $rep);
     $cashTreasury = Treasury::create(['name' => 'Cash Till', 'type' => 'cash', 'current_balance' => 1000]);
     app(ConfirmDeliveryResultAction::class)->confirmDelivered($order, $accountant, $cashTreasury, CollectedMethod::Cash);

@@ -43,7 +43,7 @@ use Spatie\Permission\Models\Role;
 function p7rEmployee(string $role): Employee
 {
     $employee = Employee::create([
-        'full_name' => $role.' User', 'email' => 'e7r-'.uniqid().'@waqar.test', 'phone' => '1',
+        'full_name' => $role.' User', 'email' => 'e7r-'.uniqid().'@waqar.test', 'phone' => '01012345678',
         'password' => 'password', 'residence_address' => 'N/A', 'national_id_number' => '29001010100000',
     ]);
     $employee->assignRole(Role::findOrCreate($role, 'employee'));
@@ -243,17 +243,21 @@ it('drops a soft-deleted product out of the variant pickers instead of throwing'
     ProductVariant::create(['product_id' => $deleted->id, 'sku' => 'GONE-'.strtoupper(uniqid()), 'status' => true]);
     $deleted->delete();
 
-    // Both screens read $variant->product->getTranslation(...), which is
+    // The screen reads $variant->product->getTranslation(...), which is
     // null for a trashed product — a 500, not a blank page.
     $actor = p7rEmployee('Super Admin');
-
-    $this->actingAs($actor, 'employee')->get(route('admin.orders.create'))
-        ->assertOk()
-        ->assertInertia(fn ($page) => $page->has('variants', 1));
 
     $this->actingAs($actor, 'employee')->get(route('admin.promotions.create'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page->has('variants', 1));
+
+    // Order-create no longer carries a variant list at all — its picker
+    // searches on demand (F1). The same guarantee is asserted against
+    // that endpoint in Phase4AdminOperationsTest, "omits a soft-deleted
+    // product from the picker".
+    $this->actingAs($actor, 'employee')->get(route('admin.orders.create'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->missing('variants'));
 });
 
 /*
@@ -263,7 +267,7 @@ it('drops a soft-deleted product out of the variant pickers instead of throwing'
 */
 
 it('renders an order line from its snapshot so a deleted product cannot blank the screen', function () {
-    $customer = Customer::create(['name' => 'Nour', 'email' => 'n7r@waqar.test', 'phone' => '1', 'password' => 'password']);
+    $customer = Customer::create(['name' => 'Nour', 'email' => 'n7r@waqar.test', 'phone' => '01012345678', 'password' => 'password']);
     $product = p7rProduct('Doomed Shirt');
     $variant = ProductVariant::create(['product_id' => $product->id, 'sku' => 'SNAP-1', 'status' => true]);
 
@@ -287,7 +291,7 @@ it('renders an order line from its snapshot so a deleted product cannot blank th
 });
 
 it('sends the customer to the return-filing screen it is rendered on', function () {
-    $customer = Customer::create(['name' => 'Nour', 'email' => 'n7r2@waqar.test', 'phone' => '1', 'password' => 'password']);
+    $customer = Customer::create(['name' => 'Nour', 'email' => 'n7r2@waqar.test', 'phone' => '01012345678', 'password' => 'password']);
     $agent = p7rEmployee('Customer Service');
     $order = p7rOrder($customer, OrderStatus::Delivered, $agent);
 
@@ -314,7 +318,7 @@ it('builds notification URLs without a request to borrow the locale from', funct
     // workers, which is when this would have started firing.
     URL::defaults([]);
 
-    $customer = Customer::create(['name' => 'Nour', 'email' => 'n7r3@waqar.test', 'phone' => '1', 'password' => 'password']);
+    $customer = Customer::create(['name' => 'Nour', 'email' => 'n7r3@waqar.test', 'phone' => '01012345678', 'password' => 'password']);
     $order = p7rOrder($customer, OrderStatus::Delivered);
 
     $return = OrderReturn::create([
@@ -330,7 +334,7 @@ it('builds notification URLs without a request to borrow the locale from', funct
 });
 
 it('keeps a warehouse list unaffected — only translatable columns change shape', function () {
-    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '1', 'is_active' => true]);
+    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '01012345678', 'is_active' => true]);
 
     // `warehouses.name` is a plain column, not a translatable one.
     expect($warehouse->fresh()->toArray()['name'])->toBe('Main');

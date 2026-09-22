@@ -290,6 +290,7 @@
     "product.size": "المقاس",
     "product.sizeGuide": "دليل المقاسات",
     "product.sizeGuideBody": "اختر المقاس المناسب لنطاق وزنك.",
+    "product.sizeFitsWeight": "مقاس :size يناسب :range",
     "product.skuLabel": "رقم المنتج:",
     "product.submitReview": "إرسال التقييم",
     "product.tabDescription": "الوصف",
