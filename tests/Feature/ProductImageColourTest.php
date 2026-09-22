@@ -195,6 +195,76 @@ it('keeps image tagging behind products.update', function () {
         ->assertForbidden();
 });
 
+it('saves a colour tag per new photo when a product is created', function () {
+    $colour = Attribute::create(['name' => ['ar' => 'اللون', 'en' => 'Color'], 'sort_order' => 1]);
+    $red = AttributeValue::create([
+        'attribute_id' => $colour->id, 'value' => ['ar' => 'أحمر', 'en' => 'Red'], 'color_hex' => '#ff0000',
+    ]);
+    $blue = AttributeValue::create([
+        'attribute_id' => $colour->id, 'value' => ['ar' => 'أزرق', 'en' => 'Blue'], 'color_hex' => '#0000ff',
+    ]);
+
+    $this->actingAs(picEmployee('Vice Chairman'), 'employee')->post(route('admin.products.store'), [
+        'name' => ['en' => 'Tagged Shirt'],
+        'price' => 250,
+        'status' => true, 'is_featured' => false, 'is_new' => false, 'is_on_sale' => false, 'sort_order' => 0,
+        'product_type' => 'real',
+        'variants' => [
+            ['id' => null, 'sku' => null, 'barcode' => null, 'price' => null, 'sale_price' => null, 'cost_price' => null, 'status' => true, 'attribute_value_ids' => [$red->id]],
+            ['id' => null, 'sku' => null, 'barcode' => null, 'price' => null, 'sale_price' => null, 'cost_price' => null, 'status' => true, 'attribute_value_ids' => [$blue->id]],
+        ],
+        'images' => [
+            UploadedFile::fake()->image('red.jpg'),
+            UploadedFile::fake()->image('flatlay.jpg'),
+        ],
+        // Parallel to `images` by index — null means every colour.
+        'image_attribute_value_ids' => [$red->id, null],
+    ])->assertRedirect();
+
+    $product = Product::where('slug', 'tagged-shirt')->firstOrFail();
+    $media = $product->getMedia('product_images');
+
+    expect($media)->toHaveCount(2)
+        ->and($media[0]->getCustomProperty('attribute_value_id'))->toBe($red->id)
+        ->and($media[1]->getCustomProperty('attribute_value_id'))->toBeNull();
+});
+
+it('saves a colour tag for a photo added while editing', function () {
+    [$product, $red] = picProduct();
+
+    $this->actingAs(picEmployee('Vice Chairman'), 'employee')->put(route('admin.products.update', $product), [
+        'name' => ['en' => 'Oxford Shirt'],
+        'sku' => $product->sku,
+        'price' => 250,
+        'status' => true, 'is_featured' => false, 'is_new' => false, 'is_on_sale' => false, 'sort_order' => 0,
+        'product_type' => 'real',
+        'variants' => $product->variants->map(fn ($variant) => [
+            'id' => $variant->id, 'sku' => $variant->sku, 'barcode' => null,
+            'price' => null, 'sale_price' => null, 'cost_price' => null, 'status' => true,
+            'attribute_value_ids' => $variant->attributeValues->pluck('id')->all(),
+        ])->all(),
+        'images' => [UploadedFile::fake()->image('red.jpg')],
+        'image_attribute_value_ids' => [$red->id],
+    ])->assertRedirect();
+
+    expect($product->fresh()->getMedia('product_images'))->toHaveCount(1)
+        ->and($product->fresh()->getMedia('product_images')[0]->getCustomProperty('attribute_value_id'))->toBe($red->id);
+});
+
+it('tells the create form which attributes are colours so new photos can be tagged', function () {
+    $colour = Attribute::create(['name' => ['ar' => 'اللون', 'en' => 'Color'], 'sort_order' => 1]);
+    $size = Attribute::create(['name' => ['ar' => 'المقاس', 'en' => 'Size'], 'sort_order' => 2]);
+
+    $this->actingAs(picEmployee('Vice Chairman'), 'employee')->withLocale('en')
+        ->get(route('admin.products.create'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('colorAttributeIds', [$colour->id])
+            ->etc());
+
+    expect($size->id)->not->toBe($colour->id);
+});
+
 it('offers the product form only the colours the product is actually made in', function () {
     [$product, $red, $blue] = picProduct();
     // A colour on no variant of this product — never worth tagging with.

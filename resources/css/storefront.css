@@ -58,10 +58,19 @@
 /* Anvogue's palette (the template's own tailwind.config.js), re-expressed
  * as v4 theme tokens so `text-secondary`, `bg-surface`, `border-line`,
  * `bg-green` … mean the same thing they do in the template markup.
- * `black` is deliberately overridden — Anvogue's is #1F1F1F, not #000. */
+ *
+ * WAQAR brand: the template's two accent slots carry the brand colours
+ * rather than new token names, so every `bg-black` / `bg-green` already in
+ * the ported markup and in theme.css picks them up with no class churn.
+ *   `black` -> main      #012C4E (nav, footer, buttons, body text)
+ *   `green` -> secondary #EFDDB7 (badges, sale tags, button hover)
+ * The pairing theme.css already assumes - green background with black text
+ * (.button-main:hover) - still reads: navy on cream. `secondary` below is
+ * Anvogue's muted *grey text* token, not the brand secondary; renaming it
+ * would repaint every `text-secondary` caption on the site. */
 @theme {
-    --color-green: #d2ef9a;
-    --color-black: #1f1f1f;
+    --color-green: #efddb7;
+    --color-black: #012c4e;
     --color-secondary: #696c70;
     --color-secondary2: #a0a0a0;
     --color-white: #ffffff;
@@ -142,4 +151,16 @@
 html,
 body {
     font-family: var(--font-sans);
+}
+
+/* theme.css keeps its own `--black` / `--green` copies of the palette in a
+ * plain `:root` (its "Main color" block) and every one of its component
+ * rules reads those, not the Tailwind tokens. Aliasing them here keeps the
+ * brand defined in exactly one place — the @theme block above — instead of
+ * editing the vendored sheet. Unlayered for the same reason as the
+ * font-family rule: theme.css sits in the `anvogue` layer, and unlayered
+ * declarations outrank every layer. */
+:root {
+    --black: var(--color-black);
+    --green: var(--color-green);
 }

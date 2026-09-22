@@ -317,6 +317,7 @@ Route::middleware('auth:employee')->group(function () {
     // Viewing and adjusting are split: plenty of roles have reason to see
     // stock levels, far fewer to change them without an order behind it.
     Route::get('inventory', [InventoryController::class, 'index'])->name('inventory.index');
+    Route::get('inventory/movements', [InventoryController::class, 'movements'])->name('inventory.movements');
     Route::get('inventory/export', [InventoryController::class, 'export'])->name('inventory.export');
     Route::post('inventory/adjust', [InventoryController::class, 'adjust'])->name('inventory.adjust');
 

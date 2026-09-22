@@ -117,6 +117,7 @@ export default function ProductForm({
     categories,
     collections,
     attributes,
+    colorAttributeIds = [],
 }: {
     product: ProductRecord | null;
     /** Only sent by create() — the SKU this product will be given. */
@@ -124,10 +125,15 @@ export default function ProductForm({
     categories: Option[];
     collections: Option[];
     attributes: AttributeOption[];
+    /** Ids of the attributes that count as "colour" (English name `Color`). */
+    colorAttributeIds?: number[];
 }) {
     const { t, price: money, isRtl } = useTranslation();
     const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
     const [newImages, setNewImages] = useState<File[]>([]);
+    // Parallel to newImages by index: which colour each not-yet-saved photo
+    // shows. Null means every colour — same meaning as ProductImage's tag.
+    const [newImageColourIds, setNewImageColourIds] = useState<(number | null)[]>([]);
     const [existingImages, setExistingImages] = useState<ProductImage[]>(product?.images ?? []);
 
     const attributeValueOptions = attributes.flatMap((attribute) =>
@@ -185,8 +191,22 @@ export default function ProductForm({
     const { fields, append, remove } = useFieldArray({ control, name: 'variants' });
     const productType = watch('product_type');
 
-    const onDrop = useCallback((files: File[]) => setNewImages((prev) => [...prev, ...files]), []);
+    const onDrop = useCallback((files: File[]) => {
+        setNewImages((prev) => [...prev, ...files]);
+        // A dropped photo starts untagged ("every colour") — the operator
+        // picks a colour from the select beside its thumbnail, if any.
+        setNewImageColourIds((prev) => [...prev, ...files.map(() => null)]);
+    }, []);
     const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: { 'image/*': [] } });
+
+    function removeNewImage(index: number) {
+        setNewImages((prev) => prev.filter((_, i) => i !== index));
+        setNewImageColourIds((prev) => prev.filter((_, i) => i !== index));
+    }
+
+    function tagNewImageColour(index: number, attributeValueId: number | null) {
+        setNewImageColourIds((prev) => prev.map((id, i) => (i === index ? attributeValueId : id)));
+    }
 
     // Object URLs were previously minted inline in the render body, which
     // allocates a fresh blob URL on **every** render and never revokes one —
@@ -231,6 +251,44 @@ export default function ProductForm({
         }))
         .filter((attribute) => attribute.values.length > 0);
 
+    // Colours a not-yet-saved photo can be tagged with: the colour values
+    // currently picked on the variant rows. Same rule as the edit form's
+    // `product.colors` (only what the product is actually made in), but
+    // live from the form instead of from the saved record — on create
+    // there is no saved record yet.
+    const colorAttributeIdSet = useMemo(() => new Set(colorAttributeIds), [colorAttributeIds]);
+    const availableNewImageColours = useMemo(
+        () =>
+            attributes
+                .filter((attribute) => colorAttributeIdSet.has(attribute.id))
+                .flatMap((attribute) => attribute.values)
+                .filter((value) => selectedValueIds.has(value.id)),
+        // selectedValueIds is rebuilt every render from previewVariants —
+        // depend on the watched rows themselves instead.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [attributes, colorAttributeIdSet, previewVariants],
+    );
+
+    // A tag pointing at a colour that is no longer picked on any variant
+    // would save an image for a colour the product isn't made in — fall
+    // back to "every colour" instead of posting a stale id.
+    const selectedColourSignature = JSON.stringify([...selectedValueIds].sort((a, b) => (a as number) - (b as number)));
+    useEffect(() => {
+        setNewImageColourIds((prev) => {
+            if (prev.length === 0) return prev;
+            let changed = false;
+            const next = prev.map((id) => {
+                if (id !== null && !selectedValueIds.has(id)) {
+                    changed = true;
+                    return null;
+                }
+                return id;
+            });
+            return changed ? next : prev;
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedColourSignature]);
+
     async function removeExistingImage(image: ProductImage) {
         if (!product) return;
         if (!(await confirmAction({ title: t('admin.removeThisImage'), danger: true }))) return;
@@ -240,10 +298,12 @@ export default function ProductForm({
         });
     }
 
-    // Tagging a photo with a colour is its own small write, not part of
-    // the product save — the save posts new files, and the tag belongs to
-    // an image that already exists. Optimistic: the select shows the new
-    // value immediately and the PATCH follows.
+    // Re-tagging a saved photo is its own small write, not part of the
+    // product save — the tag belongs to an image that already exists.
+    // Optimistic: the select shows the new value immediately and the PATCH
+    // follows. A not-yet-saved photo is tagged differently: its colour
+    // rides along with the upload itself (image_attribute_value_ids, see
+    // onSubmit), because there is no media row to PATCH yet.
     function tagImageColour(image: ProductImage, attributeValueId: number | null) {
         if (!product) return;
         setExistingImages((prev) =>
@@ -280,6 +340,10 @@ export default function ProductForm({
             collection_ids: values.collection_ids,
             variants: values.variants,
             images: newImages,
+            // Parallel to `images` by index — the colour each new photo
+            // shows, or null for every colour. An empty string survives the
+            // FormData round-trip as null via ConvertEmptyStringsToNull.
+            image_attribute_value_ids: newImageColourIds.map((id) => id ?? ''),
         };
 
         // Cast at the boundary rather than adding an index signature to
@@ -463,15 +527,64 @@ export default function ProductForm({
                                                 )}
                                             </div>
                                         ))}
-                                        {newImageUrls.map((url) => (
-                                            <img
-                                                key={url}
-                                                src={url}
-                                                alt=""
-                                                style={{ width: 100, height: 100, objectFit: 'cover' }}
-                                                className="rounded border"
-                                            />
-                                        ))}
+                                        {newImageUrls.map((url, index) => {
+                                            // On edit the saved colours are already known; on
+                                            // create only the colours picked on the variant rows
+                                            // below exist. Merged so a photo added alongside a
+                                            // brand-new variant colour can be tagged at once.
+                                            const optionById = new Map<number, string>();
+                                            product?.colors.forEach((colour) => optionById.set(colour.id, colour.name));
+                                            availableNewImageColours.forEach((colour) => {
+                                                if (!optionById.has(colour.id)) optionById.set(colour.id, colour.value);
+                                            });
+                                            const colourOptions = [...optionById.entries()].map(([id, name]) => ({
+                                                id,
+                                                name,
+                                            }));
+
+                                            return (
+                                                <div key={url} style={{ width: 100 }}>
+                                                    <div className="position-relative">
+                                                        <img
+                                                            src={url}
+                                                            alt=""
+                                                            style={{ width: 100, height: 100, objectFit: 'cover' }}
+                                                            className="rounded border"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-danger btn-sm position-absolute top-0 end-0"
+                                                            onClick={() => removeNewImage(index)}
+                                                        >
+                                                            &times;
+                                                        </button>
+                                                    </div>
+                                                    {/* Same rule as saved photos: nothing to tag
+                                                        with until the product has colours. */}
+                                                    {colourOptions.length > 0 && (
+                                                        <select
+                                                            className="form-select form-select-sm mt-1"
+                                                            value={newImageColourIds[index] ?? ''}
+                                                            onChange={(e) =>
+                                                                tagNewImageColour(
+                                                                    index,
+                                                                    e.target.value === ''
+                                                                        ? null
+                                                                        : Number(e.target.value),
+                                                                )
+                                                            }
+                                                        >
+                                                            <option value="">{t('admin.allColors')}</option>
+                                                            {colourOptions.map((colour) => (
+                                                                <option key={colour.id} value={colour.id}>
+                                                                    {colour.name}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
@@ -505,10 +618,9 @@ export default function ProductForm({
                                                 SkuGenerator when the product is inserted, so
                                                 there is nothing here to edit. It is shown
                                                 rather than hidden because the variant SKUs
-                                                below are typed by hand and are conventionally
-                                                based on it. Editing an existing product still
-                                                allows a correction — an assigned SKU is a
-                                                starting value, not a permanent one. */}
+                                                below are derived from it. Editing an existing
+                                                product still allows a correction — an assigned
+                                                SKU is a starting value, not a permanent one. */}
                                             <input
                                                 className="form-control"
                                                 disabled={product === null}
@@ -628,8 +740,16 @@ export default function ProductForm({
                                             {fields.map((field, index) => (
                                                 <tr key={field.id}>
                                                     <td style={{ minWidth: 140 }}>
+                                                        {/* Always disabled: variant SKUs are
+                                                            assigned by SkuGenerator on save and
+                                                            never edited afterwards. Rendered as a
+                                                            field rather than plain text so an
+                                                            existing variant's SKU still reads in
+                                                            the column it has always been in. */}
                                                         <input
                                                             className="form-control form-control-sm"
+                                                            disabled
+                                                            placeholder={t('admin.skuAssignedOnSave')}
                                                             {...register(`variants.${index}.sku`)}
                                                         />
                                                     </td>

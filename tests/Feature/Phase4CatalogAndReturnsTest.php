@@ -110,7 +110,10 @@ it('lets Vice Chairman create a product with variants, categories, and the type-
     expect($product->product_type->value)->toBe('real')
         ->and($product->inventory_tracking_enabled)->toBeTrue() // derived, not client-supplied
         ->and($product->categories()->pluck('categories.id'))->toContain($category->id)
-        ->and($product->variants()->count())->toBe(1);
+        ->and($product->variants()->count())->toBe(1)
+        // The posted 'TSHIRT-001-M' is ignored the same way the product
+        // SKU is: variant SKUs are generated from the product's.
+        ->and($product->variants()->first()->sku)->toBe($product->sku.'-001');
 });
 
 it('deactivates rather than hard-deletes a variant that already has order history when removed from the form', function () {

@@ -38,7 +38,7 @@ class InventoryController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:inventory.view', only: ['index']),
+            new Middleware('permission:inventory.view', only: ['index', 'movements']),
             new Middleware('permission:inventory.export', only: ['export']),
             new Middleware('permission:inventory.adjust', only: ['adjust']),
         ];
@@ -82,22 +82,56 @@ class InventoryController extends Controller implements HasMiddleware
                 InventoryService::MANUAL_ADJUSTMENT_TYPES,
             ),
             'filters' => ['warehouse' => $warehouseId, 'search' => $search],
-            'recentMovements' => InventoryMovement::query()
-                ->with(['productVariant:id,sku', 'warehouse:id,name', 'createdBy:id,full_name'])
-                ->whereIn('type', InventoryService::MANUAL_ADJUSTMENT_TYPES)
-                ->latest('id')
-                ->limit(15)
-                ->get()
-                ->map(fn (InventoryMovement $movement) => [
-                    'id' => $movement->id,
-                    'sku' => $movement->productVariant->sku,
-                    'warehouse' => $movement->warehouse?->name,
-                    'type' => $movement->type->value,
-                    'quantity' => $movement->quantity,
-                    'notes' => $movement->notes,
-                    'by' => $movement->createdBy?->full_name,
-                    'at' => $movement->created_at?->toDateTimeString(),
-                ]),
+        ]);
+    }
+
+    /**
+     * The manual-adjustment log on its own page: same movement types the
+     * adjust modal can write, paginated and filterable instead of the
+     * 15-row "recent" preview that used to sit under the stock table.
+     */
+    public function movements(Request $request): Response
+    {
+        $warehouseId = $request->integer('warehouse') ?: null;
+        $search = trim((string) $request->string('search'));
+        $type = trim((string) $request->string('type'));
+
+        $manualTypes = array_map(
+            fn (InventoryMovementType $t) => $t->value,
+            InventoryService::MANUAL_ADJUSTMENT_TYPES,
+        );
+
+        $movements = InventoryMovement::query()
+            ->with(['productVariant:id,sku', 'warehouse:id,name', 'createdBy:id,full_name'])
+            ->whereIn('type', InventoryService::MANUAL_ADJUSTMENT_TYPES)
+            ->when($warehouseId, fn ($query) => $query->where('warehouse_id', $warehouseId))
+            ->when(
+                $type !== '' && in_array($type, $manualTypes, true),
+                fn ($query) => $query->where('type', InventoryMovementType::from($type)),
+            )
+            ->when($search !== '', fn ($query) => $query->whereHas(
+                'productVariant',
+                fn ($variant) => $variant->where('sku', 'like', "%{$search}%")
+            ))
+            ->latest('id')
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn (InventoryMovement $movement) => [
+                'id' => $movement->id,
+                'sku' => $movement->productVariant->sku,
+                'warehouse' => $movement->warehouse?->name,
+                'type' => $movement->type->value,
+                'quantity' => $movement->quantity,
+                'notes' => $movement->notes,
+                'by' => $movement->createdBy?->full_name,
+                'at' => $movement->created_at?->toDateTimeString(),
+            ]);
+
+        return Inertia::render('Inventory/Movements', [
+            'movements' => $movements,
+            'warehouses' => Warehouse::query()->where('is_active', true)->get(['id', 'name']),
+            'movementTypes' => $manualTypes,
+            'filters' => ['warehouse' => $warehouseId, 'type' => $type, 'search' => $search],
         ]);
     }
 

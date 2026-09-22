@@ -3,6 +3,7 @@
 namespace App\Services\Catalog;
 
 use App\Models\Product;
+use App\Models\ProductVariant;
 
 /**
  * Assigns the next product SKU, so the admin never types one.
@@ -52,6 +53,24 @@ class SkuGenerator
         do {
             $candidate = self::PREFIX.'-'.str_pad((string) ++$highest, self::PAD, '0', STR_PAD_LEFT);
         } while ($existing->has($candidate));
+
+        return $candidate;
+    }
+
+    /**
+     * Variant SKUs are `<product sku>-<NNN>`, assigned the same way and
+     * for the same reason as the product's own: nobody types one. The
+     * column is UNIQUE across the whole table, so the candidate is
+     * checked rather than assumed free — a seeded variant under this
+     * product may already hold a name of any shape.
+     */
+    public function nextVariantSku(Product $product): string
+    {
+        $n = 0;
+
+        do {
+            $candidate = $product->sku.'-'.str_pad((string) ++$n, self::PAD, '0', STR_PAD_LEFT);
+        } while (ProductVariant::query()->where('sku', $candidate)->exists());
 
         return $candidate;
     }

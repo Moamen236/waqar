@@ -131,7 +131,7 @@ class ProductController extends Controller implements HasMiddleware
             $product->categories()->sync($data['category_ids'] ?? []);
             $product->collections()->sync($data['collection_ids'] ?? []);
             $this->syncVariants($product, $data['variants']);
-            $this->attachImages($product, $request);
+            $this->attachImages($product, $request, $data);
 
             return $product;
         });
@@ -311,7 +311,7 @@ class ProductController extends Controller implements HasMiddleware
             $product->categories()->sync($data['category_ids'] ?? []);
             $product->collections()->sync($data['collection_ids'] ?? []);
             $this->syncVariants($product, $data['variants']);
-            $this->attachImages($product, $request);
+            $this->attachImages($product, $request, $data);
         });
 
         return redirect()->route('admin.products.edit', $product)->with('success', __('Product updated.'));
@@ -400,7 +400,11 @@ class ProductController extends Controller implements HasMiddleware
             'collection_ids.*' => ['exists:collections,id'],
             'variants' => ['required', 'array', 'min:1'],
             'variants.*.id' => ['nullable', 'exists:product_variants,id'],
-            'variants.*.sku' => ['required', 'string', 'max:100'],
+            // Assigned by SkuGenerator in syncVariants(), never read from
+            // the request — same reason as the product SKU above: the
+            // form's field is disabled, which is a UI affordance and not
+            // a guarantee.
+            'variants.*.sku' => ['nullable'],
             'variants.*.barcode' => ['nullable', 'string', 'max:100'],
             'variants.*.price' => ['nullable', 'numeric', 'min:0'],
             'variants.*.sale_price' => ['nullable', 'numeric', 'min:0'],
@@ -410,6 +414,12 @@ class ProductController extends Controller implements HasMiddleware
             'variants.*.attribute_value_ids.*' => ['exists:attribute_values,id'],
             'images' => ['array'],
             'images.*' => ImageUpload::RULES,
+            // Parallel to `images` by index: which colour each new photo
+            // shows. Null/empty means every colour. Validated as ids only —
+            // whether the colour is actually on this product's variants is
+            // a UX concern (the form only offers those), not a 422.
+            'image_attribute_value_ids' => ['nullable', 'array'],
+            'image_attribute_value_ids.*' => ['nullable', 'integer', 'exists:attribute_values,id'],
         ]);
 
         // The two rich-text fields, scrubbed on the way in — this is the
@@ -441,13 +451,18 @@ class ProductController extends Controller implements HasMiddleware
         $type = ProductType::from($data['product_type']);
 
         return [
-            ...collect($data)->except(['category_ids', 'collection_ids', 'variants', 'images'])->all(),
+            ...collect($data)->except(['category_ids', 'collection_ids', 'variants', 'images', 'image_attribute_value_ids'])->all(),
             'slug' => ($data['slug'] ?? null) ?: Str::slug($data['name']['en']),
             'inventory_tracking_enabled' => $type === ProductType::Real,
         ];
     }
 
     /**
+     * `sku` is dropped from the incoming fields on both paths: a new
+     * variant gets a generated one, an existing variant keeps the one it
+     * already has. Nothing the request says about a variant SKU is ever
+     * written.
+     *
      * @param  array<int, array<string, mixed>>  $variants
      */
     private function syncVariants(Product $product, array $variants): void
@@ -455,11 +470,11 @@ class ProductController extends Controller implements HasMiddleware
         $keepIds = [];
 
         foreach ($variants as $variantData) {
-            $fields = collect($variantData)->except(['id', 'attribute_value_ids'])->all();
+            $fields = collect($variantData)->except(['id', 'attribute_value_ids', 'sku'])->all();
 
             $variant = isset($variantData['id'])
                 ? tap(ProductVariant::findOrFail($variantData['id']), fn ($v) => $v->update($fields))
-                : $product->variants()->create($fields);
+                : $product->variants()->create([...$fields, 'sku' => $this->skus->nextVariantSku($product)]);
 
             $variant->attributeValues()->sync($variantData['attribute_value_ids'] ?? []);
             $this->seedStockRows($variant);
@@ -519,10 +534,33 @@ class ProductController extends Controller implements HasMiddleware
         }
     }
 
-    private function attachImages(Product $product, Request $request): void
+    /**
+     * New files arrive with no media row yet, so unlike updateImage()
+     * (a PATCH on an existing row) their colour tag has to ride along
+     * with the upload itself — `image_attribute_value_ids[i]` belongs to
+     * `images[i]`. A missing entry, an empty string (how FormData sends
+     * null), or an explicit null all mean "every colour" and store
+     * nothing, exactly like an untagged image from updateImage().
+     *
+     * @param  array<string, mixed>  $data  Validated payload.
+     */
+    private function attachImages(Product $product, Request $request, array $data = []): void
     {
-        foreach ($request->file('images', []) as $file) {
-            $product->addMedia($file)->toMediaCollection('product_images');
+        $colourIds = $request->input('image_attribute_value_ids', $data['image_attribute_value_ids'] ?? []);
+        if (! is_array($colourIds)) {
+            $colourIds = [];
+        }
+
+        foreach (array_values($request->file('images', [])) as $index => $file) {
+            $media = $product->addMedia($file)->toMediaCollection('product_images');
+
+            $raw = $colourIds[$index] ?? null;
+            $attributeValueId = $raw === '' || $raw === null ? null : (int) $raw;
+
+            if ($attributeValueId !== null && $attributeValueId > 0) {
+                $media->setCustomProperty('attribute_value_id', $attributeValueId);
+                $media->save();
+            }
         }
     }
 
@@ -531,10 +569,22 @@ class ProductController extends Controller implements HasMiddleware
      */
     private function pickerOptions(): array
     {
+        $attributes = Attribute::query()->with('values')->orderBy('sort_order')->get();
+
         return [
             'categories' => Category::query()->orderBy('sort_order')->get(['id', 'name']),
             'collections' => CollectionModel::query()->orderBy('sort_order')->get(['id', 'name']),
-            'attributes' => Attribute::query()->with('values')->orderBy('sort_order')->get(),
+            'attributes' => $attributes,
+            // Which attributes count as "colour". The storefront and
+            // ProductPresenter::colours() key on the English attribute name,
+            // which the form never sees (names arrive in the current
+            // locale) — so the form gets the ids outright and filters the
+            // variant-selected values to just these for image tagging.
+            'colorAttributeIds' => $attributes
+                ->filter(fn (Attribute $attribute) => strtolower($attribute->getTranslation('name', 'en')) === 'color')
+                ->map(fn (Attribute $attribute) => $attribute->id)
+                ->values()
+                ->all(),
         ];
     }
 }
