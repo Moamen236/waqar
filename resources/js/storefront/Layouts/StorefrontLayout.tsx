@@ -68,6 +68,18 @@ export default function StorefrontLayout({
         document.body.classList.toggle('overflow-hidden', mobileMenu || searchOpen);
     }, [mobileMenu, searchOpen]);
 
+    // Pin the header once the top bar has scrolled away — the template's
+    // main.js did this by adding `.fixed`, which theme.css styles (white,
+    // shadow, slide-down entrance).
+    const [pinned, setPinned] = useState(false);
+    useEffect(() => {
+        const onScroll = () => setPinned(window.scrollY > (document.getElementById('top-nav')?.offsetHeight ?? 0));
+        onScroll();
+        window.addEventListener('scroll', onScroll, { passive: true });
+
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
+
     return (
         <>
             <div id="top-nav" className="top-nav style-one bg-black md:h-[44px] h-[30px]">
@@ -97,12 +109,21 @@ export default function StorefrontLayout({
                 </div>
             </div>
 
-            <div id="header" className="relative w-full">
+            {/* The default header sits in the flow, so its wrapper keeps the
+             * header's height while it's pinned — otherwise the page jumps up.
+             * While pinned the position/background utilities are swapped out,
+             * since utilities outrank the theme's `.header-menu.fixed`. */}
+            <div
+                id="header"
+                className={`relative w-full ${headerStyle === 'transparent' ? '' : 'md:h-[74px] h-[56px]'}`}
+            >
                 <div
                     className={`header-menu style-one w-full md:h-[74px] h-[56px] ${
-                        headerStyle === 'transparent'
-                            ? 'absolute top-0 start-0 end-0 bg-transparent'
-                            : 'relative bg-white border-b border-line'
+                        pinned
+                            ? 'fixed top-0 inset-x-0 bg-white'
+                            : headerStyle === 'transparent'
+                              ? 'absolute top-0 start-0 end-0 bg-transparent'
+                              : 'relative bg-white border-b border-line'
                     }`}
                 >
                     <div className="container mx-auto h-full">
@@ -466,7 +487,7 @@ export default function StorefrontLayout({
                         <div className="content-footer md:py-[60px] py-10 flex justify-between flex-wrap gap-y-8">
                             <div className="company-infor basis-1/4 max-lg:basis-full pe-7">
                                 <Link href={route('home')} className="logo inline-block">
-                                    <div className="heading3 w-fit">WAQAR</div>
+                                    <img src="/storefront/images/logo/logo-dark.png" width={150} alt="WAQAR" />
                                 </Link>
                                 <div className="flex gap-3 mt-3">
                                     <div className="flex flex-col">
