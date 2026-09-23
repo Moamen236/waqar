@@ -1,19 +1,9 @@
 import { Head, Link } from '@inertiajs/react';
+import BrandGlyph, { BRAND_MARK, BRAND_WAW } from '../../Components/BrandGlyph';
 import StorefrontLayout from '../../Layouts/StorefrontLayout';
 import { useTranslation } from '../../lib/useTranslation';
 
 const IMAGES = '/storefront/images/about';
-
-/**
- * A piece of the brand mark, recoloured by CSS: the PNGs are navy on
- * transparent, so they're used as a mask over `currentColor` and can sit
- * in cream on the navy band or in navy on paper without separate files.
- */
-function Glyph({ src, className }: { src: string; className: string }) {
-    const mask = `url(${IMAGES}/${src}) center / contain no-repeat`;
-
-    return <span aria-hidden="true" className={`block bg-current ${className}`} style={{ mask, WebkitMask: mask }} />;
-}
 
 /**
  * About — a static route, not a CMS page (Section 17). The template's
@@ -58,13 +48,13 @@ export default function About() {
             <Head title={t('footer.aboutUs')} />
 
             {/* Opening */}
-            <section className="bg-[#f7f2e8] overflow-hidden">
+            <section className="bg-paper overflow-hidden">
                 <div className="container grid lg:grid-cols-12 lg:gap-10 gap-12 lg:items-end lg:pt-24 pt-12">
                     <div className="lg:col-span-6 lg:pb-28">
                         <h1 className="text-[clamp(2.75rem,6vw,5.25rem)] font-medium leading-[1.02] tracking-[-0.025em] max-w-[11ch] rtl:font-bold rtl:leading-[1.3] rtl:tracking-normal rtl:max-w-[13ch]">
                             {t('about.openingTitle')}
                         </h1>
-                        <p className="md:mt-10 mt-6 text-lg leading-8 text-[#4f6173] max-w-[44ch] rtl:leading-9">
+                        <p className="md:mt-10 mt-6 text-lg leading-8 text-muted max-w-[44ch] rtl:leading-9">
                             {t('about.openingBody')}
                         </p>
                     </div>
@@ -80,18 +70,14 @@ export default function About() {
 
             {/* The name */}
             <section className="relative overflow-hidden bg-black text-white">
-                <Glyph
-                    src="mark.png"
+                <BrandGlyph
+                    src={BRAND_MARK}
                     className="absolute top-1/2 -translate-y-1/2 -end-40 w-[36rem] aspect-square text-white/[0.04] max-md:hidden"
                 />
                 <div className="container relative grid lg:grid-cols-12 gap-10 lg:pt-32 pt-20">
                     <div className="lg:col-span-7">
                         <p className="text-green leading-none">
-                            <span
-                                lang="ar"
-                                dir="rtl"
-                                className="font-['Cairo'] font-bold text-[clamp(6rem,17vw,12.5rem)]"
-                            >
+                            <span lang="ar" dir="rtl" className="font-black text-[clamp(6rem,17vw,12.5rem)]">
                                 وَقار
                             </span>
                         </p>
@@ -108,9 +94,9 @@ export default function About() {
                 <div className="container relative lg:pt-24 pt-16 lg:pb-32 pb-20">
                     <div className="border-t border-green/20 md:pt-14 pt-10 grid md:grid-cols-12 gap-10 items-center">
                         <div className="md:col-span-5 flex items-center gap-6 text-green">
-                            <Glyph src="waw.png" className="w-10 h-14 flex-shrink-0" />
+                            <BrandGlyph src={BRAND_WAW} className="w-10 h-14 flex-shrink-0" />
                             <span className="h-px flex-1 bg-green/30" />
-                            <Glyph src="mark.png" className="w-28 h-28 flex-shrink-0" />
+                            <BrandGlyph src={BRAND_MARK} className="w-28 h-28 flex-shrink-0" />
                         </div>
                         <div className="md:col-span-6 md:col-start-7">
                             <h2 className="text-xl font-semibold text-green">{t('about.markTitle')}</h2>
@@ -139,11 +125,11 @@ export default function About() {
                     </div>
                     <div className="lg:col-span-5 lg:col-start-8">
                         <h2 className={h2}>{t('about.approachTitle')}</h2>
-                        <dl className="md:mt-10 mt-8 border-t border-[#ded5c6]">
+                        <dl className="md:mt-10 mt-8 border-t border-rule">
                             {principles.map((principle) => (
-                                <div key={principle.title} className="py-7 border-b border-[#ded5c6]">
+                                <div key={principle.title} className="py-7 border-b border-rule">
                                     <dt className="text-xl font-semibold">{principle.title}</dt>
-                                    <dd className="mt-2 leading-7 text-[#4f6173] rtl:leading-8">{principle.body}</dd>
+                                    <dd className="mt-2 leading-7 text-muted rtl:leading-8">{principle.body}</dd>
                                 </div>
                             ))}
                         </dl>
@@ -152,11 +138,11 @@ export default function About() {
             </section>
 
             {/* Promise */}
-            <section className="bg-[#f7f2e8] lg:py-28 py-20">
+            <section className="bg-paper lg:py-28 py-20">
                 <div className="container grid lg:grid-cols-12 gap-12">
                     <div className="lg:col-span-4">
                         <h2 className={h2}>{t('about.promiseTitle')}</h2>
-                        <p className="mt-5 text-lg leading-8 text-[#4f6173] max-w-[40ch] rtl:leading-9">
+                        <p className="mt-5 text-lg leading-8 text-muted max-w-[40ch] rtl:leading-9">
                             {t('about.promiseBody')}
                         </p>
                     </div>
@@ -165,7 +151,7 @@ export default function About() {
                             <li key={promise.title}>
                                 <i className={`${promise.icon} text-5xl`} aria-hidden="true"></i>
                                 <h3 className="mt-5 text-lg font-semibold">{promise.title}</h3>
-                                <p className="mt-2 text-sm leading-6 text-[#4f6173] rtl:leading-7">{promise.body}</p>
+                                <p className="mt-2 text-sm leading-6 text-muted rtl:leading-7">{promise.body}</p>
                             </li>
                         ))}
                     </ul>

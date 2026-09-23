@@ -93,11 +93,6 @@ export default function ProductCard({ product }: { product: ProductCardData }) {
                         <img className="w-full h-full object-cover duration-700" src={image} alt={product.name} />
                         <img className="w-full h-full object-cover duration-700" src={hoverImage} alt={product.name} />
                     </div>
-                    <div className="list-action grid grid-cols-1 gap-3 px-5 absolute w-full bottom-5 max-lg:hidden">
-                        <div className="quick-view-btn w-full text-button-uppercase py-2 text-center rounded-full duration-300 bg-white hover:bg-black hover:text-white">
-                            {t('product.viewProduct')}
-                        </div>
-                    </div>
                 </div>
                 <div className="product-infor mt-4 lg:mb-7">
                     <div className="product-name text-title duration-300">{product.name}</div>
