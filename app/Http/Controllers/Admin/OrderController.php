@@ -522,12 +522,17 @@ class OrderController extends Controller implements HasMiddleware
                 : $sum + round($variant->effectivePrice() * (int) ($item['quantity'] ?? 0), 2);
         }, 0.0);
 
-        $rate = isset($data['governorate_id'], $data['city_id'], $data['area_id'])
+        // Resolved from whichever levels are picked so far, exactly as
+        // CreateOrderAction resolves it on submit. Waiting for city and
+        // area as well left the figure blank while an agent typed a new
+        // customer's address in — and blank for good in a city with no
+        // areas — though most rates sit at the governorate anyway.
+        $rate = isset($data['governorate_id'])
             ? $rates->resolve(
                 (int) $data['governorate_id'],
-                (int) $data['city_id'],
+                isset($data['city_id']) ? (int) $data['city_id'] : null,
                 isset($data['district_id']) ? (int) $data['district_id'] : null,
-                (int) $data['area_id'],
+                isset($data['area_id']) ? (int) $data['area_id'] : null,
             )
             : null;
 
@@ -581,10 +586,13 @@ class OrderController extends Controller implements HasMiddleware
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_variant_id' => ['required', 'exists:product_variants,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
+            // Governorate plus street address, same as storefront checkout:
+            // below the governorate every level is optional, and shipping is
+            // priced from whichever levels were given (ShippingRateResolver).
             'governorate_id' => ['required', 'exists:governorates,id'],
-            'city_id' => ['required', 'exists:cities,id'],
+            'city_id' => ['nullable', 'exists:cities,id'],
             'district_id' => ['nullable', 'exists:districts,id'],
-            'area_id' => ['required', 'exists:areas,id'],
+            'area_id' => ['nullable', 'exists:areas,id'],
             'address_line' => ['required', 'string', 'max:500'],
             'recipient_name' => ['required', 'string', 'max:255'],
             'phone' => PhoneNumber::rules(),
@@ -608,9 +616,9 @@ class OrderController extends Controller implements HasMiddleware
             items: $data['items'],
             warehouse: $warehouse,
             governorateId: (int) $data['governorate_id'],
-            cityId: (int) $data['city_id'],
+            cityId: isset($data['city_id']) ? (int) $data['city_id'] : null,
             districtId: isset($data['district_id']) ? (int) $data['district_id'] : null,
-            areaId: (int) $data['area_id'],
+            areaId: isset($data['area_id']) ? (int) $data['area_id'] : null,
             addressLine: $data['address_line'],
             recipientName: $data['recipient_name'],
             phone: $data['phone'],
@@ -644,9 +652,9 @@ class OrderController extends Controller implements HasMiddleware
 
         $customer->addresses()->create([
             'governorate_id' => (int) $data['governorate_id'],
-            'city_id' => (int) $data['city_id'],
+            'city_id' => isset($data['city_id']) ? (int) $data['city_id'] : null,
             'district_id' => isset($data['district_id']) ? (int) $data['district_id'] : null,
-            'area_id' => (int) $data['area_id'],
+            'area_id' => isset($data['area_id']) ? (int) $data['area_id'] : null,
             'address_line' => $data['address_line'],
             'recipient_name' => $data['recipient_name'],
             'phone' => $data['phone'],

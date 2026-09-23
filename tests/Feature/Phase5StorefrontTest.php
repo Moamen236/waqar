@@ -96,7 +96,7 @@ it('walks a guest through browse → cart → COD checkout → order tracking, w
 
     // Browse
     $this->get(route('shop.index'))->assertOk();
-    $this->get(route('product.show', $product->slug))->assertOk();
+    $this->get(route('product.show', ['slug' => $product->slug, 'sku' => $product->sku]))->assertOk();
 
     // Cart
     $this->post(route('cart.store'), ['product_variant_id' => $variant->id, 'quantity' => 2])
@@ -385,11 +385,11 @@ it('files a review as pending, marks it verified when the customer actually boug
         ->and($review->order_item_id)->not->toBeNull();
 
     // Pending reviews never reach the product page
-    $this->get(route('product.show', $product->slug))
+    $this->get(route('product.show', ['slug' => $product->slug, 'sku' => $product->sku]))
         ->assertInertia(fn ($page) => $page->has('reviews', 0));
 
     $review->update(['status' => ReviewStatus::Approved]);
-    $this->get(route('product.show', $product->slug))
+    $this->get(route('product.show', ['slug' => $product->slug, 'sku' => $product->sku]))
         ->assertInertia(fn ($page) => $page->has('reviews', 1)->where('reviews.0.verified', true));
 
     // One review per customer per product
@@ -654,4 +654,123 @@ it('rejects a phone number that is not exactly 11 digits, at every customer entr
     ])->assertSessionHasNoErrors();
 
     expect(Customer::where('email', 'good@waqar.test')->firstOrFail()->phone)->toBe('01012345678');
+});
+
+it('checks out with only a governorate and no email, priced at the governorate rate and trackable by phone', function () {
+    $geo = p5Geo();
+    $warehouse = p5Warehouse();
+    $variant = p5Product($warehouse->id)->variants->first();
+
+    $this->post(route('cart.store'), ['product_variant_id' => $variant->id, 'quantity' => 1]);
+
+    // City/area left blank: the quote falls back to the governorate rate.
+    $this->postJson(route('api.shipping.quote'), ['governorate_id' => $geo['governorate']->id])
+        ->assertOk()->assertJsonPath('shipping', 60);
+
+    $this->post(route('checkout.store'), [
+        'name' => 'No Email Guest',
+        'email' => '',
+        'phone' => '01222222222',
+        'governorate_id' => $geo['governorate']->id,
+        'city_id' => '',
+        'area_id' => '',
+        'address_line' => '5 Side Street',
+    ])->assertSessionHasNoErrors()->assertRedirect(route('checkout.success', 1001));
+
+    $order = Order::where('order_number', 1001)->firstOrFail();
+    expect($order->shipping_city_id)->toBeNull()
+        ->and($order->shipping_area_id)->toBeNull()
+        ->and((float) $order->shipping_amount)->toBe(60.0)
+        ->and($order->customer->email)->toBeNull()
+        ->and($order->customer->is_guest)->toBeTrue();
+
+    // A second email-less order from the same phone reuses that guest.
+    $this->post(route('cart.store'), ['product_variant_id' => $variant->id, 'quantity' => 1]);
+    $this->post(route('checkout.store'), [
+        'name' => 'No Email Guest',
+        'phone' => '01222222222',
+        'governorate_id' => $geo['governorate']->id,
+        'address_line' => '5 Side Street',
+    ])->assertRedirect(route('checkout.success', 1002));
+    expect(Customer::where('phone', '01222222222')->count())->toBe(1);
+
+    // With no email on file, the phone is what tracks the order.
+    $this->post(route('order-tracking.show'), ['order_number' => 1001, 'email' => '01222222222'])
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('order.order_number', 1001));
+    $this->post(route('order-tracking.show'), ['order_number' => 1001, 'email' => '01999999999'])
+        ->assertSessionHasErrors('order_number');
+});
+
+it('never attaches an email-less checkout to a registered account that shares the phone', function () {
+    $geo = p5Geo();
+    $warehouse = p5Warehouse();
+    $variant = p5Product($warehouse->id)->variants->first();
+    $registered = Customer::create([
+        'name' => 'Registered', 'email' => 'member@waqar.test', 'phone' => '01233333333', 'password' => 'secret-password',
+    ]);
+
+    $this->post(route('cart.store'), ['product_variant_id' => $variant->id, 'quantity' => 1]);
+    $this->post(route('checkout.store'), [
+        'name' => 'Someone Else',
+        'phone' => '01233333333',
+        'governorate_id' => $geo['governorate']->id,
+        'address_line' => '1 Street',
+    ])->assertRedirect(route('checkout.success', 1001));
+
+    expect(Order::where('order_number', 1001)->value('customer_id'))->not->toBe($registered->id);
+});
+
+it('drops a cart line whose product was deleted instead of failing the whole cart', function () {
+    p5Geo();
+    $warehouse = p5Warehouse();
+    $deleted = p5Product($warehouse->id);
+    $kept = p5Product($warehouse->id);
+
+    $this->post(route('cart.store'), ['product_variant_id' => $deleted->variants->first()->id, 'quantity' => 1]);
+    $deleted->delete(); // soft delete, as the admin catalog does
+
+    // Adding another product re-renders the cart; this used to throw
+    // "Attempt to read property "id" on null".
+    $this->post(route('cart.store'), ['product_variant_id' => $kept->variants->first()->id, 'quantity' => 1])
+        ->assertRedirect()->assertSessionHasNoErrors();
+
+    $this->getJson(route('cart.summary'))->assertOk()
+        ->assertJsonPath('count', 1)
+        ->assertJsonPath('items.0.product_id', $kept->id);
+
+    // The deleted product's variant can't be re-added either.
+    $this->post(route('cart.store'), ['product_variant_id' => $deleted->variants->first()->id, 'quantity' => 1])
+        ->assertSessionHas('error');
+});
+
+it('serves a product at /product/{slug}/{sku} and redirects stale or slug-only URLs to it', function () {
+    $warehouse = p5Warehouse();
+    $product = p5Product($warehouse->id, overrides: ['slug' => 'linen-shirt', 'sku' => 'LS-100']);
+    $canonical = route('product.show', ['slug' => 'linen-shirt', 'sku' => 'LS-100']);
+
+    expect(parse_url($canonical, PHP_URL_PATH))->toEndWith('/product/linen-shirt/LS-100');
+    $this->get($canonical)->assertOk()
+        ->assertInertia(fn ($page) => $page->component('Product/Show')->where('product.sku', 'LS-100'));
+
+    // The old slug-only URL, and a slug left over from a rename, both
+    // permanently redirect to the canonical one.
+    $this->get(route('product.legacy', 'linen-shirt'))->assertStatus(301)->assertRedirect($canonical);
+    $this->get(route('product.show', ['slug' => 'old-name', 'sku' => 'LS-100']))->assertStatus(301)->assertRedirect($canonical);
+
+    // Cards carry the SKU the link needs.
+    $this->get(route('shop.index'))->assertInertia(fn ($page) => $page->where('products.0.sku', 'LS-100'));
+
+    $this->get(route('product.show', ['slug' => 'linen-shirt', 'sku' => 'NOPE']))->assertNotFound();
+});
+
+it('keeps a card-picked ?color= through the product URL redirects', function () {
+    $warehouse = p5Warehouse();
+    p5Product($warehouse->id, overrides: ['slug' => 'wool-coat', 'sku' => 'WC-1']);
+    $canonical = route('product.show', ['slug' => 'wool-coat', 'sku' => 'WC-1', 'color' => 7]);
+
+    expect($canonical)->toEndWith('/product/wool-coat/WC-1?color=7');
+    $this->get(route('product.legacy', ['slug' => 'wool-coat', 'color' => 7]))->assertRedirect($canonical);
+    $this->get(route('product.show', ['slug' => 'old-coat', 'sku' => 'WC-1', 'color' => 7]))->assertRedirect($canonical);
+    $this->get($canonical)->assertOk();
 });

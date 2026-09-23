@@ -136,11 +136,13 @@ class CheckingController extends Controller implements HasMiddleware
             'items' => $items,
             'can_resume' => $warehouse !== null
                 && collect($items)->every(fn (array $i) => $i['tracked'] && $i['available'] >= $i['required']),
-            // An Advertisement line is unstocked by design (Section 05) and
-            // must not block Confirm — Backorder is where it gets caught,
-            // after Confirm, which is the flow Question 14 settled on.
+            // An Advertisement line blocks Confirm too. It has no stock by
+            // design (Section 05), and Question 14 originally let it
+            // through to be caught at Backorder — the business has since
+            // asked for Checking to stop it here instead, so the product
+            // is converted to Real and stocked before the order moves on.
             'can_confirm' => collect($items)->every(
-                fn (array $i) => ! $i['tracked'] || $i['required'] <= $i['available'] + $i['reserved'],
+                fn (array $i) => $i['tracked'] && $i['required'] <= $i['available'] + $i['reserved'],
             ),
         ];
     }

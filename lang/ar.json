@@ -144,7 +144,7 @@
     "Value added.": "تمت إضافة القيمة.",
     "Value removed.": "تم حذف القيمة.",
     "Value updated.": "تم تحديث القيمة.",
-    "We couldn't find an order with that number and email address.": "لم نجد طلباً بهذا الرقم والبريد الإلكتروني.",
+    "We couldn't find an order with that number and email or phone number.": "لم نجد طلباً بهذا الرقم والبريد الإلكتروني أو رقم الهاتف.",
     "We have logged your return request and will review it shortly.": "سجّلنا طلب الإرجاع وسنراجعه قريباً.",
     "We have your order and will start processing it shortly.": "طلبك وصلنا وسنبدأ تجهيزه قريباً.",
     "We will review it and be in touch about collection and any return-shipping fee before anything is collected.": "سنراجعه ونتواصل معك بخصوص الاستلام ورسوم شحن الإرجاع قبل استلام أي شيء.",
@@ -165,5 +165,11 @@
     "Your order is on its way to the courier.": "طلبك في طريقه إلى شركة التوصيل.",
     "Your order is out for delivery today. Please have the cash payment ready.": "طلبك خرج للتوصيل اليوم. يرجى تجهيز المبلغ نقداً.",
     "Your order was returned and nothing has been charged.": "تم إرجاع طلبك ولم يُخصم منك أي مبلغ.",
-    "Your password has been reset. Please sign in.": "تمت إعادة تعيين كلمة المرور. يرجى تسجيل الدخول."
+    "Your password has been reset. Please sign in.": "تمت إعادة تعيين كلمة المرور. يرجى تسجيل الدخول.",
+    ":amount collected across :count orders — :balance still owed.": "تم تحصيل :amount على :count طلبات — ويتبقى :balance مستحقاً.",
+    ":amount collected — :count orders fully settled.": "تم تحصيل :amount — وسُدِّدت :count طلبات بالكامل.",
+    "Order #:number has nothing left to collect.": "لا يوجد مبلغ متبقٍ للتحصيل على الطلب رقم :number.",
+    "Select orders carried by the same courier.": "اختر طلبات مع نفس المندوب.",
+    "Some of the selected orders are no longer available.": "بعض الطلبات المحددة لم تعد متاحة.",
+    "The courier only owes :amount for these orders.": "المستحق على المندوب لهذه الطلبات :amount فقط."
 }

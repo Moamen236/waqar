@@ -44,9 +44,9 @@ class CreateOrderAction
         array $items,
         Warehouse $warehouse,
         int $governorateId,
-        int $cityId,
+        ?int $cityId,
         ?int $districtId,
-        int $areaId,
+        ?int $areaId,
         string $addressLine,
         string $recipientName,
         string $phone,
@@ -164,6 +164,9 @@ class CreateOrderAction
             }
 
             $variant = ProductVariant::with('product')->findOrFail($item['product_variant_id']);
+            if ($variant->getRelationValue('product') === null) {
+                throw new InvalidArgumentException(__('That item is no longer available.'));
+            }
             $unitPrice = $variant->effectivePrice();
 
             $lines[] = [

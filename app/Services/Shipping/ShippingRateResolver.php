@@ -21,22 +21,24 @@ class ShippingRateResolver
      */
     public function resolve(
         int $governorateId,
-        int $cityId,
+        ?int $cityId,
         ?int $districtId,
-        int $areaId,
+        ?int $areaId,
     ): ?ShippingRate {
+        // Storefront checkout may leave city/district/area blank; a level
+        // that wasn't given is simply skipped on the way up.
         $candidates = [
             ['area', $areaId],
+            ['district', $districtId],
+            ['city', $cityId],
+            ['governorate', $governorateId],
         ];
 
-        if ($districtId !== null) {
-            $candidates[] = ['district', $districtId];
-        }
-
-        $candidates[] = ['city', $cityId];
-        $candidates[] = ['governorate', $governorateId];
-
         foreach ($candidates as [$geoType, $geoId]) {
+            if ($geoId === null) {
+                continue;
+            }
+
             $rate = ShippingRate::query()
                 ->where('geo_type', $geoType)
                 ->where('geo_id', $geoId)

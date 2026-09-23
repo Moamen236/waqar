@@ -23,6 +23,7 @@ use App\Models\Warehouse;
 use App\Models\WarehouseInventory;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Testing\TestResponse;
 use Spatie\Permission\Models\Role;
 
 // Phase 4 — Admin / Internal Operations Surface (WAQAR-DELIVERY-ROADMAP.
@@ -264,7 +265,10 @@ it('gates Resume on main-warehouse stock and needs no warehouse pick', function 
     ])->assertRedirect();
     $order = Order::firstOrFail();
 
-    $this->actingAs($checker, 'employee')->post(route('admin.checking.confirm', $order))->assertRedirect();
+    // Confirm is refused on an Advertisement line, so Checking sends it
+    // straight to Backorder from the queue.
+    $this->actingAs($checker, 'employee')->post(route('admin.checking.confirm', $order))->assertSessionHas('error');
+    expect($order->fresh()->status->value)->toBe('New');
     $this->actingAs($checker, 'employee')
         ->post(route('admin.checking.backorder', $order), ['reason' => 'Advertisement item unavailable'])
         ->assertRedirect();
@@ -325,6 +329,46 @@ it('creates a customer inline from the order screen and keeps the shipping addre
         ->and($address->address_line)->toBe('7 Phone St')
         ->and((bool) $address->is_default)->toBeTrue()
         ->and(Order::firstOrFail()->customer_id)->toBe($customer->id);
+});
+
+it('takes an order with only the governorate and street address, pricing shipping at the governorate', function () {
+    $geo = p4Geo();
+    $warehouse = Warehouse::create(['name' => 'Main Warehouse', 'address' => 'Cairo', 'phone' => '01012345678']);
+    ShippingRate::create(['geo_type' => 'governorate', 'geo_id' => $geo['governorate']->id, 'price' => 30]);
+    ShippingRate::create(['geo_type' => 'area', 'geo_id' => $geo['area']->id, 'price' => 60]);
+    $variant = p4Variant($warehouse->id);
+    [$agent] = p4Employee('Customer Service');
+
+    // City, district and area left on "None".
+    $this->actingAs($agent, 'employee')->post(route('admin.orders.store'), [
+        'new_customer' => ['name' => 'No Area Buyer', 'phone' => '01000000001'],
+        'items' => [['product_variant_id' => $variant->id, 'quantity' => 1]],
+        'governorate_id' => $geo['governorate']->id,
+        'city_id' => null,
+        'district_id' => null,
+        'area_id' => null,
+        'address_line' => '9 Side St',
+        'recipient_name' => 'No Area Buyer',
+        'phone' => '01000000001',
+    ])->assertRedirect(route('admin.checking.index'));
+
+    $order = Order::firstOrFail();
+    $address = Customer::where('name', 'No Area Buyer')->firstOrFail()->addresses()->firstOrFail();
+
+    expect((float) $order->shipping_amount)->toBe(30.0)
+        ->and($order->shipping_city_id)->toBeNull()
+        ->and($order->shipping_area_id)->toBeNull()
+        ->and($address->city_id)->toBeNull()
+        ->and($address->area_id)->toBeNull();
+
+    // The governorate itself is still required.
+    $this->actingAs($agent, 'employee')->post(route('admin.orders.store'), [
+        'new_customer' => ['name' => 'No Geo Buyer', 'phone' => '01000000002'],
+        'items' => [['product_variant_id' => $variant->id, 'quantity' => 1]],
+        'address_line' => '9 Side St',
+        'recipient_name' => 'No Geo Buyer',
+        'phone' => '01000000002',
+    ])->assertSessionHasErrors('governorate_id');
 });
 
 it('rejects an order that names neither an existing customer nor a new one', function () {
@@ -407,6 +451,37 @@ it('quotes the order screen its subtotal, shipping, discount and total from the 
         ->assertJson(['shipping' => null, 'total' => 200]);
 });
 
+it('quotes shipping as each address level is picked for a new customer, not only once the area is', function () {
+    $geo = p4Geo();
+    $warehouse = Warehouse::create(['name' => 'Main Warehouse', 'address' => 'Cairo', 'phone' => '01012345678']);
+    ShippingRate::create(['geo_type' => 'governorate', 'geo_id' => $geo['governorate']->id, 'price' => 30]);
+    ShippingRate::create(['geo_type' => 'city', 'geo_id' => $geo['city']->id, 'price' => 45]);
+    ShippingRate::create(['geo_type' => 'area', 'geo_id' => $geo['area']->id, 'price' => 60]);
+    $variant = p4Variant($warehouse->id);
+    [$agent] = p4Employee('Customer Service');
+
+    // No customer_id: the customer is being created on this same screen.
+    $quote = fn (array $geoPicked) => $this->actingAs($agent, 'employee')
+        ->postJson(route('admin.orders.quote'), [
+            'customer_id' => null,
+            'items' => [['product_variant_id' => $variant->id, 'quantity' => 1]],
+            ...$geoPicked,
+        ])
+        ->assertOk()
+        ->json('shipping');
+
+    // Each level picked narrows to the most specific rate so far — the
+    // same answer CreateOrderAction will give on submit.
+    expect($quote(['governorate_id' => $geo['governorate']->id]))->toEqual(30)
+        ->and($quote(['governorate_id' => $geo['governorate']->id, 'city_id' => $geo['city']->id]))->toEqual(45)
+        ->and($quote([
+            'governorate_id' => $geo['governorate']->id,
+            'city_id' => $geo['city']->id,
+            'area_id' => $geo['area']->id,
+        ]))->toEqual(60)
+        ->and($quote([]))->toBeNull();
+});
+
 it('splits delivery into a queue, a per-order assign form, and an out-for-delivery list', function () {
     $geo = p4Geo();
     $warehouse = Warehouse::create(['name' => 'Main Warehouse', 'address' => 'Cairo', 'phone' => '01012345678']);
@@ -437,7 +512,11 @@ it('splits delivery into a queue, a per-order assign form, and an out-for-delive
     $this->actingAs($checker, 'employee')->post(route('admin.checking.confirm', $order))->assertRedirect();
 
     $this->actingAs($deliveryManager, 'employee')->get(route('admin.delivery.index'))
-        ->assertInertia(fn ($page) => $page->component('Delivery/Index')->where('ready.data.0.id', $order->id));
+        ->assertInertia(fn ($page) => $page->component('Delivery/Index')
+            ->where('orders.data.0.id', $order->id)
+            ->where('orders.data.0.status', 'Confirmed')
+            ->where('counts.Confirmed', 1)
+            ->etc());
 
     $this->actingAs($deliveryManager, 'employee')->get(route('admin.delivery.assign.form', $order))
         ->assertInertia(fn ($page) => $page->component('Delivery/Assign')->where('order.id', $order->id)->etc());
@@ -447,15 +526,25 @@ it('splits delivery into a queue, a per-order assign form, and an out-for-delive
         ->post(route('admin.delivery.assign', $order), ['assignment_type' => 'representative', 'assignee_id' => $rep->id])
         ->assertRedirect(route('admin.delivery.index'));
 
-    // Assigned — off the queue, onto the out-for-delivery list.
-    $this->actingAs($deliveryManager, 'employee')->get(route('admin.delivery.index'))
-        ->assertInertia(fn ($page) => $page->where('ready.data', []));
+    // Assigned — gone from the Confirmed tab, still on the same board with
+    // its courier.
+    $this->actingAs($deliveryManager, 'employee')->get(route('admin.delivery.index', ['status' => 'Confirmed']))
+        ->assertInertia(fn ($page) => $page->where('orders.data', [])->etc());
 
-    $this->actingAs($deliveryManager, 'employee')->get(route('admin.delivery.orders'))
-        ->assertInertia(fn ($page) => $page->component('Delivery/Orders')
+    $this->actingAs($deliveryManager, 'employee')->get(route('admin.delivery.index'))
+        ->assertInertia(fn ($page) => $page->component('Delivery/Index')
             ->where('orders.data.0.id', $order->id)
+            ->where('orders.data.0.status', 'Assigned')
+            ->where('counts.Assigned', 1)
             ->where('orders.data.0.delivery_representative.name', 'Ahmed')
             ->etc());
+
+    // Advanced filters narrow the board — by courier here.
+    $other = DeliveryRepresentative::create(['name' => 'Other', 'phone' => '01012345679']);
+    $this->actingAs($deliveryManager, 'employee')->get(route('admin.delivery.index', ['representative_id' => $rep->id]))
+        ->assertInertia(fn ($page) => $page->where('orders.data.0.id', $order->id)->etc());
+    $this->actingAs($deliveryManager, 'employee')->get(route('admin.delivery.index', ['representative_id' => $other->id]))
+        ->assertInertia(fn ($page) => $page->where('orders.data', [])->where('counts.Assigned', 0)->etc());
 });
 
 it('assigns a batch of orders to one representative and skips any that left the queue', function () {
@@ -591,7 +680,7 @@ it('spells the destination out on every delivery screen', function () {
         ->where("{$prefix}shipping_area.name", 'Zone A');
 
     $this->actingAs($deliveryManager, 'employee')->withLocale('en')->get(route('admin.delivery.index'))
-        ->assertInertia(fn ($page) => $destination($page, 'ready.data.0.')->etc());
+        ->assertInertia(fn ($page) => $destination($page, 'orders.data.0.')->etc());
 
     $this->actingAs($deliveryManager, 'employee')->withLocale('en')->get(route('admin.delivery.assign.form', $order))
         ->assertInertia(fn ($page) => $destination($page, 'order.')->etc());
@@ -601,7 +690,7 @@ it('spells the destination out on every delivery screen', function () {
         ->post(route('admin.delivery.assign', $order), ['assignment_type' => 'representative', 'assignee_id' => $rep->id])
         ->assertRedirect();
 
-    $this->actingAs($deliveryManager, 'employee')->withLocale('en')->get(route('admin.delivery.orders'))
+    $this->actingAs($deliveryManager, 'employee')->withLocale('en')->get(route('admin.delivery.index'))
         ->assertInertia(fn ($page) => $destination($page, 'orders.data.0.')->etc());
 });
 
@@ -1350,6 +1439,283 @@ it('narrows the settlement queue to one courier', function () {
             ->etc());
 });
 
+// Collect one sum from a courier and split it across their orders,
+// oldest first (accounting: "collect from courier").
+
+/**
+ * Orders placed through the real flow and left with the courier, one per
+ * price. Shipping is 30 on every order and the courier keeps it, so each
+ * order owes exactly its goods price — the figures below are the ones the
+ * business described: 1600, 1800 and 600, 4000 in all.
+ *
+ * @param  list<int>  $prices
+ * @return array{orders: list<Order>, accountant: Employee, ahmed: DeliveryRepresentative, sara: DeliveryRepresentative}
+ */
+function p4CourierOrders(array $prices, bool $handover = false): array
+{
+    $geo = p4Geo();
+    $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '01012345678']);
+    ShippingRate::create(['geo_type' => 'governorate', 'geo_id' => $geo['governorate']->id, 'price' => 30]);
+    $customer = p4Customer();
+    [$csAgent] = p4Employee('Customer Service');
+    [$checker] = p4Employee('Checking');
+    [$deliveryManager] = p4Employee('Delivery Manager');
+    [$accountant] = p4Employee('Accounting');
+
+    $ahmed = DeliveryRepresentative::create(['name' => 'Ahmed', 'phone' => '01012345678']);
+    $sara = DeliveryRepresentative::create(['name' => 'Sara', 'phone' => '01112345678']);
+
+    $orders = [];
+    foreach ($prices as $price) {
+        $variant = p4Variant($warehouse->id, 5);
+        $variant->update(['price' => $price]);
+
+        test()->actingAs($csAgent, 'employee')->post(route('admin.orders.store'), [
+            'customer_id' => $customer->id,
+            'items' => [['product_variant_id' => $variant->id, 'quantity' => 1]],
+            'governorate_id' => $geo['governorate']->id,
+            'city_id' => $geo['city']->id,
+            'area_id' => $geo['area']->id,
+            'address_line' => '1 Test St',
+            'recipient_name' => $customer->name,
+            'phone' => $customer->phone,
+        ])->assertRedirect();
+
+        $order = Order::latest('id')->firstOrFail();
+        test()->actingAs($checker, 'employee')->post(route('admin.checking.confirm', $order))->assertRedirect();
+        test()->actingAs($deliveryManager, 'employee')
+            ->post(route('admin.delivery.assign', $order), [
+                'assignment_type' => 'representative', 'assignee_id' => $ahmed->id,
+            ])->assertRedirect();
+
+        if ($handover) {
+            test()->actingAs($accountant, 'employee')->post(route('admin.accounting.handover', $order))->assertRedirect();
+        }
+
+        $orders[] = $order->fresh();
+    }
+
+    return ['orders' => $orders, 'accountant' => $accountant, 'ahmed' => $ahmed, 'sara' => $sara];
+}
+
+/**
+ * @param  list<Order>  $orders
+ */
+function p4CollectFromCourier(Employee $accountant, Treasury $treasury, array $orders, float $amount): TestResponse
+{
+    return test()->actingAs($accountant, 'employee')->post(route('admin.accounting.collect-from-courier'), [
+        'order_ids' => array_map(fn (Order $order) => $order->id, $orders),
+        'amount' => $amount,
+        'treasury_id' => $treasury->id,
+        'collected_method' => 'cash',
+    ]);
+}
+
+it('splits what a courier hands over oldest order first, and sends the orders out rather than delivering them', function () {
+    // Straight from "Awaiting handover": the courier pays as they take
+    // the goods.
+    ['orders' => [$first, $second, $third], 'accountant' => $accountant] = p4CourierOrders([1600, 1800, 600]);
+    $treasury = Treasury::create(['name' => 'Main Cash', 'type' => 'cash', 'current_balance' => 0]);
+
+    expect($first->status->value)->toBe('Assigned')
+        ->and($first->stillOwed() + $second->stillOwed() + $third->stillOwed())->toBe(4000.0);
+
+    // Posted out of order on purpose: the split follows the orders' age,
+    // not the order they were ticked in.
+    p4CollectFromCourier($accountant, $treasury, [$third, $first, $second], 1800)->assertSessionHas('success');
+
+    [$first, $second, $third] = [$first->fresh(), $second->fresh(), $third->fresh()];
+
+    // Out for Delivery, not Delivered — collecting is not delivering.
+    expect([$first->status->value, $second->status->value, $third->status->value])
+        ->toBe(['Out for Delivery', 'Out for Delivery', 'Out for Delivery'])
+        // First paid in full, second gets the 200 left over, third nothing.
+        ->and($first->payment_status)->toBe(PaymentStatus::Collected)
+        ->and($second->payment_status)->toBe(PaymentStatus::PartiallyCollected)
+        ->and([$first->stillOwed(), $second->stillOwed(), $third->stillOwed()])->toBe([0.0, 1600.0, 600.0])
+        ->and((float) $treasury->fresh()->current_balance)->toBe(1800.0);
+
+    // No stock moved: it deducts on Delivered and nowhere else.
+    $variantId = $first->items()->value('product_variant_id');
+    expect((int) WarehouseInventory::where('product_variant_id', $variantId)->value('quantity'))->toBe(5);
+
+    // The courier comes back with 2000 of the 2200: the older order
+    // clears, the newer one is left 200 short.
+    p4CollectFromCourier($accountant, $treasury, [$second, $third], 2000)->assertSessionHas('success');
+
+    expect($second->fresh()->payment_status)->toBe(PaymentStatus::Collected)
+        ->and($third->fresh()->stillOwed())->toBe(200.0)
+        ->and((float) $treasury->fresh()->current_balance)->toBe(3800.0);
+});
+
+it('banks only the rest when a prepaid order is later confirmed delivered', function () {
+    ['orders' => [$first, $second], 'accountant' => $accountant] = p4CourierOrders([500, 700]);
+    $treasury = Treasury::create(['name' => 'Main Cash', 'type' => 'cash', 'current_balance' => 0]);
+
+    // 900 up front: 500 on the first, 400 on the second.
+    p4CollectFromCourier($accountant, $treasury, [$first, $second], 900)->assertSessionHas('success');
+
+    // Delivered with the default amount — which must be the 300 left,
+    // not the whole 700 again.
+    $this->actingAs($accountant, 'employee')->post(route('admin.accounting.settle.bulk'), [
+        'order_ids' => [$first->id, $second->id],
+        'treasury_id' => $treasury->id,
+        'collected_method' => 'cash',
+    ])->assertSessionHas('success');
+
+    expect($first->fresh()->status->value)->toBe('Delivered')
+        ->and($second->fresh()->status->value)->toBe('Delivered')
+        ->and($second->fresh()->payment_status)->toBe(PaymentStatus::Collected)
+        ->and((float) $treasury->fresh()->current_balance)->toBe(1200.0);
+
+    // Stock deducts now, at Delivered.
+    $variantId = $first->items()->value('product_variant_id');
+    expect((int) WarehouseInventory::where('product_variant_id', $variantId)->value('quantity'))->toBe(4);
+});
+
+it('refuses a delivery amount that would collect a prepaid order twice', function () {
+    ['orders' => [$order], 'accountant' => $accountant] = p4CourierOrders([500]);
+    $treasury = Treasury::create(['name' => 'Main Cash', 'type' => 'cash', 'current_balance' => 0]);
+
+    p4CollectFromCourier($accountant, $treasury, [$order], 200)->assertSessionHas('success');
+
+    // 300 is what's left; typing the full 500 again is refused.
+    $this->actingAs($accountant, 'employee')->post(route('admin.accounting.delivered', $order), [
+        'treasury_id' => $treasury->id,
+        'collected_method' => 'cash',
+        'collected_amount' => 500,
+    ])->assertSessionHas('error');
+
+    expect($order->fresh()->status->value)->toBe('Out for Delivery')
+        ->and((float) $treasury->fresh()->current_balance)->toBe(200.0);
+});
+
+it('hands the prepayment back to the courier when the customer refuses the order', function () {
+    ['orders' => [$order], 'accountant' => $accountant] = p4CourierOrders([500]);
+    $treasury = Treasury::create(['name' => 'Main Cash', 'type' => 'cash', 'current_balance' => 0]);
+
+    p4CollectFromCourier($accountant, $treasury, [$order], 500)->assertSessionHas('success');
+    expect((float) $treasury->fresh()->current_balance)->toBe(500.0);
+
+    $this->actingAs($accountant, 'employee')->post(route('admin.accounting.returned', $order))->assertRedirect();
+
+    $payment = $order->fresh()->payments()->latest('id')->first();
+    expect($order->fresh()->status->value)->toBe('Returned')
+        ->and((float) $payment->collected_amount)->toBe(0.0)
+        ->and((float) $treasury->fresh()->current_balance)->toBe(0.0)
+        // Both movements stay on the payment's history.
+        ->and($payment->transactions()->pluck('amount')->map(fn ($a) => (float) $a)->all())->toBe([500.0, -500.0]);
+});
+
+it('hands back only the returned goods\' share of a prepayment on a partial return', function () {
+    ['orders' => [$order], 'accountant' => $accountant] = p4CourierOrders([500]);
+    $treasury = Treasury::create(['name' => 'Main Cash', 'type' => 'cash', 'current_balance' => 0]);
+
+    p4CollectFromCourier($accountant, $treasury, [$order], 500)->assertSessionHas('success');
+
+    // The customer keeps nothing of value but the delivery: the kept
+    // goods owe 0 net, so the whole 500 goes back to the courier.
+    $itemId = $order->items()->value('id');
+    $this->actingAs($accountant, 'employee')->post(route('admin.accounting.partially-returned', $order), [
+        'treasury_id' => $treasury->id,
+        'collected_method' => 'cash',
+        'collected_amount' => 0,
+        'kept_quantities' => [$itemId => 0],
+    ])->assertRedirect();
+
+    expect((float) $treasury->fresh()->current_balance)->toBe(0.0)
+        ->and($order->fresh()->payment_status)->toBe(PaymentStatus::Collected);
+});
+
+it('prepays the same way on orders that were already signed out', function () {
+    ['orders' => [$first, $second], 'accountant' => $accountant] = p4CourierOrders([500, 700], handover: true);
+    $treasury = Treasury::create(['name' => 'Main Cash', 'type' => 'cash', 'current_balance' => 0]);
+
+    expect($first->status->value)->toBe('Out for Delivery');
+
+    p4CollectFromCourier($accountant, $treasury, [$first, $second], 900)->assertSessionHas('success');
+
+    expect($first->fresh()->status->value)->toBe('Out for Delivery')
+        ->and($first->fresh()->stillOwed())->toBe(0.0)
+        ->and($second->fresh()->stillOwed())->toBe(300.0);
+});
+
+it('refuses to split one sum across two couriers, and changes nothing', function () {
+    ['orders' => [$first, $second], 'accountant' => $accountant, 'sara' => $sara] = p4CourierOrders([500, 700]);
+    $second->update(['delivery_representative_id' => $sara->id]);
+    $treasury = Treasury::create(['name' => 'Main Cash', 'type' => 'cash', 'current_balance' => 0]);
+
+    p4CollectFromCourier($accountant, $treasury, [$first, $second], 500)->assertSessionHas('error');
+
+    expect($first->fresh()->status->value)->toBe('Assigned')
+        ->and((float) $treasury->fresh()->current_balance)->toBe(0.0);
+});
+
+it('refuses more than the courier owes, and rolls back every order in the batch', function () {
+    ['orders' => [$first, $second], 'accountant' => $accountant] = p4CourierOrders([500, 700]);
+    $treasury = Treasury::create(['name' => 'Main Cash', 'type' => 'cash', 'current_balance' => 0]);
+
+    p4CollectFromCourier($accountant, $treasury, [$first, $second], 1300)->assertSessionHas('error');
+
+    expect($first->fresh()->status->value)->toBe('Assigned')
+        ->and($second->fresh()->status->value)->toBe('Assigned')
+        ->and((float) $treasury->fresh()->current_balance)->toBe(0.0);
+});
+
+it('totals what each courier still owes, split between goods on the road and delivered', function () {
+    ['orders' => [$first, $second, $third], 'accountant' => $accountant, 'ahmed' => $ahmed, 'sara' => $sara] = p4CourierOrders([1600, 1800, 600]);
+    $third->update(['delivery_representative_id' => $sara->id]);
+    $treasury = Treasury::create(['name' => 'Main Cash', 'type' => 'cash', 'current_balance' => 0]);
+
+    p4CollectFromCourier($accountant, $treasury, [$first, $second], 2000)->assertSessionHas('success'); // Ahmed: 3400 taken, 1400 left
+    p4CollectFromCourier($accountant, $treasury, [$third], 100)->assertSessionHas('success');           // Sara: 600 taken, 500 left
+
+    // Sara's order is delivered and she still owes the 500 on it.
+    $this->actingAs($accountant, 'employee')->post(route('admin.accounting.delivered', $third), [
+        'treasury_id' => $treasury->id,
+        'collected_method' => 'cash',
+        'collected_amount' => 0,
+    ])->assertRedirect();
+
+    $this->actingAs($accountant, 'employee')
+        ->get(route('admin.accounting.index'))
+        ->assertInertia(fn ($page) => $page
+            ->where('courierBalances', fn ($rows) => collect($rows)
+                ->map(fn ($row) => [$row['key'], $row['orders'], (float) $row['with_courier'], (float) $row['delivered'], (float) $row['owed']])
+                ->all() === [
+                    ['representative:'.$ahmed->id, 1, 1400.0, 0.0, 1400.0],
+                    ['representative:'.$sara->id, 1, 0.0, 500.0, 500.0],
+                ])
+            ->etc());
+
+    // And the balance queue narrows to one courier like the others do.
+    $this->actingAs($accountant, 'employee')
+        ->get(route('admin.accounting.index', ['representative_id' => $sara->id]))
+        ->assertInertia(fn ($page) => $page
+            ->where('outstanding.data', fn ($rows) => count($rows) === 1
+                && $rows[0]['id'] === $third->id
+                && (float) $rows[0]['still_owed'] === 500.0)
+            ->etc());
+});
+
+it('shows today\'s orders by default, and every day\'s on "all dates"', function () {
+    ['orders' => [$old, $new], 'accountant' => $accountant] = p4CourierOrders([500, 700]);
+    $old->forceFill(['created_at' => now()->subDays(3)])->save();
+
+    $this->actingAs($accountant, 'employee')
+        ->get(route('admin.accounting.index'))
+        ->assertInertia(fn ($page) => $page
+            ->where('dates.date_from', now()->toDateString())
+            ->where('awaitingHandover.data', fn ($rows) => collect($rows)->pluck('id')->all() === [$new->id])
+            ->etc());
+
+    $this->actingAs($accountant, 'employee')
+        ->get(route('admin.accounting.index', ['date_from' => '']))
+        ->assertInertia(fn ($page) => $page
+            ->where('awaitingHandover.data', fn ($rows) => collect($rows)->pluck('id')->sort()->values()->all() === [$old->id, $new->id])
+            ->etc());
+});
+
 it('refuses to settle an order the employee cannot see', function () {
     [$first, , , $accountant] = p4Round();
     $treasury = Treasury::create(['name' => 'Main Cash', 'type' => 'cash', 'current_balance' => 0]);
@@ -1656,22 +2022,22 @@ it('blocks Confirm when a tracked line has no reservation and no stock behind it
     expect($order->fresh()->status->value)->toBe('New');
 });
 
-it('lets an Advertisement line through Confirm — Backorder is where it gets caught', function () {
-    // Selling a non-inventory-tracked product with no stock behind it is
-    // the Advertisement model working as designed (Section 05), not a
-    // shortage. Gating Confirm on it would break that flow entirely.
+it('blocks Confirm on an Advertisement line until the product is real stock', function () {
+    // An Advertisement product has no stock behind it by design, so
+    // Checking stops the order here rather than confirming it and leaving
+    // Backorder to catch it later.
     [$order, $checker] = p4NewOrder(tracked: false);
 
     $this->actingAs($checker, 'employee')->get(route('admin.checking.show', $order))
         ->assertInertia(fn ($page) => $page
-            ->where('stock.can_confirm', true)
+            ->where('stock.can_confirm', false)
             ->where('stock.items.0.tracked', false)
             ->etc());
 
     $this->actingAs($checker, 'employee')->post(route('admin.checking.confirm', $order))
         ->assertRedirect()
-        ->assertSessionHas('success');
-    expect($order->fresh()->status->value)->toBe('Confirmed');
+        ->assertSessionHas('error');
+    expect($order->fresh()->status->value)->not->toBe('Confirmed');
 });
 
 it('refuses a Confirm posted after the shelf was emptied', function () {

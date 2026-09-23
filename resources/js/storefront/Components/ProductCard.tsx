@@ -1,4 +1,5 @@
 import { Link, router, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 import Rate from './Rate';
 import { useTranslation } from '../lib/useTranslation';
 import type { ProductCardData, SharedProps } from '../types';
@@ -19,8 +20,21 @@ import type { ProductCardData, SharedProps } from '../types';
 export default function ProductCard({ product }: { product: ProductCardData }) {
     const { auth } = usePage<SharedProps>().props;
     const { t, price } = useTranslation();
-    const image = product.images[0] ?? '/storefront/images/generated/collection.svg';
-    const hoverImage = product.images[1] ?? image;
+    // Clicking a swatch swaps the photos in place (same rule as the product
+    // page: that colour's tagged images, or every image if none are tagged)
+    // instead of following the card's link.
+    const [colour, setColour] = useState<string | null>(null);
+    const tagged = colour === null ? [] : (product.images_by_color[colour] ?? []);
+    const images = tagged.length > 0 ? tagged : product.images;
+    const colourId = product.colors.find((item) => item.name === colour)?.id;
+    const image = images[0] ?? '/storefront/images/generated/collection.svg';
+    const hoverImage = images[1] ?? image;
+
+    const pickColour = (event: React.SyntheticEvent, name: string) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setColour((current) => (current === name ? null : name));
+    };
 
     const toggleWishlist = (event: React.MouseEvent) => {
         event.preventDefault();
@@ -37,7 +51,17 @@ export default function ProductCard({ product }: { product: ProductCardData }) {
 
     return (
         <div className="product-item grid-type">
-            <Link href={route('product.show', product.slug)} className="product-main cursor-pointer block">
+            <Link
+                // A picked swatch travels to the product page as ?color=<attribute
+                // value id> (ids, unlike the translated names, survive a language
+                // switch), so the page opens on the colour the customer chose.
+                href={route('product.show', {
+                    slug: product.slug,
+                    sku: product.sku,
+                    ...(colourId !== undefined && { color: colourId }),
+                })}
+                className="product-main cursor-pointer block"
+            >
                 <div className="product-thumb bg-white relative overflow-hidden rounded-2xl">
                     {product.is_new && (
                         <div className="product-tag text-button-uppercase bg-green px-3 py-0.5 inline-block rounded-full absolute top-3 start-3 z-[1]">
@@ -84,12 +108,22 @@ export default function ProductCard({ product }: { product: ProductCardData }) {
                         </div>
                     )}
                     {product.colors.length > 0 && (
-                        <div className="list-color py-2 max-md:hidden flex items-center gap-3 flex-wrap duration-500">
+                        <div className="list-color py-2 flex items-center md:gap-3 gap-2 flex-wrap duration-500">
                             {product.colors.map((color) => (
                                 <div
                                     key={color.name}
-                                    className="color-item w-8 h-8 rounded-full duration-300 relative border border-line"
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-label={color.name}
+                                    aria-pressed={colour === color.name}
+                                    className={`color-item md:w-8 md:h-8 w-6 h-6 rounded-full duration-300 relative border border-line cursor-pointer ${colour === color.name ? 'active' : ''}`}
                                     style={{ backgroundColor: color.hex ?? 'transparent' }}
+                                    onClick={(event) => pickColour(event, color.name)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === 'Enter' || event.key === ' ') {
+                                            pickColour(event, color.name);
+                                        }
+                                    }}
                                 >
                                     <div className="tag-action bg-black text-white caption2 capitalize px-1.5 py-0.5 rounded-sm">
                                         {color.name}

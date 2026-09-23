@@ -88,7 +88,7 @@ it('groups a product\'s images by the colour each one was tagged with', function
     picImage($product, $red->id);
     picImage($product, $blue->id);
 
-    $this->withLocale('en')->get(route('product.show', ['slug' => $product->slug, 'locale' => 'en']))
+    $this->withLocale('en')->get(route('product.show', ['slug' => $product->slug, 'sku' => $product->sku, 'locale' => 'en']))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('Product/Show')
@@ -104,7 +104,7 @@ it('leaves an untagged image out of the map so every colour still shows it', fun
     picImage($product, $red->id);
     picImage($product); // No colour — a flat-lay, a size chart, a detail shot.
 
-    $this->withLocale('en')->get(route('product.show', ['slug' => $product->slug, 'locale' => 'en']))
+    $this->withLocale('en')->get(route('product.show', ['slug' => $product->slug, 'sku' => $product->sku, 'locale' => 'en']))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             // Two images on the product, only one of them spoken for.
@@ -119,7 +119,7 @@ it('sends an empty map for a catalogue nobody has tagged, which is the fallback'
     picImage($product);
     picImage($product);
 
-    $this->withLocale('en')->get(route('product.show', ['slug' => $product->slug, 'locale' => 'en']))
+    $this->withLocale('en')->get(route('product.show', ['slug' => $product->slug, 'sku' => $product->sku, 'locale' => 'en']))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->count('product.images', 2)
@@ -133,7 +133,7 @@ it('keys the map on the translated colour name, matching the swatch beside it', 
 
     // The tag on the media row is an id, so the same image reaches an
     // Arabic reader under the Arabic name without being re-tagged.
-    $this->withLocale('ar')->get(route('product.show', ['slug' => $product->slug, 'locale' => 'ar']))
+    $this->withLocale('ar')->get(route('product.show', ['slug' => $product->slug, 'sku' => $product->sku, 'locale' => 'ar']))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->count('product.images_by_color.أحمر', 1)
@@ -284,4 +284,35 @@ it('offers the product form only the colours the product is actually made in', f
             ->etc());
 
     expect($green->id)->not->toBeIn([$red->id, $blue->id]);
+});
+
+it('shows each cart line in the photo of the colour that was chosen', function () {
+    [$product, $red, $blue] = picProduct();
+    $untagged = picImage($product);
+    $redImage = picImage($product, $red->id);
+    $blueImage = picImage($product, $blue->id);
+
+    $cart = \App\Models\Cart::create(['session_token' => 'pic-'.uniqid()]);
+    foreach ($product->variants as $variant) {
+        $cart->items()->create(['product_variant_id' => $variant->id, 'quantity' => 1]);
+    }
+
+    $images = collect(app(\App\Services\Cart\CartService::class)->summary($cart)['items'])
+        ->pluck('image', 'variant_id');
+    $byColour = $product->variants->mapWithKeys(fn ($v) => [$v->attributeValues->first()->id => $v->id]);
+
+    // Not the product's first (untagged) photo — the chosen colour's.
+    expect($images[$byColour[$red->id]])->toBe($redImage->getUrl())
+        ->and($images[$byColour[$blue->id]])->toBe($blueImage->getUrl())
+        ->and($images->contains($untagged->getUrl()))->toBeFalse();
+});
+
+it('falls back to the product\'s first photo when the chosen colour has none tagged', function () {
+    [$product] = picProduct();
+    $first = picImage($product);
+
+    $cart = \App\Models\Cart::create(['session_token' => 'pic-'.uniqid()]);
+    $cart->items()->create(['product_variant_id' => $product->variants->first()->id, 'quantity' => 1]);
+
+    expect(app(\App\Services\Cart\CartService::class)->summary($cart)['items'][0]['image'])->toBe($first->getUrl());
 });

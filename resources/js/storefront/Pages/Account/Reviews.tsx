@@ -12,7 +12,7 @@ interface ReviewRow {
     comment: string | null;
     status: string;
     created_at: string | null;
-    product: { slug: string; name: string; image: string | null };
+    product: { slug: string; sku: string; name: string; image: string | null };
 }
 
 /**
@@ -53,7 +53,10 @@ export default function AccountReviews({ reviews }: { reviews: ReviewRow[] }) {
                                         <div className="w-full">
                                             <div className="flex flex-wrap items-center justify-between gap-2">
                                                 <Link
-                                                    href={route('product.show', review.product.slug)}
+                                                    href={route('product.show', {
+                                                        slug: review.product.slug,
+                                                        sku: review.product.sku,
+                                                    })}
                                                     className="text-title"
                                                 >
                                                     {review.product.name}

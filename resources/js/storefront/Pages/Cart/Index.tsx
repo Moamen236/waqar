@@ -132,7 +132,10 @@ export default function CartIndex({
                                                         </div>
                                                         <div>
                                                             <Link
-                                                                href={route('product.show', item.slug)}
+                                                                href={route('product.show', {
+                                                                    slug: item.slug,
+                                                                    sku: item.product_sku,
+                                                                })}
                                                                 className="text-title"
                                                             >
                                                                 {item.name}

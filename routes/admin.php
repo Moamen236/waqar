@@ -120,12 +120,9 @@ Route::middleware('auth:employee')->group(function () {
     Route::post('checking/{order}/backorder', [CheckingController::class, 'backorder'])->name('checking.backorder');
     Route::post('checking/{order}/resume', [CheckingController::class, 'resume'])->name('checking.resume');
 
-    // Delivery Manager — assign queue, the assign form, the out-for-delivery
-    // list, plus representatives/companies.
+    // Delivery Manager — one board (Confirmed, Assigned, Out for Delivery),
+    // the assign form, plus representatives/companies.
     Route::get('delivery', [DeliveryController::class, 'index'])->name('delivery.index');
-    // Ahead of delivery/{order}/… for the same wildcard-collision reason
-    // as orders/create above.
-    Route::get('delivery/orders', [DeliveryController::class, 'orders'])->name('delivery.orders');
     Route::post('delivery/assign', [DeliveryController::class, 'assignBulk'])->name('delivery.assign.bulk');
     Route::get('delivery/{order}/assign', [DeliveryController::class, 'assignForm'])->name('delivery.assign.form');
     Route::post('delivery/{order}/assign', [DeliveryController::class, 'assign'])->name('delivery.assign');
@@ -188,6 +185,8 @@ Route::middleware('auth:employee')->group(function () {
     // Settle a whole courier's round at once. Registered ahead of the
     // accounting/{order}/… routes so "settle" is never read as an order id.
     Route::post('accounting/settle', [AccountingController::class, 'settleBulk'])->name('accounting.settle.bulk');
+    // One sum of cash from one courier, split across their orders.
+    Route::post('accounting/collect-from-courier', [AccountingController::class, 'collectFromCourier'])->name('accounting.collect-from-courier');
     // Signing the goods out to the courier. Optional — an order can still
     // go straight from Assigned to a delivery outcome below.
     Route::post('accounting/{order}/handover', [AccountingController::class, 'handover'])->name('accounting.handover');

@@ -29,7 +29,10 @@ class OrderTrackingController extends Controller
     {
         $data = $request->validate([
             'order_number' => ['required', 'numeric'],
-            'email' => ['required', 'email'],
+            // Still named `email`, but it also accepts the phone the order was
+            // placed with: checkout's email is optional, so for an email-less
+            // guest the phone is the only other identifier they have.
+            'email' => ['required', 'string', 'max:255'],
         ]);
 
         // Order numbers are sequential from 1001 and emails are guessable
@@ -44,13 +47,15 @@ class OrderTrackingController extends Controller
 
         $order = Order::query()
             ->where('order_number', $data['order_number'])
-            ->whereHas('customer', fn ($q) => $q->where('email', $data['email']))
+            ->where(fn ($q) => $q
+                ->where('shipping_phone', $data['email'])
+                ->orWhereHas('customer', fn ($c) => $c->where('email', $data['email'])))
             ->with(['items', 'statusHistory'])
             ->first();
 
         if ($order === null) {
             throw ValidationException::withMessages([
-                'order_number' => __('We couldn\'t find an order with that number and email address.'),
+                'order_number' => __('We couldn\'t find an order with that number and email or phone number.'),
             ]);
         }
 

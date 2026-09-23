@@ -143,6 +143,32 @@ class Order extends Model
     }
 
     /**
+     * What the courier still has to hand over for this order: the net
+     * owed (shipping is theirs to keep) less anything already banked
+     * against it. The same figure for an order nobody has settled yet
+     * (nothing collected, so it is the full net) and for one that came
+     * back short (the remainder) — which is what lets one screen split a
+     * courier's cash across both kinds.
+     *
+     * Measured against the latest payment's amount, not `total`, because
+     * that is what ConfirmDeliveryResultAction compares against when it
+     * decides between Collected and Partially Collected; the two agree
+     * for every normal order.
+     */
+    public function stillOwed(): float
+    {
+        $payment = $this->relationLoaded('payments')
+            ? $this->payments->sortByDesc('id')->first()
+            : $this->payments()->latest('id')->first();
+
+        if ($payment === null) {
+            return 0.0;
+        }
+
+        return max(0.0, round($this->netOfShipping((float) $payment->amount) - (float) $payment->collected_amount, 2));
+    }
+
+    /**
      * Customer Service data scoping (Section 15, Question 16), two tiers:
      *
      * - A **Team Leader** sees their own team's CS-sourced orders — their

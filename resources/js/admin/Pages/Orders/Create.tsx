@@ -188,9 +188,10 @@ interface SavedAddress {
     id: number;
     label: string | null;
     governorate_id: number;
-    city_id: number;
+    // Optional below the governorate — see the shipping card.
+    city_id: number | null;
     district_id: number | null;
-    area_id: number;
+    area_id: number | null;
     address_line: string;
     is_default: boolean;
 }
@@ -216,6 +217,13 @@ interface FormValues {
     phone: string;
     coupon_code: string;
 }
+
+/** Marks a field the server rejects the order without. Visual only — aria-hidden, the validation message is what a screen reader gets. */
+const Required = () => (
+    <span className="text-danger ms-1" aria-hidden="true">
+        *
+    </span>
+);
 
 // Ported from Admin Template/order-checkout.html's Personal Details /
 // Shipping Details / Order Summary card layout.
@@ -379,7 +387,10 @@ export default function OrdersCreate({
                                 {isNewCustomer ? (
                                     <div className="row g-3">
                                         <div className="col-md-6">
-                                            <label className="form-label">{t('admin.name')}</label>
+                                            <label className="form-label">
+                                                {t('admin.name')}
+                                                <Required />
+                                            </label>
                                             <input className="form-control" {...register('new_customer.name')} />
                                             {serverErrors['new_customer.name'] && (
                                                 <div className="text-danger fs-13 mt-1">
@@ -388,7 +399,10 @@ export default function OrdersCreate({
                                             )}
                                         </div>
                                         <div className="col-md-6">
-                                            <label className="form-label">{t('admin.phone')}</label>
+                                            <label className="form-label">
+                                                {t('admin.phone')}
+                                                <Required />
+                                            </label>
                                             <input className="form-control" {...register('new_customer.phone')} />
                                             {serverErrors['new_customer.phone'] && (
                                                 <div className="text-danger fs-13 mt-1">
@@ -402,6 +416,10 @@ export default function OrdersCreate({
                                     </div>
                                 ) : (
                                     <>
+                                        <label className="form-label">
+                                            {t('admin.customer')}
+                                            <Required />
+                                        </label>
                                         <Select
                                             options={customerOptions}
                                             placeholder={t('admin.searchByNameOrPhone')}
@@ -458,14 +476,20 @@ export default function OrdersCreate({
                             <div className="card-body">
                                 <div className="row g-3">
                                     <div className="col-md-6">
-                                        <label className="form-label">{t('admin.recipientName')}</label>
+                                        <label className="form-label">
+                                            {t('admin.recipientName')}
+                                            <Required />
+                                        </label>
                                         <input className="form-control" {...register('recipient_name')} />
                                         {serverErrors.recipient_name && (
                                             <div className="text-danger fs-13 mt-1">{serverErrors.recipient_name}</div>
                                         )}
                                     </div>
                                     <div className="col-md-6">
-                                        <label className="form-label">{t('admin.phone')}</label>
+                                        <label className="form-label">
+                                            {t('admin.phone')}
+                                            <Required />
+                                        </label>
                                         <input
                                             className="form-control"
                                             inputMode="numeric"
@@ -477,12 +501,18 @@ export default function OrdersCreate({
                                         )}
                                     </div>
                                     <div className="col-md-3">
-                                        <label className="form-label">{t('admin.governorate')}</label>
+                                        <label className="form-label">
+                                            {t('admin.governorate')}
+                                            <Required />
+                                        </label>
                                         <select
                                             className="form-control"
                                             value={governorateId ?? ''}
                                             onChange={(e) => {
-                                                setValue('governorate_id', Number(e.target.value));
+                                                setValue(
+                                                    'governorate_id',
+                                                    e.target.value ? Number(e.target.value) : null,
+                                                );
                                                 setValue('city_id', null);
                                                 setValue('district_id', null);
                                                 setValue('area_id', null);
@@ -495,19 +525,26 @@ export default function OrdersCreate({
                                                 </option>
                                             ))}
                                         </select>
+                                        {serverErrors.governorate_id && (
+                                            <div className="text-danger fs-13 mt-1">{serverErrors.governorate_id}</div>
+                                        )}
                                     </div>
+                                    {/* City, district and area are optional, as on
+                                        storefront checkout: shipping prices from
+                                        whichever levels are picked, and the courier
+                                        works from the street address. */}
                                     <div className="col-md-3">
                                         <label className="form-label">{t('admin.city')}</label>
                                         <select
                                             className="form-control"
                                             value={cityId ?? ''}
                                             onChange={(e) => {
-                                                setValue('city_id', Number(e.target.value));
+                                                setValue('city_id', e.target.value ? Number(e.target.value) : null);
                                                 setValue('district_id', null);
                                                 setValue('area_id', null);
                                             }}
                                         >
-                                            <option value="">{t('admin.select')}</option>
+                                            <option value="">{t('admin.none')}</option>
                                             {governorate?.cities.map((c) => (
                                                 <option key={c.id} value={c.id}>
                                                     {c.name}
@@ -516,7 +553,7 @@ export default function OrdersCreate({
                                         </select>
                                     </div>
                                     <div className="col-md-3">
-                                        <label className="form-label">{t('admin.districtOptional')}</label>
+                                        <label className="form-label">{t('admin.district')}</label>
                                         <select
                                             className="form-control"
                                             value={watch('district_id') ?? ''}
@@ -537,9 +574,11 @@ export default function OrdersCreate({
                                         <select
                                             className="form-control"
                                             value={watch('area_id') ?? ''}
-                                            onChange={(e) => setValue('area_id', Number(e.target.value))}
+                                            onChange={(e) =>
+                                                setValue('area_id', e.target.value ? Number(e.target.value) : null)
+                                            }
                                         >
-                                            <option value="">{t('admin.select')}</option>
+                                            <option value="">{t('admin.none')}</option>
                                             {city?.areas.map((a) => (
                                                 <option key={a.id} value={a.id}>
                                                     {a.name}
@@ -548,7 +587,10 @@ export default function OrdersCreate({
                                         </select>
                                     </div>
                                     <div className="col-md-12">
-                                        <label className="form-label">{t('admin.addressLine')}</label>
+                                        <label className="form-label">
+                                            {t('admin.addressLine')}
+                                            <Required />
+                                        </label>
                                         <input className="form-control" {...register('address_line')} />
                                         {serverErrors.address_line && (
                                             <div className="text-danger fs-13 mt-1">{serverErrors.address_line}</div>
@@ -567,11 +609,17 @@ export default function OrdersCreate({
                                     <table className="table align-middle mb-0 table-centered">
                                         <thead className="bg-light-subtle">
                                             <tr>
-                                                <th>{t('admin.product')}</th>
+                                                <th>
+                                                    {t('admin.product')}
+                                                    <Required />
+                                                </th>
                                                 <th style={{ width: 120 }} className="text-end">
                                                     {t('admin.unitPrice')}
                                                 </th>
-                                                <th style={{ width: 100 }}>{t('admin.qty')}</th>
+                                                <th style={{ width: 100 }}>
+                                                    {t('admin.qty')}
+                                                    <Required />
+                                                </th>
                                                 <th style={{ width: 120 }} className="text-end">
                                                     {t('admin.lineTotal')}
                                                 </th>

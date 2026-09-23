@@ -73,12 +73,12 @@ class CheckoutController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
             'phone' => PhoneNumber::rules(),
             'governorate_id' => ['required', 'exists:governorates,id'],
-            'city_id' => ['required', 'exists:cities,id'],
+            'city_id' => ['nullable', 'exists:cities,id'],
             'district_id' => ['nullable', 'exists:districts,id'],
-            'area_id' => ['required', 'exists:areas,id'],
+            'area_id' => ['nullable', 'exists:areas,id'],
             'address_line' => ['required', 'string', 'max:500'],
             'save_address' => ['nullable', 'boolean'],
         ]);
@@ -106,9 +106,9 @@ class CheckoutController extends Controller
                 ),
                 warehouse: $warehouse,
                 governorateId: (int) $data['governorate_id'],
-                cityId: (int) $data['city_id'],
+                cityId: isset($data['city_id']) ? (int) $data['city_id'] : null,
                 districtId: isset($data['district_id']) ? (int) $data['district_id'] : null,
-                areaId: (int) $data['area_id'],
+                areaId: isset($data['area_id']) ? (int) $data['area_id'] : null,
                 addressLine: $data['address_line'],
                 recipientName: $data['name'],
                 phone: $data['phone'],
@@ -128,9 +128,9 @@ class CheckoutController extends Controller
                 'recipient_name' => $data['name'],
                 'phone' => $data['phone'],
                 'governorate_id' => $data['governorate_id'],
-                'city_id' => $data['city_id'],
+                'city_id' => $data['city_id'] ?? null,
                 'district_id' => $data['district_id'] ?? null,
-                'area_id' => $data['area_id'],
+                'area_id' => $data['area_id'] ?? null,
                 'address_line' => $data['address_line'],
                 'is_default' => Address::where('customer_id', $customer->id)->doesntExist(),
             ]);
@@ -186,11 +186,21 @@ class CheckoutController extends Controller
      *    in. Attaching here instead would let anyone who knows an email
      *    address drop COD orders into that person's order history.
      *
+     * Email is optional. Without one, the phone number is the only thing
+     * to match on, and only against email-less guest records (a repeat
+     * email-less guest, or someone Customer Service added by phone). A
+     * registered account is never matched by phone, for the same reason
+     * given above.
+     *
      * @param  array<string, mixed>  $data
      */
     private function guestCustomer(array $data): Customer
     {
-        $existing = Customer::where('email', $data['email'])->first();
+        $email = $data['email'] ?? null;
+
+        $existing = $email !== null
+            ? Customer::where('email', $email)->first()
+            : Customer::whereNull('email')->where('is_guest', true)->where('phone', $data['phone'])->first();
 
         if ($existing !== null) {
             if (! $existing->is_active) {
@@ -214,7 +224,7 @@ class CheckoutController extends Controller
 
         return Customer::create([
             'name' => $data['name'],
-            'email' => $data['email'],
+            'email' => $email,
             'phone' => $data['phone'],
             'password' => Str::password(32),
             'is_guest' => true,

@@ -39,8 +39,15 @@ export default function ProductShow({
     canReview: boolean;
     inWishlist: boolean;
 }) {
-    const { auth } = usePage<SharedProps>().props;
-    const [colour, setColour] = useState<string | null>(null);
+    const page = usePage<SharedProps>();
+    const { auth } = page.props;
+    // Opened from a product card with a swatch picked: ?color=<attribute value
+    // id>. Anything that isn't one of this product's colours is ignored.
+    const [colour, setColour] = useState<string | null>(() => {
+        const id = Number(new URL(page.url, window.location.origin).searchParams.get('color'));
+
+        return product.colors.find((item) => item.id === id)?.name ?? null;
+    });
     const [size, setSize] = useState<string | null>(null);
     const [quantity, setQuantity] = useState(1);
     const [tab, setTab] = useState<'description' | 'reviews'>('description');

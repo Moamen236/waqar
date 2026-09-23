@@ -81,7 +81,9 @@ const ACTION_QUESTION: Record<ReasonAction, string> = {
 const ALLOWED_FROM: Record<'confirm' | ReasonAction, string[]> = {
     confirm: ['New', 'Checking', 'Postponed'],
     postpone: ['New', 'Checking', 'Confirmed'],
-    backorder: ['Confirmed'],
+    // From the queue too: Confirm is blocked when stock can't cover the
+    // order (Advertisement lines included), and this is its way out.
+    backorder: ['New', 'Checking', 'Postponed', 'Confirmed'],
     cancel: ['New', 'Checking', 'Confirmed', 'Postponed', 'Backorder'],
 };
 

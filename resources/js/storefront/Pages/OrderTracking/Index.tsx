@@ -66,8 +66,8 @@ export default function OrderTrackingIndex({
                                 <div className="mt-5">
                                     <input
                                         className="border-line px-4 pt-3 pb-3 w-full rounded-lg"
-                                        type="email"
-                                        placeholder={t('auth.emailPlaceholder')}
+                                        type="text"
+                                        placeholder={t('tracking.contactPlaceholder')}
                                         value={form.data.email}
                                         onChange={(event) => form.setData('email', event.target.value)}
                                         required

@@ -81,7 +81,7 @@ export default function Home({
                 </div>
             )}
 
-            {collections.length > 0 && (
+            {/* {collections.length > 0 && (
                 <div className="collection-block md:pt-20 pt-10">
                     <div className="container">
                         <div className="heading3 text-center">{t('home.exploreCollections')}</div>
@@ -108,7 +108,7 @@ export default function Home({
                         </div>
                     </div>
                 </div>
-            )}
+            )} */}
 
             <div className="tab-features-block filter-product-block md:pt-20 pt-10">
                 <div className="container">

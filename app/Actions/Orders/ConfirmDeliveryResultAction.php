@@ -10,6 +10,7 @@ use App\Enums\PaymentStatus;
 use App\Enums\TreasuryTransactionType;
 use App\Models\Employee;
 use App\Models\Order;
+use App\Models\Payment;
 use App\Models\Treasury;
 use App\Services\Inventory\InventoryService;
 use App\Services\Treasury\TreasuryService;
@@ -43,10 +44,23 @@ class ConfirmDeliveryResultAction
     ): Order {
         return DB::transaction(function () use ($order, $accountant, $treasury, $collectedMethod, $collectedAmount) {
             $order = $this->lockAssignedOrder($order);
+            $payment = $order->payments()->latest('id')->firstOrFail();
+            // What the courier already paid up front, at handover (see
+            // CollectFromCourierAction). $collectedAmount is only what
+            // arrives now, on top of it — never the whole again, or the
+            // prepaid part would be banked twice.
+            $prepaid = (float) $payment->collected_amount;
             // The customer hands the courier the gross total; the courier
             // keeps the shipping as their fee and hands over the goods
-            // money. That net figure is what Accounting actually banks.
-            $collectedAmount ??= $order->netDueToTreasury();
+            // money. That net figure, less anything prepaid, is what
+            // Accounting banks now.
+            $collectedAmount ??= max(0.0, round($order->netDueToTreasury() - $prepaid, 2));
+            $netDue = $order->netOfShipping((float) $payment->amount);
+            $totalCollected = round($prepaid + $collectedAmount, 2);
+
+            if ($prepaid > 0 && $totalCollected > $netDue) {
+                throw new RuntimeException("Order #{$order->order_number} only has ".round($netDue - $prepaid, 2).' left to collect.');
+            }
 
             foreach ($order->items()->with('productVariant.product')->get() as $item) {
                 $variant = $item->productVariant;
@@ -59,14 +73,13 @@ class ConfirmDeliveryResultAction
                 }
             }
 
-            $payment = $order->payments()->latest('id')->firstOrFail();
             // Short collection → the goods still went out, but the order
             // keeps a balance Accounting has to come back for. Measured
             // against the net owed, never payment->amount: that stays
             // gross (what the customer paid) for the invoice's sake, so
             // comparing against it would mark every settled order short
             // by exactly the shipping.
-            $paymentStatus = $collectedAmount < $order->netOfShipping((float) $payment->amount)
+            $paymentStatus = $totalCollected < $netDue
                 ? PaymentStatus::PartiallyCollected
                 : PaymentStatus::Collected;
 
@@ -76,7 +89,7 @@ class ConfirmDeliveryResultAction
                     ? CollectionType::Full
                     : CollectionType::Partial,
                 'collected_method' => $collectedMethod,
-                'collected_amount' => $collectedAmount,
+                'collected_amount' => $totalCollected,
                 'collected_at' => now(),
             ]);
 
@@ -120,7 +133,16 @@ class ConfirmDeliveryResultAction
                 }
             }
 
-            $order->payments()->latest('id')->firstOrFail()->update(['status' => PaymentStatus::NotCollected]);
+            $payment = $order->payments()->latest('id')->firstOrFail();
+
+            // The goods came back, so anything the courier paid up front
+            // for them goes back to the courier.
+            $prepaid = (float) $payment->collected_amount;
+            if ($prepaid > 0) {
+                $this->returnPrepayment($payment, $prepaid, $accountant, "Prepayment returned to courier — order #{$order->order_number} refused");
+            }
+
+            $payment->update(['status' => PaymentStatus::NotCollected, 'collected_amount' => $prepaid > 0 ? 0 : $payment->collected_amount]);
 
             return $this->transition($order, OrderStatus::Returned, CustomerOrderStatus::Returned, PaymentStatus::NotCollected, $accountant, 'Refused at delivery');
         });
@@ -168,7 +190,17 @@ class ConfirmDeliveryResultAction
             // rather than trusted from the caller, so a short collection
             // is measured against a figure this Action owns.
             $due = $this->dueForKeptItems($order, $keptQuantities);
-            $paymentStatus = $collectedAmount < $order->netOfShipping($due)
+            $netDue = $order->netOfShipping($due);
+            // $collectedAmount is what arrives now, on top of anything the
+            // courier prepaid at handover. If the prepayment alone already
+            // covers more than the kept goods are worth, the excess is the
+            // returned goods' money and goes back to the courier.
+            $prepaid = (float) $payment->collected_amount;
+            $excess = max(0.0, round($prepaid + $collectedAmount - $netDue, 2));
+            $refund = min($excess, $prepaid);
+            $totalCollected = round($prepaid + $collectedAmount - $refund, 2);
+
+            $paymentStatus = $totalCollected < $netDue
                 ? PaymentStatus::PartiallyCollected
                 : PaymentStatus::Collected;
 
@@ -177,7 +209,7 @@ class ConfirmDeliveryResultAction
                 'status' => $paymentStatus,
                 'collection_type' => CollectionType::Partial,
                 'collected_method' => $collectedMethod,
-                'collected_amount' => $collectedAmount,
+                'collected_amount' => $totalCollected,
                 'collected_at' => now(),
             ]);
 
@@ -186,6 +218,10 @@ class ConfirmDeliveryResultAction
                     $treasury, TreasuryTransactionType::Income, $collectedAmount, $accountant, $payment,
                     "Partial COD collected for order #{$order->order_number}",
                 );
+            }
+
+            if ($refund > 0) {
+                $this->returnPrepayment($payment, $refund, $accountant, "Prepayment returned to courier — order #{$order->order_number} partly refused");
             }
 
             return $this->transition(
@@ -227,9 +263,11 @@ class ConfirmDeliveryResultAction
     }
 
     /**
-     * A later instalment against an order whose courier came back short.
-     * Nothing about the goods changes here — the stock moved when the
-     * delivery result was confirmed; this only moves money.
+     * Money from the courier outside a delivery result: a later instalment
+     * on an order they came back short on, or a prepayment on one they
+     * are still carrying (paid when it was handed over). Nothing about the
+     * goods changes here — stock moves only when the delivery result is
+     * confirmed; this only moves money.
      *
      * @throws RuntimeException when the order owes nothing
      */
@@ -243,7 +281,8 @@ class ConfirmDeliveryResultAction
         return DB::transaction(function () use ($order, $accountant, $treasury, $collectedMethod, $amount) {
             $order = Order::query()->lockForUpdate()->findOrFail($order->id);
 
-            if ($order->payment_status !== PaymentStatus::PartiallyCollected) {
+            $prepayment = $order->status === OrderStatus::OutForDelivery;
+            if ($order->payment_status !== PaymentStatus::PartiallyCollected && ! $prepayment) {
                 throw new RuntimeException("Order #{$order->order_number} has no outstanding balance to collect.");
             }
 
@@ -254,7 +293,7 @@ class ConfirmDeliveryResultAction
             $netDue = $order->netOfShipping((float) $payment->amount);
             $outstanding = round($netDue - (float) $payment->collected_amount, 2);
 
-            if ($amount > $outstanding) {
+            if ($amount <= 0 || $amount > $outstanding) {
                 throw new RuntimeException("Order #{$order->order_number} only owes {$outstanding}.");
             }
 
@@ -270,15 +309,45 @@ class ConfirmDeliveryResultAction
 
             $this->treasury->recordTransaction(
                 $treasury, TreasuryTransactionType::Income, $amount, $accountant, $payment,
-                "Balance collected for order #{$order->order_number}",
+                $prepayment
+                    ? "Courier prepaid for order #{$order->order_number}"
+                    : "Balance collected for order #{$order->order_number}",
             );
 
-            // The order's own status doesn't move — it was already
-            // Delivered or Partially Returned — only what it still owes.
+            // The order's own status doesn't move — it is still out for
+            // delivery, or already Delivered / Partially Returned — only
+            // what it still owes.
             $order->update(['payment_status' => $settled ? PaymentStatus::Collected : PaymentStatus::PartiallyCollected]);
 
             return $order->fresh();
         });
+    }
+
+    /**
+     * Hand a courier's prepayment back, out of the drawer(s) it went into,
+     * as expenses against the same payment — so the treasury balance and
+     * the payment's own history both show the money leaving again.
+     */
+    private function returnPrepayment(Payment $payment, float $amount, Employee $accountant, string $description): void
+    {
+        foreach ($payment->transactions()->with('treasury')->get()->groupBy('treasury_id') as $rows) {
+            if ($amount <= 0) {
+                break;
+            }
+
+            // Income is positive and earlier returns negative, so the sum
+            // is what this drawer still holds for the order.
+            $held = round((float) $rows->sum('amount'), 2);
+            $take = round(min($amount, $held), 2);
+            if ($take <= 0) {
+                continue;
+            }
+
+            $this->treasury->recordTransaction(
+                $rows->first()->treasury, TreasuryTransactionType::Expense, -$take, $accountant, $payment, $description,
+            );
+            $amount = round($amount - $take, 2);
+        }
     }
 
     private function lockAssignedOrder(Order $order): Order

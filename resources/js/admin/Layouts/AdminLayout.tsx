@@ -111,12 +111,6 @@ const NAV: NavGroup[] = [
                 permission: 'orders.view',
             },
             {
-                label: 'admin.navOutForDelivery',
-                href: route('admin.delivery.orders'),
-                icon: 'bx-package',
-                permission: 'orders.view',
-            },
-            {
                 label: 'admin.navAccounting',
                 href: route('admin.accounting.index'),
                 icon: 'bx-wallet',

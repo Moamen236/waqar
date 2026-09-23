@@ -26,12 +26,16 @@ export default function GeoCascade({
     value,
     onChange,
     idPrefix = 'geo',
+    optionalBelowGovernorate = false,
 }: {
     countries: GeoCountry[];
     value: GeoSelection;
     onChange: (next: GeoSelection) => void;
     idPrefix?: string;
+    /** Checkout asks only for the governorate; city and area become optional there. */
+    optionalBelowGovernorate?: boolean;
 }) {
+    const requiredMark = optionalBelowGovernorate ? null : <span className="text-red">*</span>;
     const { t } = useTranslation();
     const country = useMemo(
         () =>
@@ -133,7 +137,7 @@ export default function GeoCascade({
             </div>
             <div className="select-block">
                 <label htmlFor={`${idPrefix}-city`} className="caption1 capitalize">
-                    {t('geo.city')} <span className="text-red">*</span>
+                    {t('geo.city')} {requiredMark}
                 </label>
                 <select
                     id={`${idPrefix}-city`}
@@ -186,7 +190,7 @@ export default function GeoCascade({
             </div>
             <div className="select-block">
                 <label htmlFor={`${idPrefix}-area`} className="caption1 capitalize">
-                    {t('geo.area')} <span className="text-red">*</span>
+                    {t('geo.area')} {requiredMark}
                 </label>
                 <select
                     id={`${idPrefix}-area`}

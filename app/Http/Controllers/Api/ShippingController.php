@@ -86,9 +86,9 @@ class ShippingController extends Controller
     {
         $data = $request->validate([
             'governorate_id' => ['required', 'exists:governorates,id'],
-            'city_id' => ['required', 'exists:cities,id'],
+            'city_id' => ['nullable', 'exists:cities,id'],
             'district_id' => ['nullable', 'exists:districts,id'],
-            'area_id' => ['required', 'exists:areas,id'],
+            'area_id' => ['nullable', 'exists:areas,id'],
         ]);
 
         $cart = $this->carts->current($request);
@@ -97,9 +97,9 @@ class ShippingController extends Controller
 
         $rate = $this->rates->resolve(
             (int) $data['governorate_id'],
-            (int) $data['city_id'],
+            isset($data['city_id']) ? (int) $data['city_id'] : null,
             isset($data['district_id']) ? (int) $data['district_id'] : null,
-            (int) $data['area_id'],
+            isset($data['area_id']) ? (int) $data['area_id'] : null,
         );
 
         $shipping = null;

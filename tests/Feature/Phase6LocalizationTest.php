@@ -112,8 +112,8 @@ it('keeps controller arguments correct even though every route gained a leading 
     // product. SetLocale forgets it after use; this is the regression test.
     p6Product('Probe Tee', 'تي شيرت', 'probe-tee');
 
-    $this->get(route('product.show', 'probe-tee'))->assertOk();
-    $this->get('/ar/product/probe-tee')->assertOk();
+    $this->get(route('product.show', ['slug' => 'probe-tee', 'sku' => 'PROBE-TEE']))->assertOk();
+    $this->get('/ar/product/probe-tee/PROBE-TEE')->assertOk();
 });
 
 it('translates server-side strings, not just the React UI', function () {
@@ -163,7 +163,7 @@ it('loads Larkon\'s RTL stylesheet for Arabic and its LTR one for English', func
 it('keeps route() inside the visitor\'s language without being told', function () {
     URL::defaults(['locale' => 'ar']);
     expect(route('shop.index', absolute: false))->toBe('/ar/shop')
-        ->and(route('product.show', 'linen-dress', absolute: false))->toBe('/ar/product/linen-dress');
+        ->and(route('product.show', ['slug' => 'linen-dress', 'sku' => 'LD-01'], absolute: false))->toBe('/ar/product/linen-dress/LD-01');
 
     URL::defaults(['locale' => 'en']);
     expect(route('shop.index', absolute: false))->toBe('/en/shop');

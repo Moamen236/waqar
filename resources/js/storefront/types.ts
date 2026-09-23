@@ -17,12 +17,15 @@ export interface ProductColor {
 export interface ProductCardData {
     id: number;
     slug: string;
+    sku: string;
     name: string;
     short_description: string | null;
     price: number;
     origin_price: number | null;
     sale_percent: number;
     images: string[];
+    /** Colour name → that colour's photos (tagged images only; see ProductPresenter). */
+    images_by_color: Record<string, string[]>;
     colors: ProductColor[];
     sizes: string[];
     categories: string[];
@@ -54,14 +57,7 @@ export interface ProductVariantData {
 
 /** ProductPresenter::detail(). */
 export interface ProductDetailData extends ProductCardData {
-    sku: string;
     description: string | null;
-    /**
-     * Colour name → that colour's photos, for products where someone has
-     * tagged the images. A colour missing from this map falls back to the
-     * full `images` set, so an untagged catalogue behaves as it always did.
-     */
-    images_by_color: Record<string, string[]>;
     variants: ProductVariantData[];
     collections: { slug: string; name: string }[];
 }
@@ -71,6 +67,7 @@ export interface CartLine {
     variant_id: number;
     product_id: number;
     slug: string;
+    product_sku: string;
     name: string;
     sku: string;
     image: string | null;

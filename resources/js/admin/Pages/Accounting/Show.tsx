@@ -93,8 +93,12 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
     const shipping = Number(order.shipping_amount);
     const netOf = (gross: number) => Math.max(0, round2(gross - shipping));
     const netDue = netOf(Number(order.total));
+    // What the courier already paid up front at handover. The delivery
+    // forms ask only for what arrives now, on top of it — the server adds
+    // the two, so prefilling the full net would bank the prepaid part twice.
+    const prepaid = Number(order.payments[order.payments.length - 1]?.collected_amount ?? 0);
 
-    const [collectedAmount, setCollectedAmount] = useState(String(netDue));
+    const [collectedAmount, setCollectedAmount] = useState(String(Math.max(0, round2(netDue - prepaid))));
     const [keptQuantities, setKeptQuantities] = useState<Record<number, number>>(
         Object.fromEntries(order.items.map((item) => [item.id, item.quantity])),
     );
@@ -143,7 +147,10 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
     // Gross is what the customer hands over; the courier keeps the
     // shipping out of it, so the suggestion Accounting types is the net.
     const suggestedGross = Math.max(0, round2(keptValue - discountShare + shipping));
-    const suggestedTotal = netOf(suggestedGross);
+    // Less the prepayment, for the same reason as the delivered form. If
+    // the prepayment already covers more than the kept goods, the server
+    // hands the difference back to the courier.
+    const suggestedTotal = Math.max(0, round2(netOf(suggestedGross) - prepaid));
 
     async function confirmDelivered() {
         if (!treasuryId) return;

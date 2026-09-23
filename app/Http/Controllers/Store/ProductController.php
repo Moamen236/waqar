@@ -24,15 +24,24 @@ use Inertia\Response;
  */
 class ProductController extends Controller
 {
-    public function show(Request $request, string $slug): Response
+    /**
+     * /product/{slug}/{sku}. The SKU finds the product; the slug is only
+     * for people and search engines, so a stale one (the product was
+     * renamed) redirects to the current URL instead of 404ing.
+     */
+    public function show(Request $request, string $slug, string $sku): Response|RedirectResponse
     {
         $product = Product::query()
-            ->where('slug', $slug)
+            ->where('sku', $sku)
             ->where('status', true)
             ->with(['media', 'categories', 'collections', 'variants.attributeValues.attribute'])
             ->withCount(['reviews' => fn ($q) => $q->where('status', ReviewStatus::Approved->value)])
             ->withAvg(['reviews as reviews_avg_rating' => fn ($q) => $q->where('status', ReviewStatus::Approved->value)], 'rating')
             ->firstOrFail();
+
+        if ($product->slug !== $slug) {
+            return redirect()->route('product.show', ['slug' => $product->slug, 'sku' => $product->sku, ...$request->only('color')], 301);
+        }
 
         RecentlyViewed::remember($request, $product->id);
 
@@ -63,6 +72,17 @@ class ProductController extends Controller
             'inWishlist' => $customer !== null && $customer->wishlist?->items()
                 ->where('product_id', $product->id)->exists(),
         ]);
+    }
+
+    /**
+     * The pre-SKU URL, /product/{slug}. Permanently redirected so links
+     * already shared or indexed land on the canonical page.
+     */
+    public function legacy(Request $request, string $slug): RedirectResponse
+    {
+        $product = Product::where('slug', $slug)->where('status', true)->firstOrFail();
+
+        return redirect()->route('product.show', ['slug' => $product->slug, 'sku' => $product->sku, ...$request->only('color')], 301);
     }
 
     /**

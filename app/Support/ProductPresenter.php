@@ -21,9 +21,10 @@ class ProductPresenter
 {
     /**
      * @return array{
-     *     id: int, slug: string, name: string, short_description: string|null,
+     *     id: int, slug: string, sku: string, name: string, short_description: string|null,
      *     price: float, origin_price: float|null, sale_percent: int,
-     *     images: array<int, string>, colors: array<int, array{id: int, name: string, hex: string|null}>,
+     *     images: array<int, string>, images_by_color: array<string, list<string>>,
+     *     colors: array<int, array{id: int, name: string, hex: string|null}>,
      *     sizes: array<int, string>, categories: array<int, string>,
      *     is_new: bool, is_on_sale: bool, rating: float, review_count: int,
      *     in_stock: bool, tracked: bool
@@ -38,12 +39,16 @@ class ProductPresenter
         return [
             'id' => $product->id,
             'slug' => (string) $product->slug,
+            'sku' => (string) $product->sku,
             'name' => $product->getTranslation('name', $locale),
             'short_description' => $product->getTranslation('short_description', $locale) ?: null,
             'price' => $price,
             'origin_price' => $origin > $price ? $origin : null,
             'sale_percent' => $origin > $price ? (int) floor(100 - (($price / $origin) * 100)) : 0,
             'images' => $product->getMedia('product_images')->map(fn ($media) => $media->getUrl())->values()->all(),
+            // Lets the card swap photos when a colour swatch is clicked,
+            // without leaving the listing.
+            'images_by_color' => self::imagesByColour($product),
             'colors' => self::optionValues($product, 'color'),
             'sizes' => array_column(self::optionValues($product, 'size'), 'name'),
             'categories' => $product->categories->map(fn ($category) => $category->getTranslation('name', $locale))->values()->all(),
@@ -70,9 +75,7 @@ class ProductPresenter
 
         return [
             ...self::card($product),
-            'sku' => (string) $product->sku,
             'description' => $product->getTranslation('description', $locale),
-            'images_by_color' => self::imagesByColour($product),
             'variants' => $product->variants
                 ->where('status', true)
                 ->map(fn (ProductVariant $variant) => self::variant($variant, (bool) $product->inventory_tracking_enabled))
@@ -261,5 +264,24 @@ class ProductPresenter
         }
 
         return $map;
+    }
+
+    /**
+     * The photo to show for one variant (a cart/checkout line): the first
+     * image tagged with the variant's own colour, else the product's first
+     * image — the same fallback the gallery uses for an untagged colour.
+     */
+    public static function variantImage(ProductVariant $variant): ?string
+    {
+        $colourId = $variant->attributeValues
+            ->first(fn (AttributeValue $value) => strtolower($value->attribute->getTranslation('name', 'en')) === 'color')
+            ?->id;
+
+        $media = $variant->product->getMedia('product_images');
+        $tagged = $colourId === null
+            ? null
+            : $media->first(fn ($item) => (int) $item->getCustomProperty('attribute_value_id') === $colourId);
+
+        return ($tagged ?? $media->first())?->getUrl();
     }
 }

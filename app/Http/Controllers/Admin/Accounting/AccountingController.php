@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin\Accounting;
 
+use App\Actions\Orders\CollectFromCourierAction;
 use App\Actions\Orders\ConfirmDeliveryResultAction;
 use App\Actions\Orders\ConfirmHandoverAction;
 use App\Enums\CollectedMethod;
@@ -9,9 +10,13 @@ use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\DeliveryRepresentative;
+use App\Models\Employee;
 use App\Models\Order;
 use App\Models\ShippingCompany;
 use App\Models\Treasury;
+use App\Support\DateRangeFilter;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -37,33 +42,88 @@ class AccountingController extends Controller implements HasMiddleware
             // Handover rides on the same grant: whoever may settle the
             // cash may sign the goods out. Splitting it would only matter
             // if the two were done by different people, and they are not.
-            new Middleware('permission:orders.confirm_delivery', only: ['handover', 'delivered', 'returned', 'partiallyReturned', 'collect', 'settleBulk']),
+            new Middleware('permission:orders.confirm_delivery', only: ['handover', 'delivered', 'returned', 'partiallyReturned', 'collect', 'settleBulk', 'collectFromCourier']),
         ];
     }
 
     public function index(Request $request): Response
     {
+        // Settlement happens courier by courier: one of them turns up with
+        // a bag of cash for everything they carried, so every queue
+        // filters to that person and totals what they owe.
+        $courier = $this->courierFilter($request);
+        $employee = $request->user('employee');
+
+        // Defaults to today, by order date, like the history screens —
+        // asked for here even though this is a work queue. "All dates" on
+        // the filter is one click away for the orders left from earlier
+        // days; the per-courier totals ignore it (see courierBalances()).
+        $dates = DateRangeFilter::fromRequest($request);
+
+        // Each row carries `still_owed`, computed once here by the same
+        // Order::stillOwed() CollectFromCourierAction splits against, so
+        // the figures on screen are the figures that get banked.
+        $withOwed = fn (Order $order) => $order->setAttribute('still_owed', $order->stillOwed());
+        /** @var \Closure(): Builder<Order> $base */
+        $base = fn () => DateRangeFilter::apply(
+            $this->forCourier(Order::query()->visibleTo($employee), $courier),
+            $dates,
+            'orders.created_at',
+        );
+
         // Two queues, not one: an order still sitting at Assigned has not
         // physically left the building, so signing it out to the courier
         // is a different job from settling what came back. Handover is
         // optional, so the second queue can still receive an order that
         // never appeared in the first.
-        $awaitingHandover = Order::query()
-            ->visibleTo($request->user('employee'))
+        $awaitingHandover = $base()
             ->where('status', OrderStatus::Assigned)
-            ->with(['customer', 'deliveryRepresentative', 'shippingCompany'])
+            ->with(['customer', 'deliveryRepresentative', 'shippingCompany', 'payments'])
             ->latest('id')
             ->paginate(20, ['*'], 'handover')
-            ->withQueryString();
+            ->withQueryString()
+            ->through($withOwed);
 
-        // Settlement happens courier by courier: one of them turns up with
-        // a bag of cash for everything they carried, so the queue filters
-        // to that person and totals what they owe.
-        $courier = $this->courierFilter($request);
-
-        $orders = Order::query()
-            ->visibleTo($request->user('employee'))
+        $orders = $base()
             ->where('status', OrderStatus::OutForDelivery)
+            ->with(['customer', 'deliveryRepresentative', 'shippingCompany', 'payments'])
+            ->latest('id')
+            ->paginate(20, ['*'], 'page')
+            ->withQueryString()
+            ->through($withOwed);
+
+        // Everything a courier still owes money on: goods they took and
+        // haven't fully paid for, and deliveries they came back short on.
+        // The delivered ones have left every other queue, so without this
+        // listing that money would only be findable by order number.
+        $outstanding = $this->owingCourier($base())
+            ->with(['customer', 'payments', 'deliveryRepresentative', 'shippingCompany'])
+            ->latest('id')
+            ->paginate(20, ['*'], 'outstanding')
+            ->withQueryString()
+            ->through($withOwed);
+
+        return Inertia::render('Accounting/Index', [
+            'awaitingHandover' => $awaitingHandover,
+            'orders' => $orders,
+            'outstanding' => $outstanding,
+            'courierBalances' => $this->courierBalances($employee),
+            'filters' => $courier,
+            'dates' => $dates,
+            'representatives' => DeliveryRepresentative::query()->orderBy('name')->get(['id', 'name']),
+            'shippingCompanies' => ShippingCompany::query()->orderBy('name')->get(['id', 'name']),
+            'treasuries' => Treasury::query()->where('is_active', true)->get(['id', 'name', 'type']),
+        ]);
+    }
+
+    /**
+     * @param  Builder<Order>  $query
+     * @param  array{representative_id: int|null, shipping_company_id: int|null}  $courier
+     * @return Builder<Order>
+     */
+    private function forCourier(Builder $query, array $courier): Builder
+    {
+        return $query
             ->when(
                 $courier['representative_id'] !== null,
                 fn ($query) => $query->where('delivery_representative_id', $courier['representative_id']),
@@ -71,32 +131,107 @@ class AccountingController extends Controller implements HasMiddleware
             ->when(
                 $courier['shipping_company_id'] !== null,
                 fn ($query) => $query->where('shipping_company_id', $courier['shipping_company_id']),
-            )
-            ->with(['customer', 'deliveryRepresentative', 'shippingCompany'])
-            ->latest('id')
-            ->paginate(20, ['*'], 'page')
-            ->withQueryString();
+            );
+    }
 
-        // Delivered, but the courier came back short. These have left
-        // every other queue, so without this listing the outstanding
-        // money would only be findable by remembering the order number.
-        $outstanding = Order::query()
-            ->visibleTo($request->user('employee'))
-            ->where('payment_status', PaymentStatus::PartiallyCollected)
-            ->with(['customer', 'payments'])
-            ->latest('id')
-            ->paginate(20, ['*'], 'outstanding')
-            ->withQueryString();
+    /**
+     * Orders a courier still owes money on: out with them and not fully
+     * paid for (the goods left with the courier, so the courier is on the
+     * hook), or delivered and come back short.
+     *
+     * @param  Builder<Order>  $query
+     * @return Builder<Order>
+     */
+    private function owingCourier(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $owing) => $owing
+            ->where(fn (Builder $out) => $out
+                ->where('status', OrderStatus::OutForDelivery)
+                ->where('payment_status', '!=', PaymentStatus::Collected))
+            ->orWhere('payment_status', PaymentStatus::PartiallyCollected));
+    }
 
-        return Inertia::render('Accounting/Index', [
-            'awaitingHandover' => $awaitingHandover,
-            'orders' => $orders,
-            'outstanding' => $outstanding,
-            'filters' => $courier,
-            'representatives' => DeliveryRepresentative::query()->orderBy('name')->get(['id', 'name']),
-            'shippingCompanies' => ShippingCompany::query()->orderBy('name')->get(['id', 'name']),
-            'treasuries' => Treasury::query()->where('is_active', true)->get(['id', 'name', 'type']),
+    /**
+     * What each courier still owes — deliberately unfiltered by courier
+     * and by date, because it is a running balance: a courier who took
+     * goods last week and hasn't paid still owes today. `key` uses the
+     * courier select's own encoding, so a row can set the filter.
+     *
+     * ponytail: sums in PHP over every owing order; that is the goods out
+     * on the road plus the short deliveries, which stays small. Move the
+     * sum into SQL (a join on the latest payment) if it runs to thousands.
+     *
+     * @return list<array{key: string, name: string, orders: int, with_courier: float, delivered: float, owed: float}>
+     */
+    private function courierBalances(Employee $employee): array
+    {
+        return $this->owingCourier(Order::query()->visibleTo($employee))
+            ->with(['payments', 'deliveryRepresentative:id,name', 'shippingCompany:id,name'])
+            ->get()
+            ->groupBy(fn (Order $order) => $order->delivery_representative_id !== null
+                ? 'representative:'.$order->delivery_representative_id
+                : 'shipping_company:'.$order->shipping_company_id)
+            ->map(function (Collection $group, string $key) {
+                /** @var Order $first */
+                $first = $group->first();
+                $out = $group->filter(fn (Order $order) => $order->status === OrderStatus::OutForDelivery);
+                $withCourier = round($out->sum(fn (Order $order) => $order->stillOwed()), 2);
+                $owed = round($group->sum(fn (Order $order) => $order->stillOwed()), 2);
+
+                return [
+                    'key' => $key,
+                    'name' => $first->deliveryRepresentative->name ?? $first->shippingCompany->name ?? '—',
+                    'orders' => $group->count(),
+                    // Goods still on the road, not yet paid for.
+                    'with_courier' => $withCourier,
+                    // Delivered, courier came back short.
+                    'delivered' => round($owed - $withCourier, 2),
+                    'owed' => $owed,
+                ];
+            })
+            ->sortByDesc('owed')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * One courier, one sum of cash, several orders: split it oldest
+     * first. See CollectFromCourierAction for why it is all or nothing.
+     */
+    public function collectFromCourier(Request $request, CollectFromCourierAction $action): RedirectResponse
+    {
+        $data = $request->validate([
+            'order_ids' => ['required', 'array', 'min:1'],
+            'order_ids.*' => ['integer', 'distinct', 'exists:orders,id'],
+            'treasury_id' => ['required', 'exists:treasuries,id'],
+            'collected_method' => ['required', Rule::enum(CollectedMethod::class)],
+            'amount' => ['required', 'numeric', 'min:0.01'],
         ]);
+
+        try {
+            $lines = $action->execute(
+                $data['order_ids'],
+                $request->user('employee'),
+                Treasury::findOrFail($data['treasury_id']),
+                CollectedMethod::from($data['collected_method']),
+                (float) $data['amount'],
+            );
+        } catch (RuntimeException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        $balance = round(array_sum(array_column($lines, 'balance')), 2);
+
+        return back()->with('success', $balance > 0
+            ? __(':amount collected across :count orders — :balance still owed.', [
+                'amount' => number_format((float) $data['amount'], 2),
+                'count' => count($lines),
+                'balance' => number_format($balance, 2),
+            ])
+            : __(':amount collected — :count orders fully settled.', [
+                'amount' => number_format((float) $data['amount'], 2),
+                'count' => count($lines),
+            ]));
     }
 
     /**
@@ -151,6 +286,10 @@ class AccountingController extends Controller implements HasMiddleware
 
         foreach ($orders as $order) {
             try {
+                // Measured from the payment, not netDueToTreasury(): a
+                // courier who prepaid at handover only hands over the rest
+                // now, and that rest is what this banks.
+                $before = (float) $order->payments()->latest('id')->value('collected_amount');
                 $action->confirmDelivered(
                     $order,
                     $employee,
@@ -158,7 +297,7 @@ class AccountingController extends Controller implements HasMiddleware
                     CollectedMethod::from($data['collected_method']),
                 );
                 $settled++;
-                $collected += $order->netDueToTreasury();
+                $collected += (float) $order->payments()->latest('id')->value('collected_amount') - $before;
             } catch (RuntimeException $exception) {
                 $skipped[] = $order->order_number;
             }
@@ -239,13 +378,17 @@ class AccountingController extends Controller implements HasMiddleware
             'collected_amount' => ['nullable', 'numeric', 'min:0'],
         ]);
 
-        $action->confirmDelivered(
-            $order,
-            $request->user('employee'),
-            Treasury::findOrFail($data['treasury_id']),
-            CollectedMethod::from($data['collected_method']),
-            isset($data['collected_amount']) ? (float) $data['collected_amount'] : null,
-        );
+        try {
+            $action->confirmDelivered(
+                $order,
+                $request->user('employee'),
+                Treasury::findOrFail($data['treasury_id']),
+                CollectedMethod::from($data['collected_method']),
+                isset($data['collected_amount']) ? (float) $data['collected_amount'] : null,
+            );
+        } catch (RuntimeException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
 
         return redirect()->route('admin.accounting.show', $order)->with('success', __('Order #:number marked Delivered.', ['number' => $order->order_number]));
     }

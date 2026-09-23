@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\ProductVariant;
 use App\Models\WarehouseInventory;
 use App\Services\Checkout\CouponService;
+use App\Support\ProductPresenter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -145,7 +146,7 @@ class CartService
      * customer never types or edits it.
      *
      * @return array{
-     *     items: array<int, array{id: int, variant_id: int, product_id: int, slug: string, name: string, sku: string, image: string|null, options: string, unit_price: float, quantity: int, subtotal: float, available: int|null}>,
+     *     items: array<int, array{id: int, variant_id: int, product_id: int, slug: string, product_sku: string, name: string, sku: string, image: string|null, options: string, unit_price: float, quantity: int, subtotal: float, available: int|null}>,
      *     subtotal: float, discount: float, shipping: float|null, total: float|null,
      *     coupon: array{code: string, type: string, value: float}|null, coupon_error: string|null, count: int
      * }
@@ -160,6 +161,16 @@ class CartService
         foreach ($cart->items as $item) {
             $variant = $item->productVariant;
 
+            // A product deleted (soft-deleted) after it was added leaves a
+            // line whose product no longer loads. Drop it here, the one path
+            // every cart read goes through, so the cart heals itself instead
+            // of the whole page failing.
+            if ($variant->getRelationValue('product') === null) {
+                $item->delete();
+
+                continue;
+            }
+
             $unitPrice = $variant->effectivePrice();
             $lineTotal = round($unitPrice * $item->quantity, 2);
             $subtotal += $lineTotal;
@@ -169,9 +180,11 @@ class CartService
                 'variant_id' => $variant->id,
                 'product_id' => $variant->product->id,
                 'slug' => (string) $variant->product->slug,
+                'product_sku' => (string) $variant->product->sku,
                 'name' => $variant->product->getTranslation('name', app()->getLocale()),
                 'sku' => (string) $variant->sku,
-                'image' => $variant->product->getFirstMediaUrl('product_images') ?: null,
+                // The chosen colour's photo, not just the product's first one.
+                'image' => ProductPresenter::variantImage($variant),
                 'options' => $variant->attributeValues
                     ->map(fn ($value) => $value->getTranslation('value', app()->getLocale()))
                     ->implode(' / '),
@@ -231,6 +244,10 @@ class CartService
 
     private function assertAvailable(ProductVariant $variant, int $quantity): void
     {
+        if ($variant->getRelationValue('product') === null) {
+            throw new InvalidArgumentException(__('That item is no longer available.'));
+        }
+
         // Advertisement products are never stock-checked (Section 05) —
         // same bypass CreateOrderAction applies at order time.
         if (! $variant->product->inventory_tracking_enabled) {

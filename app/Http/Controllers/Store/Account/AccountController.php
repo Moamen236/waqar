@@ -74,6 +74,7 @@ class AccountController extends Controller
                     'created_at' => $review->created_at?->toDateString(),
                     'product' => [
                         'slug' => (string) $review->product->slug,
+                        'sku' => (string) $review->product->sku,
                         'name' => $review->product->getTranslation('name', app()->getLocale()),
                         'image' => $review->product->getFirstMediaUrl('product_images') ?: null,
                     ],

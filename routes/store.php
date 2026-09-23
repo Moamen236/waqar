@@ -41,7 +41,11 @@ Route::get('/category/{slug}', [ShopController::class, 'category'])->name('shop.
 Route::get('/collection/{slug}', [ShopController::class, 'collection'])->name('shop.collection');
 Route::get('/search', [SearchController::class, 'index'])->name('search.index');
 Route::get('/search/suggest', [SearchController::class, 'suggest'])->name('search.suggest');
-Route::get('/product/{slug}', [ProductController::class, 'show'])->name('product.show');
+// Canonical product URL carries both: the slug for a readable link, the SKU
+// (unique, and unchanged when a product is renamed) for the lookup. The old
+// slug-only URL stays alive as a permanent redirect so shared links survive.
+Route::get('/product/{slug}/{sku}', [ProductController::class, 'show'])->name('product.show');
+Route::get('/product/{slug}', [ProductController::class, 'legacy'])->name('product.legacy');
 
 // Cart — guests and signed-in customers alike (Section 08)
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');

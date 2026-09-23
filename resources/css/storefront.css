@@ -12,7 +12,7 @@
  * fixes `anvogue`'s position — first declaration wins. */
 @layer theme, base, anvogue, components, utilities;
 
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* Anvogue's compiled SCSS, vendored verbatim from the template's
  * dist/output-scss.css — the theme's component layer (.button-main,
@@ -32,10 +32,10 @@
  * Phosphor and icomoon get, and necessary besides: an external
  * `@import url(...)` written here is silently dropped by the Tailwind/Vite
  * CSS pipeline. */
-@import "./fonts/thmanyah-sans-storefront.css";
+@import './fonts/thmanyah-sans-storefront.css';
 
-@import "./anvogue/icomoon.css" layer(anvogue);
-@import "./anvogue/theme.css" layer(anvogue);
+@import './anvogue/icomoon.css' layer(anvogue);
+@import './anvogue/theme.css' layer(anvogue);
 
 /* Anvogue ships no RTL companion sheet (unlike Larkon's app-rtl.min.css on
  * the admin side), so this one is generated from theme.css by
@@ -43,15 +43,15 @@
  * [dir=rtl] pass, not an assumption that the direction attribute is
  * enough. Same layer, loaded after, and every rule is scoped under
  * [dir="rtl"] so it outranks its LTR counterpart on specificity. */
-@import "./anvogue/theme-rtl.css" layer(anvogue);
+@import './anvogue/theme-rtl.css' layer(anvogue);
 
 /* Phosphor Icons (`ph ph-*`), self-hosted rather than loaded from the
  * template's unpkg CDN script (assets/js/phosphor-icons.js). Vendored
  * from the npm package with the @font-face src list trimmed to woff2 —
  * see resources/css/phosphor/regular.css for why. */
-@import "./phosphor/regular.css";
-@import "./phosphor/bold.css";
-@import "./phosphor/fill.css";
+@import './phosphor/regular.css';
+@import './phosphor/bold.css';
+@import './phosphor/fill.css';
 
 /* Anvogue's palette (the template's own tailwind.config.js), re-expressed
  * as v4 theme tokens so `text-secondary`, `bg-surface`, `border-line`,
@@ -83,9 +83,7 @@
     --color-surface1: rgba(255, 255, 255, 0.1);
     --color-surface2: rgba(255, 255, 255, 0.2);
 
-    --font-sans:
-        "Thmanyah Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-        sans-serif;
+    --font-sans: 'Thmanyah Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* --- Tailwind v3 → v4 compatibility ------------------------------------
@@ -106,8 +104,29 @@
 
     /* v4's preflight no longer sets a pointer cursor on buttons. */
     button:not(:disabled),
-    [role="button"]:not(:disabled) {
+    [role='button']:not(:disabled) {
         cursor: pointer;
+    }
+}
+
+/* Product card colour swatches: always visible, in normal flow under the
+ * name. Anvogue lays them over the name at opacity 0 and, on hover (lg+),
+ * fades the name out and pushes the price down to reveal them. In the
+ * `components` layer, which outranks `anvogue` whatever the selector
+ * specificity, so theme.css stays vendored verbatim. */
+@layer components {
+    .product-item .product-main .product-infor .list-color {
+        position: static;
+        opacity: 1;
+    }
+
+    .product-item.grid-type:hover .product-main .product-infor .product-name {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .product-item.grid-type:hover .product-main .product-infor .product-price-block {
+        transform: none;
     }
 }
 

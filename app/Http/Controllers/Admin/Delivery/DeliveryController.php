@@ -9,19 +9,20 @@ use App\Http\Controllers\Controller;
 use App\Models\DeliveryRepresentative;
 use App\Models\Order;
 use App\Models\ShippingCompany;
+use App\Support\GeoTree;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
 
 /**
- * /admin/delivery (Section 14), as three screens rather than one board:
- * the queue of Confirmed orders waiting to be handed off, the assign form
- * for one of them, and the list of what is already out.
+ * /admin/delivery (Section 14): one board over everything waiting for or
+ * already with a courier, plus the assign form for a single order.
  */
 class DeliveryController extends Controller implements HasMiddleware
 {
@@ -38,51 +39,79 @@ class DeliveryController extends Controller implements HasMiddleware
         'shippingArea:id,name',
     ];
 
+    /**
+     * What the board lists: waiting for a courier, or already with one.
+     *
+     * @var list<OrderStatus>
+     */
+    private const BOARD_STATUSES = [
+        OrderStatus::Confirmed,
+        OrderStatus::Assigned,
+        OrderStatus::OutForDelivery,
+    ];
+
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:orders.view', only: ['index', 'orders']),
+            new Middleware('permission:orders.view', only: ['index']),
             new Middleware('permission:orders.assign', only: ['assignForm', 'assign', 'assignBulk', 'reassign']),
         ];
     }
 
     /**
-     * The queue: Confirmed orders with nowhere to go yet. Carries the
-     * assignee lists because the queue can hand off a whole batch at
-     * once; a single order still gets its own form.
+     * The board: every order Delivery still has a hand in — Confirmed ones
+     * waiting to be handed off, and Assigned / Out for Delivery ones on the
+     * road that may need moving to another courier. One listing, narrowed
+     * by the same Order::filtered() the order book uses.
+     *
+     * No default date window, unlike the order book: this is a work queue,
+     * and yesterday's unassigned order is exactly the one that must not
+     * drop off the screen.
      */
     public function index(Request $request): Response
     {
-        return Inertia::render('Delivery/Index', [
-            'ready' => Order::query()
-                ->visibleTo($request->user('employee'))
-                ->where('status', OrderStatus::Confirmed)
-                ->with(['customer', ...self::SHIPPING_GEO])
-                ->latest('id')
-                ->paginate(20)
-                ->withQueryString(),
-            'representatives' => DeliveryRepresentative::query()->where('status', 'active')->get(['id', 'name']),
-            'shippingCompanies' => ShippingCompany::query()->where('status', 'active')->get(['id', 'name']),
-        ]);
-    }
+        $employee = $request->user('employee');
+        $boardStatuses = array_map(fn (OrderStatus $s) => $s->value, self::BOARD_STATUSES);
 
-    /**
-     * Everything already handed off — Assigned and Out for Delivery.
-     *
-     * Carries the assignee lists because this is where an order is moved
-     * to a different courier: the delivery *outcome* is Accounting's, but
-     * who is carrying the parcel stays Delivery's business.
-     */
-    public function orders(Request $request): Response
-    {
-        return Inertia::render('Delivery/Orders', [
-            'orders' => Order::query()
-                ->visibleTo($request->user('employee'))
-                ->whereIn('status', [OrderStatus::Assigned, OrderStatus::OutForDelivery])
-                ->with(['customer', 'deliveryRepresentative', 'shippingCompany', ...self::SHIPPING_GEO])
+        $filters = $request->validate([
+            'status' => ['nullable', Rule::in($boardStatuses)],
+            'q' => ['nullable', 'string', 'max:255'],
+            'customer' => ['nullable', 'string', 'max:255'],
+            'governorate_id' => ['nullable', 'integer', 'exists:governorates,id'],
+            'city_id' => ['nullable', 'integer', 'exists:cities,id'],
+            'district_id' => ['nullable', 'integer', 'exists:districts,id'],
+            'area_id' => ['nullable', 'integer', 'exists:areas,id'],
+            'representative_id' => ['nullable', 'integer', 'exists:delivery_representatives,id'],
+            'shipping_company_id' => ['nullable', 'integer', 'exists:shipping_companies,id'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
+            'qty_min' => ['nullable', 'integer', 'min:0', 'max:1000000'],
+            'qty_max' => ['nullable', 'integer', 'min:0', 'max:1000000'],
+        ]);
+
+        $board = fn () => Order::query()
+            ->visibleTo($employee)
+            ->whereIn('status', $boardStatuses);
+
+        // Counted off everything *but* the status filter, so the tabs say
+        // how many of each the other filters leave — clicking one never
+        // surprises with a different number than its badge.
+        $counts = $board()
+            ->filtered(Arr::except($filters, 'status'))
+            ->selectRaw('status, COUNT(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+
+        return Inertia::render('Delivery/Index', [
+            'orders' => $board()
+                ->filtered($filters)
+                ->with(['customer', 'deliveryRepresentative:id,name', 'shippingCompany:id,name', ...self::SHIPPING_GEO])
                 ->latest('id')
                 ->paginate(20)
                 ->withQueryString(),
+            'filters' => $filters,
+            'counts' => collect($boardStatuses)->mapWithKeys(fn (string $s) => [$s => (int) ($counts[$s] ?? 0)]),
+            'geoTree' => GeoTree::tree(),
             'representatives' => DeliveryRepresentative::query()->where('status', 'active')->get(['id', 'name']),
             'shippingCompanies' => ShippingCompany::query()->where('status', 'active')->get(['id', 'name']),
         ]);

@@ -144,7 +144,7 @@
     "Value added.": "Value added.",
     "Value removed.": "Value removed.",
     "Value updated.": "Value updated.",
-    "We couldn't find an order with that number and email address.": "We couldn't find an order with that number and email address.",
+    "We couldn't find an order with that number and email or phone number.": "We couldn't find an order with that number and email or phone number.",
     "We have logged your return request and will review it shortly.": "We have logged your return request and will review it shortly.",
     "We have your order and will start processing it shortly.": "We have your order and will start processing it shortly.",
     "We will review it and be in touch about collection and any return-shipping fee before anything is collected.": "We will review it and be in touch about collection and any return-shipping fee before anything is collected.",
@@ -165,5 +165,11 @@
     "Your order is on its way to the courier.": "Your order is on its way to the courier.",
     "Your order is out for delivery today. Please have the cash payment ready.": "Your order is out for delivery today. Please have the cash payment ready.",
     "Your order was returned and nothing has been charged.": "Your order was returned and nothing has been charged.",
-    "Your password has been reset. Please sign in.": "Your password has been reset. Please sign in."
+    "Your password has been reset. Please sign in.": "Your password has been reset. Please sign in.",
+    ":amount collected across :count orders — :balance still owed.": ":amount collected across :count orders — :balance still owed.",
+    ":amount collected — :count orders fully settled.": ":amount collected — :count orders fully settled.",
+    "Order #:number has nothing left to collect.": "Order #:number has nothing left to collect.",
+    "Select orders carried by the same courier.": "Select orders carried by the same courier.",
+    "Some of the selected orders are no longer available.": "Some of the selected orders are no longer available.",
+    "The courier only owes :amount for these orders.": "The courier only owes :amount for these orders."
 }

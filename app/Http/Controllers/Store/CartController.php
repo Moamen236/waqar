@@ -70,7 +70,7 @@ class CartController extends Controller
 
         $variant = ProductVariant::with('product')->findOrFail($data['product_variant_id']);
 
-        if (! $variant->status || ! $variant->product->status) {
+        if (! $variant->status || ! $variant->getRelationValue('product')?->status) {
             return back()->with('error', __('That item is no longer available.'));
         }
 

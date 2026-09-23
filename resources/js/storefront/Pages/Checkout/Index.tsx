@@ -11,9 +11,9 @@ interface SavedAddress {
     recipient_name: string;
     phone: string;
     governorate_id: number;
-    city_id: number;
+    city_id: number | null;
     district_id: number | null;
-    area_id: number;
+    area_id: number | null;
     address_line: string;
 }
 
@@ -41,7 +41,7 @@ export default function CheckoutIndex({
 }: {
     cart: CartSummary;
     countries: GeoCountry[];
-    customer: { name: string; email: string; phone: string } | null;
+    customer: { name: string; email: string | null; phone: string } | null;
     addresses: SavedAddress[];
 }) {
     // Keyed by the address it was quoted for, so an address change simply
@@ -70,8 +70,14 @@ export default function CheckoutIndex({
     };
 
     const geoKey = JSON.stringify(geo);
-    const complete = geo.governorate_id !== null && geo.city_id !== null && geo.area_id !== null;
-    const view = quote !== null && quote.key === geoKey ? quote.summary : cart;
+    // The quote is only valid for the address *and* the cart contents it
+    // was priced from: removing a line reloads `cart`, and without the
+    // lines in the key the old quote (old subtotal/total) kept showing.
+    const quoteKey = JSON.stringify([geo, cart.items.map((item) => [item.id, item.quantity])]);
+    // Only the governorate is required; the resolver falls back to it
+    // when city/area are left blank.
+    const complete = geo.governorate_id !== null;
+    const view = quote !== null && quote.key === quoteKey ? quote.summary : cart;
 
     // Re-quote whenever the address is complete enough for
     // ShippingRateResolver to have something to match on.
@@ -93,11 +99,11 @@ export default function CheckoutIndex({
             body: geoKey,
         })
             .then((response) => response.json())
-            .then((summary: CartSummary) => setQuote({ key: geoKey, summary }))
+            .then((summary: CartSummary) => setQuote({ key: quoteKey, summary }))
             .catch(() => undefined);
 
         return () => controller.abort();
-    }, [geoKey, complete]);
+    }, [geoKey, quoteKey, complete]);
 
     const applySavedAddress = (address: SavedAddress) => {
         form.setData((data) => ({
@@ -142,7 +148,6 @@ export default function CheckoutIndex({
                                             placeholder={t('checkout.emailPlaceholder')}
                                             value={form.data.email}
                                             onChange={(event) => form.setData('email', event.target.value)}
-                                            required
                                         />
                                         {form.errors.email && (
                                             <div className="caption1 text-red mt-1">{form.errors.email}</div>
@@ -209,6 +214,7 @@ export default function CheckoutIndex({
                                                 value={geo}
                                                 onChange={(next) => form.setData((data) => ({ ...data, ...next }))}
                                                 idPrefix="checkout"
+                                                optionalBelowGovernorate
                                             />
                                             <div className="col-span-full">
                                                 <label htmlFor="address_line" className="caption1 capitalize">
@@ -323,14 +329,15 @@ export default function CheckoutIndex({
                                             <button
                                                 type="button"
                                                 aria-label={t('common.remove')}
-                                                className="caption1 text-secondary underline hover:text-black duration-300"
+                                                title={t('common.remove')}
+                                                className="flex items-center justify-center w-8 h-8 rounded-full text-secondary hover:text-red hover:bg-white duration-300"
                                                 onClick={() =>
                                                     router.delete(route('cart.destroy', item.id), {
                                                         preserveScroll: true,
                                                     })
                                                 }
                                             >
-                                                {t('cart.remove')}
+                                                <i className="ph ph-trash text-xl" aria-hidden="true"></i>
                                             </button>
                                         </div>
                                     </div>
