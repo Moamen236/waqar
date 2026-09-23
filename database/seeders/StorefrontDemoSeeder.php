@@ -65,18 +65,18 @@ class StorefrontDemoSeeder extends Seeder
 
         $products = Product::query()->with('variants')->get()->keyBy('sku');
         $deliveredItem = $this->seedOrder($customer, 2001, OrderStatus::Delivered, $area, $products, [
-            ['MDS-009', 1], ['CTS-013', 2],
+            ['PRD-005', 1], ['PRD-001', 2],
         ]);
-        $this->seedOrder($customer, 2002, OrderStatus::OutForDelivery, $area, $products, [['FLT-006', 1]]);
-        $this->seedOrder($customer, 2003, OrderStatus::New, $area, $products, [['RAG-002', 1]]);
+        $this->seedOrder($customer, 2002, OrderStatus::OutForDelivery, $area, $products, [['PRD-004', 1]]);
+        $this->seedOrder($customer, 2003, OrderStatus::New, $area, $products, [['PRD-002', 1]]);
 
         $reviews = [
-            ['MDS-009', 5, 'Beautiful in person', 'The fit is flattering and the fabric feels much nicer than I expected.', $reviewers[0], $deliveredItem['MDS-009'] ?? null],
-            ['CTS-013', 5, 'A true everyday staple', 'Soft, well-cut, and easy to pair with everything.', $reviewers[1], null],
-            ['BLU-003', 4, 'Lovely colour', 'The pink is vibrant and the one-size cut works beautifully.', $reviewers[2], null],
-            ['OSJ-010', 5, 'Perfect relaxed fit', 'Exactly the oversized denim layer I was looking for.', $reviewers[3], null],
-            ['FLT-006', 4, 'Great statement piece', 'Comfortable enough for an evening out and the finish looks polished.', $reviewers[1], null],
-            ['RKC-011', 5, 'Warm but not bulky', 'A very easy cardigan to wear over a simple tee.', $reviewers[2], null],
+            ['PRD-005', 5, 'Beautiful leather', 'The fit is relaxed and the leather feels much nicer than I expected.', $reviewers[0], $deliveredItem['PRD-005'] ?? null],
+            ['PRD-001', 5, 'A true everyday coat', 'Clean, well-cut, and easy to wear over everything.', $reviewers[1], null],
+            ['PRD-002', 4, 'Lovely colour', 'The stripes are vibrant and the fit is spot on.', $reviewers[2], null],
+            ['PRD-004', 5, 'Perfect relaxed fit', 'Exactly the corduroy layer I was looking for.', $reviewers[3], null],
+            ['PRD-003', 4, 'Great statement piece', 'The pockets are practical and the finish looks polished.', $reviewers[1], null],
+            ['PRD-001', 5, 'Warm but not bulky', 'A very easy coat to throw on for cooler evenings.', $reviewers[2], null],
         ];
 
         foreach ($reviews as [$sku, $rating, $title, $comment, $reviewer, $orderItem]) {
@@ -98,7 +98,7 @@ class StorefrontDemoSeeder extends Seeder
         }
 
         $wishlist = Wishlist::firstOrCreate(['customer_id' => $customer->id]);
-        foreach (['BLU-003', 'OSJ-010', 'SSD-008'] as $sku) {
+        foreach (['PRD-003', 'PRD-004', 'PRD-002'] as $sku) {
             if ($product = $products->get($sku)) {
                 WishlistItem::firstOrCreate(['wishlist_id' => $wishlist->id, 'product_id' => $product->id]);
             }

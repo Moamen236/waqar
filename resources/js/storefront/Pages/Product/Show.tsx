@@ -94,6 +94,27 @@ export default function ProductShow({
 
         return `${match.size_guide_weight_min} – ${match.size_guide_weight_max} kg`;
     }, [product.variants, size]);
+    // One row per size, not per variant: the guide is a property of the
+    // size, so a product in four colours would otherwise repeat every
+    // size four times. First variant of each size wins — they all carry
+    // the same pair, since the admin form writes it per size.
+    const sizeGuideRows = useMemo(() => {
+        const seen = new Map<string, { label: string; range: string | null }>();
+
+        for (const item of product.variants) {
+            const label = optionOf(item, 'size') ?? item.sku;
+            if (seen.has(label)) continue;
+            seen.set(label, {
+                label,
+                range:
+                    item.size_guide_weight_min !== null && item.size_guide_weight_max !== null
+                        ? `${item.size_guide_weight_min} – ${item.size_guide_weight_max} kg`
+                        : null,
+            });
+        }
+
+        return [...seen.values()];
+    }, [product.variants]);
 
     const addToCart = (thenCheckout = false) => {
         if (variant === null) {
@@ -514,14 +535,10 @@ export default function ProductShow({
                             </tr>
                         </thead>
                         <tbody>
-                            {product.variants.map((item) => (
-                                <tr key={item.id} className="border-b border-line">
-                                    <td className="py-3 text-title">{optionOf(item, 'size') ?? item.sku}</td>
-                                    <td className="py-3 text-secondary">
-                                        {item.size_guide_weight_min !== null && item.size_guide_weight_max !== null
-                                            ? `${item.size_guide_weight_min} – ${item.size_guide_weight_max} kg`
-                                            : t('common.notSpecified')}
-                                    </td>
+                            {sizeGuideRows.map((row) => (
+                                <tr key={row.label} className="border-b border-line">
+                                    <td className="py-3 text-title">{row.label}</td>
+                                    <td className="py-3 text-secondary">{row.range ?? t('common.notSpecified')}</td>
                                 </tr>
                             ))}
                         </tbody>

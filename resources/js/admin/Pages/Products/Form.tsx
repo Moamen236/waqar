@@ -65,6 +65,8 @@ interface ProductRecord {
         sale_price: string | null;
         cost_price: string | null;
         status: boolean;
+        size_guide_weight_min: string | null;
+        size_guide_weight_max: string | null;
         attribute_values: { id: number }[];
     }[];
     images: ProductImage[];
@@ -118,6 +120,7 @@ export default function ProductForm({
     collections,
     attributes,
     colorAttributeIds = [],
+    sizeAttributeIds = [],
 }: {
     product: ProductRecord | null;
     /** Only sent by create() — the SKU this product will be given. */
@@ -127,6 +130,8 @@ export default function ProductForm({
     attributes: AttributeOption[];
     /** Ids of the attributes that count as "colour" (English name `Color`). */
     colorAttributeIds?: number[];
+    /** Ids of the attributes that count as "size" (English name `Size`). */
+    sizeAttributeIds?: number[];
 }) {
     const { t, price: money, isRtl } = useTranslation();
     const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
@@ -135,6 +140,38 @@ export default function ProductForm({
     // shows. Null means every colour — same meaning as ProductImage's tag.
     const [newImageColourIds, setNewImageColourIds] = useState<(number | null)[]>([]);
     const [existingImages, setExistingImages] = useState<ProductImage[]>(product?.images ?? []);
+    // Every attribute value that belongs to a size attribute. Used to
+    // keep the size guide off colour values, which a variant carries in
+    // the same list.
+    const sizeValueIds = useMemo(
+        () =>
+            new Set(
+                attributes
+                    .filter((attribute) => sizeAttributeIds.includes(attribute.id))
+                    .flatMap((attribute) => attribute.values)
+                    .map((value) => value.id),
+            ),
+        [attributes, sizeAttributeIds],
+    );
+
+    // Weight range per size, keyed by the size's attribute_value_id.
+    // Seeded from the variants: the columns are per variant, but every
+    // variant of one size carries the same pair, so the first one that
+    // has a value wins.
+    const [sizeGuides, setSizeGuides] = useState<Record<number, { min: string; max: string }>>(() => {
+        const seeded: Record<number, { min: string; max: string }> = {};
+        for (const variant of product?.variants ?? []) {
+            if (variant.size_guide_weight_min === null && variant.size_guide_weight_max === null) continue;
+            for (const value of variant.attribute_values) {
+                if (!sizeValueIds.has(value.id) || seeded[value.id]) continue;
+                seeded[value.id] = {
+                    min: variant.size_guide_weight_min ?? '',
+                    max: variant.size_guide_weight_max ?? '',
+                };
+            }
+        }
+        return seeded;
+    });
 
     const attributeValueOptions = attributes.flatMap((attribute) =>
         attribute.values.map((value) => ({ value: value.id, label: `${attribute.name}: ${value.value}` })),
@@ -269,6 +306,20 @@ export default function ProductForm({
         [attributes, colorAttributeIdSet, previewVariants],
     );
 
+    // The sizes this product is actually made in, from the variant rows —
+    // one size-guide row each, however many colours repeat it.
+    const availableSizes = useMemo(
+        () =>
+            attributes
+                .filter((attribute) => sizeAttributeIds.includes(attribute.id))
+                .flatMap((attribute) => attribute.values)
+                .filter((value) => selectedValueIds.has(value.id)),
+        // Same as availableNewImageColours: selectedValueIds is rebuilt
+        // every render, so depend on the watched rows instead.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [attributes, sizeAttributeIds, previewVariants],
+    );
+
     // A tag pointing at a colour that is no longer picked on any variant
     // would save an image for a colour the product isn't made in — fall
     // back to "every colour" instead of posting a stale id.
@@ -339,6 +390,13 @@ export default function ProductForm({
             category_ids: values.category_ids,
             collection_ids: values.collection_ids,
             variants: values.variants,
+            // One row per size on show, so a blank pair clears the guide
+            // rather than leaving a stale range on the variants.
+            size_guides: availableSizes.map((size) => ({
+                attribute_value_id: size.id,
+                weight_min: sizeGuides[size.id]?.min ?? '',
+                weight_max: sizeGuides[size.id]?.max ?? '',
+            })),
             images: newImages,
             // Parallel to `images` by index — the colour each new photo
             // shows, or null for every colour. An empty string survives the
@@ -819,6 +877,59 @@ export default function ProductForm({
                                 </button>
                                 {serverErrors.variants && (
                                     <div className="text-danger small mt-2">{serverErrors.variants}</div>
+                                )}
+
+                                {availableSizes.length > 0 && (
+                                    <>
+                                        <h5 className="fs-14 mb-1 mt-4">{t('admin.sizeGuide')}</h5>
+                                        <p className="text-muted fs-13">{t('admin.sizeGuideHint')}</p>
+                                        <div className="table-responsive">
+                                            <table className="table align-middle mb-0 table-centered">
+                                                <thead className="bg-light-subtle">
+                                                    <tr>
+                                                        <th>{t('admin.size')}</th>
+                                                        <th>{t('admin.weightMinKg')}</th>
+                                                        <th>{t('admin.weightMaxKg')}</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {availableSizes.map((size) => (
+                                                        <tr key={size.id}>
+                                                            <td style={{ minWidth: 140 }}>{size.value}</td>
+                                                            {(['min', 'max'] as const).map((bound) => (
+                                                                <td key={bound} style={{ minWidth: 110 }}>
+                                                                    <input
+                                                                        type="number"
+                                                                        step="0.01"
+                                                                        min="0"
+                                                                        className="form-control form-control-sm"
+                                                                        value={sizeGuides[size.id]?.[bound] ?? ''}
+                                                                        onChange={(event) =>
+                                                                            setSizeGuides((prev) => ({
+                                                                                ...prev,
+                                                                                [size.id]: {
+                                                                                    min: prev[size.id]?.min ?? '',
+                                                                                    max: prev[size.id]?.max ?? '',
+                                                                                    [bound]: event.target.value,
+                                                                                },
+                                                                            }))
+                                                                        }
+                                                                    />
+                                                                </td>
+                                                            ))}
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        {Object.entries(serverErrors)
+                                            .filter(([key]) => key.startsWith('size_guides'))
+                                            .map(([key, message]) => (
+                                                <div key={key} className="text-danger small mt-2">
+                                                    {message}
+                                                </div>
+                                            ))}
+                                    </>
                                 )}
                             </div>
                         </div>

@@ -22,6 +22,7 @@ use Database\Seeders\WarehouseSeeder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role;
 
 /*
@@ -107,6 +108,8 @@ function adtOrder(OrderStatus $status, string $total = '100.00'): Order
 }
 
 beforeEach(function () {
+    // ProductSeeder attaches real product photos; keep them off the real disk.
+    Storage::fake('public');
     $this->seed([RoleSeeder::class, PermissionSeeder::class]);
 });
 
@@ -612,12 +615,12 @@ it('hides a soft-deleted shipping rate from checkout rate resolution', function 
 it('offers the next SKU in the sequence on the create form', function () {
     $this->seed([WarehouseSeeder::class, ProductSeeder::class]);
 
-    // The seeded catalog runs MSH-001 … PRJ-014.
+    // The seeded catalog runs PRD-001 … PRD-005.
     $this->actingAs(adtEmployee('Vice Chairman'), 'employee')
         ->withLocale('ar')
         ->get(route('admin.products.create'))
         ->assertOk()
-        ->assertInertia(fn ($page) => $page->component('Products/Form')->where('nextSku', 'PRD-015')->etc());
+        ->assertInertia(fn ($page) => $page->component('Products/Form')->where('nextSku', 'PRD-006')->etc());
 });
 
 it('assigns the SKU on store and ignores one supplied by the request', function () {
@@ -635,13 +638,13 @@ it('assigns the SKU on store and ignores one supplied by the request', function 
             'is_on_sale' => false,
             'sort_order' => 0,
             'product_type' => 'real',
-            'variants' => [['sku' => 'PRD-015-RED-S', 'status' => true]],
+            'variants' => [['sku' => 'PRD-006-RED-S', 'status' => true]],
         ])
         ->assertRedirect();
 
     $product = Product::query()->where('name->en', 'Linen Shirt')->firstOrFail();
 
-    expect($product->sku)->toBe('PRD-015')
+    expect($product->sku)->toBe('PRD-006')
         ->and(Product::query()->where('sku', 'HACKED-001')->exists())->toBeFalse();
 });
 

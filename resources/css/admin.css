@@ -357,3 +357,81 @@ h6,
 .jvectormap-label {
     font-family: "Thmanyah Sans", var(--bs-body-font-family, system-ui), sans-serif;
 }
+
+/* Admin sign-in (Pages/Auth/Login.tsx) — split layout: brand photo on the
+ * start side, the form on a warm cream panel. The navy gradient at the
+ * hero's foot keeps the white copy readable against the photo's white
+ * studio backdrop. Logical properties keep it correct in the RTL build. */
+.auth-split {
+    background: var(--bs-secondary-bg-subtle);
+}
+
+.auth-hero {
+    position: relative;
+    flex: 0 0 55%;
+    padding: 3rem;
+    color: #fff;
+    background:
+        linear-gradient(to top, rgba(1, 44, 78, 0.92) 0%, rgba(1, 44, 78, 0.35) 45%, rgba(1, 44, 78, 0.15) 100%),
+        url('/admin-theme/assets/images/login-bg.png') center 20% / cover no-repeat;
+}
+
+.auth-hero-logo {
+    height: 44px;
+    width: auto;
+    align-self: flex-start;
+}
+
+.auth-hero-copy {
+    max-width: 30rem;
+}
+
+.auth-eyebrow {
+    display: inline-block;
+    padding: 0.35rem 0.9rem;
+    margin-bottom: 1.25rem;
+    border: 1px solid rgba(239, 221, 183, 0.6);
+    border-radius: 999px;
+    color: #efddb7;
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+}
+
+.auth-headline {
+    color: #fff;
+    font-size: clamp(2rem, 3.2vw, 3rem);
+    font-weight: 700;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+}
+
+.auth-tagline {
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 1.05rem;
+    line-height: 1.7;
+    margin: 0;
+}
+
+.auth-panel {
+    padding: 1.5rem;
+}
+
+.auth-form-wrap {
+    max-width: 26rem;
+    padding-block: 2rem;
+}
+
+.auth-form-logo {
+    height: 40px;
+    width: auto;
+}
+
+.auth-panel .form-control {
+    background: #fff;
+    border-color: var(--bs-secondary-border-subtle);
+}
+
+.auth-panel .form-control:focus {
+    border-color: #012c4e;
+    box-shadow: 0 0 0 0.2rem rgba(1, 44, 78, 0.12);
+}

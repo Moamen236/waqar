@@ -39,21 +39,29 @@ export default function Home({
         <StorefrontLayout headerStyle="transparent">
             <Head title={t('nav.home')} />
 
-            <div className="slider-block style-one bg-linear xl:h-[860px] lg:h-[800px] md:h-[580px] sm:h-[500px] h-[350px] max-[420px]:h-[320px] w-full">
-                <div className="slider-main h-full w-full">
-                    <div className="slider-item h-full w-full relative">
-                        <div className="container w-full h-full flex items-center relative">
-                            <div className="text-content basis-1/2">
-                                <div className="text-sub-display">{t('home.heroKicker')}</div>
-                                <div className="text-display md:mt-5 mt-2">{t('home.heroTitle')}</div>
-                                <Link href={route('shop.index')} className="button-main md:mt-8 mt-3">
-                                    {t('home.shopNow')}
-                                </Link>
-                            </div>
-                            <div className="sub-img absolute sm:w-1/2 w-3/5 2xl:-end-[60px] -end-[16px] bottom-0">
-                                <img src="/storefront/images/banner/1.png" alt="" />
-                            </div>
-                        </div>
+            {/* Full-bleed hero. The photo keeps the model on its right with open
+             * cream space on the left for copy; in RTL it is mirrored so the
+             * model moves to the left and the copy sits on the reading-start
+             * side. The start-side cream wash only matters on narrow screens,
+             * where object-cover crops that empty space away and the copy
+             * would otherwise sit on top of the model. */}
+            <div className="slider-block style-one relative overflow-hidden bg-linear xl:h-[860px] lg:h-[800px] md:h-[580px] sm:h-[500px] h-[420px] w-full">
+                <img
+                    src="/storefront/images/banner/2.png"
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-cover object-[75%_center] md:object-center rtl:-scale-x-100"
+                />
+                <div className="absolute inset-0 bg-linear-to-r rtl:bg-linear-to-l from-[#faf6ee] via-[#faf6ee]/70 to-transparent lg:via-transparent lg:from-[#faf6ee]/60" />
+                <div className="container w-full h-full flex items-center relative">
+                    <div className="text-content lg:basis-1/2 md:basis-[42%] sm:basis-3/5 basis-4/5">
+                        <div className="text-sub-display">{t('home.heroKicker')}</div>
+                        <h1 className="text-display md:mt-5 mt-2">{t('home.heroTitle')}</h1>
+                        <p className="body1 text-secondary md:mt-5 mt-3 max-w-[440px] max-sm:text-sm max-sm:leading-6">
+                            {t('home.heroBody')}
+                        </p>
+                        <Link href={route('shop.index')} className="button-main md:mt-8 mt-5">
+                            {t('home.heroCta')}
+                        </Link>
                     </div>
                 </div>
             </div>

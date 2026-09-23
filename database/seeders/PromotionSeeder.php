@@ -22,21 +22,21 @@ class PromotionSeeder extends Seeder
 
     public function run(): void
     {
-        $tshirt = Product::where('sku', 'CTS-013')->first();
-        $cardigan = Product::where('sku', 'RKC-011')->first();
-        $tshirtsCategory = Category::where('slug', 't-shirts')->first();
+        $coat = Product::where('sku', 'PRD-001')->first();
+        $trackJacket = Product::where('sku', 'PRD-002')->first();
+        $jacketsCategory = Category::where('slug', 'jackets')->first();
 
-        if ($tshirt === null || $cardigan === null || $tshirtsCategory === null) {
+        if ($coat === null || $trackJacket === null || $jacketsCategory === null) {
             return;
         }
 
         $bundle = Promotion::firstOrCreate(
-            ['name->en' => 'Tee & Cardigan Bundle'],
+            ['name->en' => 'Coat & Track Jacket Bundle'],
             [
-                'name' => ['en' => 'Tee & Cardigan Bundle', 'ar' => 'باقة تي شيرت وكارديجان'],
+                'name' => ['en' => 'Coat & Track Jacket Bundle', 'ar' => 'باقة المعطف والجاكيت الرياضي'],
                 'description' => [
-                    'en' => 'Buy the Classic T-Shirt with the Ribbed Knit Cardigan and save 15%.',
-                    'ar' => 'اشترِ التي شيرت الكلاسيكي مع الكارديجان ووفر 15%.',
+                    'en' => 'Buy the Classic Car Coat with the Retro Track Jacket and save 15%.',
+                    'ar' => 'اشترِ المعطف الكلاسيكي مع الجاكيت الرياضي ووفر 15%.',
                 ],
                 'type' => 'bundle',
                 'discount_type' => 'percentage',
@@ -51,7 +51,7 @@ class PromotionSeeder extends Seeder
             ],
         );
 
-        foreach ([$tshirt, $cardigan] as $product) {
+        foreach ([$coat, $trackJacket] as $product) {
             $variant = $product->variants()->first();
             if ($variant !== null) {
                 $bundle->items()->firstOrCreate(['product_variant_id' => $variant->id], ['quantity' => 1]);
@@ -59,12 +59,12 @@ class PromotionSeeder extends Seeder
         }
 
         $bxgy = Promotion::firstOrCreate(
-            ['name->en' => 'Buy 2 T-Shirts, Get 1 Free'],
+            ['name->en' => 'Buy 2 Jackets, Get 1 Free'],
             [
-                'name' => ['en' => 'Buy 2 T-Shirts, Get 1 Free', 'ar' => 'اشترِ 2 تي شيرت واحصل على 1 مجانًا'],
+                'name' => ['en' => 'Buy 2 Jackets, Get 1 Free', 'ar' => 'اشترِ 2 جاكيت واحصل على 1 مجانًا'],
                 'description' => [
-                    'en' => 'Any two t-shirts, the third one on us.',
-                    'ar' => 'أي تي شيرتين، والثالث علينا.',
+                    'en' => 'Any two jackets, the third one on us.',
+                    'ar' => 'أي جاكيتين، والثالث علينا.',
                 ],
                 'type' => 'buy_x_get_y',
                 'discount_type' => 'free',
@@ -79,7 +79,7 @@ class PromotionSeeder extends Seeder
             ],
         );
 
-        $bxgy->items()->firstOrCreate(['category_id' => $tshirtsCategory->id], ['quantity' => 2]);
-        $bxgy->rewards()->firstOrCreate(['category_id' => $tshirtsCategory->id], ['quantity' => 1]);
+        $bxgy->items()->firstOrCreate(['category_id' => $jacketsCategory->id], ['quantity' => 2]);
+        $bxgy->rewards()->firstOrCreate(['category_id' => $jacketsCategory->id], ['quantity' => 1]);
     }
 }

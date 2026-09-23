@@ -232,6 +232,101 @@ it('lets Vice Chairman manage categories with parent nesting and attributes with
     expect($attribute->values()->count())->toBe(1);
 });
 
+
+it('writes one size guide across every colour made in that size, and clears it when blanked', function () {
+    [$viceChairman] = p4cEmployee('Vice Chairman');
+
+    $size = Attribute::create(['name' => ['en' => 'Size'], 'sort_order' => 0]);
+    $colour = Attribute::create(['name' => ['en' => 'Color'], 'sort_order' => 1]);
+    $medium = $size->values()->create(['value' => ['en' => 'M'], 'sort_order' => 0]);
+    $large = $size->values()->create(['value' => ['en' => 'L'], 'sort_order' => 1]);
+    $red = $colour->values()->create(['value' => ['en' => 'Red'], 'color_hex' => '#f00', 'sort_order' => 0]);
+    $blue = $colour->values()->create(['value' => ['en' => 'Blue'], 'color_hex' => '#00f', 'sort_order' => 1]);
+
+    $row = fn (array $valueIds) => [
+        'id' => null, 'sku' => '', 'barcode' => null, 'price' => null, 'sale_price' => null,
+        'cost_price' => null, 'status' => true, 'attribute_value_ids' => $valueIds,
+    ];
+
+    $payload = [
+        'name' => ['en' => 'Guided Tee'],
+        'price' => 150,
+        'status' => true,
+        'is_featured' => false,
+        'is_new' => false,
+        'is_on_sale' => false,
+        'sort_order' => 0,
+        'product_type' => 'real',
+        // M in two colours, L in one — the guide is typed once per size.
+        'variants' => [$row([$medium->id, $red->id]), $row([$medium->id, $blue->id]), $row([$large->id, $red->id])],
+        'size_guides' => [
+            ['attribute_value_id' => $medium->id, 'weight_min' => 60, 'weight_max' => 70],
+            ['attribute_value_id' => $large->id, 'weight_min' => 70, 'weight_max' => 85],
+        ],
+    ];
+
+    $this->actingAs($viceChairman, 'employee')->post(route('admin.products.store'), $payload)->assertRedirect();
+
+    $product = Product::where('slug', 'guided-tee')->firstOrFail();
+    $rangeOf = fn (int $valueId) => $product->variants()
+        ->whereHas('attributeValues', fn ($q) => $q->where('attribute_values.id', $valueId))
+        ->get()
+        ->map(fn (ProductVariant $v) => $v->size_guide_weight_min.'-'.$v->size_guide_weight_max)
+        ->all();
+
+    // Both M variants carry it, not just the first.
+    expect($rangeOf($medium->id))->toBe(['60.00-70.00', '60.00-70.00'])
+        ->and($rangeOf($large->id))->toBe(['70.00-85.00']);
+
+    // Blanking the M row clears it on every M variant rather than leaving
+    // the old range behind.
+    $update = [
+        ...$payload,
+        'sku' => $product->sku,
+        'variants' => $product->variants->map(fn (ProductVariant $v) => [
+            'id' => $v->id, 'sku' => $v->sku, 'barcode' => null, 'price' => null, 'sale_price' => null,
+            'cost_price' => null, 'status' => true,
+            'attribute_value_ids' => $v->attributeValues->pluck('id')->all(),
+        ])->all(),
+        'size_guides' => [
+            ['attribute_value_id' => $medium->id, 'weight_min' => null, 'weight_max' => null],
+            ['attribute_value_id' => $large->id, 'weight_min' => 70, 'weight_max' => 85],
+        ],
+    ];
+
+    $this->actingAs($viceChairman, 'employee')->put(route('admin.products.update', $product), $update)->assertRedirect();
+
+    $product->load('variants.attributeValues');
+    expect($rangeOf($medium->id))->toBe(['-', '-'])
+        ->and($rangeOf($large->id))->toBe(['70.00-85.00']);
+});
+
+it('rejects a size guide whose maximum weight is below its minimum', function () {
+    [$viceChairman] = p4cEmployee('Vice Chairman');
+
+    $size = Attribute::create(['name' => ['en' => 'Size'], 'sort_order' => 0]);
+    $medium = $size->values()->create(['value' => ['en' => 'M'], 'sort_order' => 0]);
+
+    $this->actingAs($viceChairman, 'employee')
+        ->post(route('admin.products.store'), [
+            'name' => ['en' => 'Backwards Tee'],
+            'price' => 150,
+            'status' => true,
+            'is_featured' => false,
+            'is_new' => false,
+            'is_on_sale' => false,
+            'sort_order' => 0,
+            'product_type' => 'real',
+            'variants' => [[
+                'id' => null, 'sku' => '', 'barcode' => null, 'price' => null, 'sale_price' => null,
+                'cost_price' => null, 'status' => true, 'attribute_value_ids' => [$medium->id],
+            ]],
+            'size_guides' => [['attribute_value_id' => $medium->id, 'weight_min' => 80, 'weight_max' => 60]],
+        ])
+        ->assertSessionHasErrors('size_guides.0.weight_max');
+
+    expect(Product::where('slug', 'backwards-tee')->exists())->toBeFalse();
+});
 it('blocks a Checking employee from the catalog screens (no products.view)', function () {
     [$checker] = p4cEmployee('Checking');
 

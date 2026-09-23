@@ -24,6 +24,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -130,7 +131,7 @@ class ProductController extends Controller implements HasMiddleware
             $product = Product::create($this->productFields($data));
             $product->categories()->sync($data['category_ids'] ?? []);
             $product->collections()->sync($data['collection_ids'] ?? []);
-            $this->syncVariants($product, $data['variants']);
+            $this->syncVariants($product, $data['variants'], $data['size_guides'] ?? []);
             $this->attachImages($product, $request, $data);
 
             return $product;
@@ -310,7 +311,7 @@ class ProductController extends Controller implements HasMiddleware
             $product->update($this->productFields($data));
             $product->categories()->sync($data['category_ids'] ?? []);
             $product->collections()->sync($data['collection_ids'] ?? []);
-            $this->syncVariants($product, $data['variants']);
+            $this->syncVariants($product, $data['variants'], $data['size_guides'] ?? []);
             $this->attachImages($product, $request, $data);
         });
 
@@ -412,6 +413,16 @@ class ProductController extends Controller implements HasMiddleware
             'variants.*.status' => ['required', 'boolean'],
             'variants.*.attribute_value_ids' => ['array'],
             'variants.*.attribute_value_ids.*' => ['exists:attribute_values,id'],
+            // Per size, not per variant. The columns live on
+            // product_variants, but a weight range is a property of the
+            // size — "M fits 60–70 kg" is true of every colour it is made
+            // in — so the form edits one row per size and syncVariants()
+            // fans the value out. Keyed by the size's attribute_value_id
+            // rather than its name, which is translatable.
+            'size_guides' => ['array'],
+            'size_guides.*.attribute_value_id' => ['required', 'exists:attribute_values,id'],
+            'size_guides.*.weight_min' => ['nullable', 'numeric', 'min:0', 'max:999.99'],
+            'size_guides.*.weight_max' => ['nullable', 'numeric', 'min:0', 'max:999.99', 'gte:size_guides.*.weight_min'],
             'images' => ['array'],
             'images.*' => ImageUpload::RULES,
             // Parallel to `images` by index: which colour each new photo
@@ -463,14 +474,25 @@ class ProductController extends Controller implements HasMiddleware
      * already has. Nothing the request says about a variant SKU is ever
      * written.
      *
+     * The size guide is written here too, from the per-size rows rather
+     * than from the variant row — see the `size_guides` rules. It is set
+     * on every variant on every save, including back to null, so the form
+     * stays the whole truth about it: a size cleared on the form clears
+     * on every variant made in that size.
+     *
      * @param  array<int, array<string, mixed>>  $variants
+     * @param  array<int, array<string, mixed>>  $sizeGuides
      */
-    private function syncVariants(Product $product, array $variants): void
+    private function syncVariants(Product $product, array $variants, array $sizeGuides = []): void
     {
+        $weights = collect($sizeGuides)->keyBy('attribute_value_id');
         $keepIds = [];
 
         foreach ($variants as $variantData) {
-            $fields = collect($variantData)->except(['id', 'attribute_value_ids', 'sku'])->all();
+            $fields = [
+                ...collect($variantData)->except(['id', 'attribute_value_ids', 'sku'])->all(),
+                ...$this->sizeGuideFor($variantData['attribute_value_ids'] ?? [], $weights),
+            ];
 
             $variant = isset($variantData['id'])
                 ? tap(ProductVariant::findOrFail($variantData['id']), fn ($v) => $v->update($fields))
@@ -482,6 +504,31 @@ class ProductController extends Controller implements HasMiddleware
         }
 
         $this->removeDroppedVariants($product, $keepIds);
+    }
+
+    /**
+     * The weight range for whichever of a variant's attribute values has
+     * a size-guide row, or a pair of nulls when none does. Matching on
+     * the posted rows rather than on "which attribute is Size" keeps this
+     * from needing a second lookup: only sizes get rows in the first
+     * place, because only sizes are rendered in the form's size table.
+     *
+     * @param  array<int, mixed>  $attributeValueIds
+     * @param  Collection<int, array<string, mixed>>  $weights
+     * @return array{size_guide_weight_min: mixed, size_guide_weight_max: mixed}
+     */
+    private function sizeGuideFor(array $attributeValueIds, Collection $weights): array
+    {
+        foreach ($attributeValueIds as $id) {
+            if ($weights->has((int) $id)) {
+                return [
+                    'size_guide_weight_min' => $weights[(int) $id]['weight_min'] ?? null,
+                    'size_guide_weight_max' => $weights[(int) $id]['weight_max'] ?? null,
+                ];
+            }
+        }
+
+        return ['size_guide_weight_min' => null, 'size_guide_weight_max' => null];
     }
 
     /**
@@ -587,6 +634,14 @@ class ProductController extends Controller implements HasMiddleware
             // variant-selected values to just these for image tagging.
             'colorAttributeIds' => $attributes
                 ->filter(fn (Attribute $attribute) => strtolower($attribute->getTranslation('name', 'en')) === 'color')
+                ->map(fn (Attribute $attribute) => $attribute->id)
+                ->values()
+                ->all(),
+            // Same trick for sizes: the size-guide table needs to know
+            // which selected values are sizes, and the English name is
+            // the only stable handle for that.
+            'sizeAttributeIds' => $attributes
+                ->filter(fn (Attribute $attribute) => strtolower($attribute->getTranslation('name', 'en')) === 'size')
                 ->map(fn (Attribute $attribute) => $attribute->id)
                 ->values()
                 ->all(),

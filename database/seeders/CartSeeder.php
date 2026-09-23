@@ -22,12 +22,12 @@ class CartSeeder extends Seeder
         $customer = Customer::where('email', 'sara@waqar.test')->first();
         if ($customer !== null) {
             $cart = Cart::firstOrCreate(['customer_id' => $customer->id]);
-            $this->addItem($cart, 'PMS-007', 1);
-            $this->addItem($cart, 'KIM-004', 2);
+            $this->addItem($cart, 'PRD-003', 1);
+            $this->addItem($cart, 'PRD-002', 2);
         }
 
         $guestCart = Cart::firstOrCreate(['session_token' => 'demo-guest-session-token']);
-        $this->addItem($guestCart, 'TSP-005', 1);
+        $this->addItem($guestCart, 'PRD-005', 1);
     }
 
     private function addItem(Cart $cart, string $sku, int $quantity): void

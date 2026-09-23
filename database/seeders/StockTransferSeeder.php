@@ -36,7 +36,7 @@ class StockTransferSeeder extends Seeder
             return;
         }
 
-        $variants = collect(['TSP-005', 'PMS-007'])
+        $variants = collect(['PRD-004', 'PRD-005'])
             ->map(fn (string $sku) => Product::where('sku', $sku)->first()?->variants()->first())
             ->filter();
 

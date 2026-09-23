@@ -15,9 +15,11 @@ use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 /**
- * A storefront-ready fashion catalogue derived from Frontend template's
- * Product.json. Its source images are blank placeholders, so this seeder
- * creates labelled SVG catalogue art in the real Media Library collection.
+ * The storefront catalogue: five jackets in one "Jackets" category, with
+ * real photos from database/seeders/products/product_<n>/. Photos are named
+ * product<n>_color<c>_<i> — the colour index <c> maps to the product's
+ * `colors` list below, and each photo is tagged with that colour's
+ * attribute_value_id so the product page swaps images with the colour.
  */
 class ProductSeeder extends Seeder
 {
@@ -27,10 +29,10 @@ class ProductSeeder extends Seeder
     {
         $warehouse = Warehouse::first();
         $attributes = $this->attributes();
-        $categories = $this->categories();
+        $category = $this->category();
         $collections = $this->collections();
 
-        foreach ($this->catalogue() as $sortOrder => $item) {
+        foreach ($this->catalogue() as $index => $item) {
             $product = Product::updateOrCreate(
                 ['sku' => $item['sku']],
                 [
@@ -45,19 +47,19 @@ class ProductSeeder extends Seeder
                     'is_featured' => $item['featured'],
                     'is_new' => $item['new'],
                     'is_on_sale' => $item['sale_price'] !== null,
-                    'sort_order' => $sortOrder + 1,
+                    'sort_order' => $index + 1,
                     'meta_title' => ['en' => $item['name'], 'ar' => $item['ar_name']],
                     'meta_description' => ['en' => $item['short'], 'ar' => $item['ar_short']],
-                    'product_type' => $item['type'],
-                    'inventory_tracking_enabled' => $item['type'] === ProductType::Real,
+                    'product_type' => ProductType::Real,
+                    'inventory_tracking_enabled' => true,
                 ],
             );
 
-            $product->categories()->sync($this->ids($categories, $item['categories']));
-            $product->collections()->sync($this->ids($collections, $item['collections']));
+            $product->categories()->sync([$category->id]);
+            $product->collections()->sync(array_map(fn (string $key) => $collections[$key]->id, $item['collections']));
 
             $this->seedVariants($product, $item, $attributes, $warehouse);
-            $this->attachPlaceholderImages($product, $item);
+            $this->attachImages($product, $index + 1, $item['colors'], $attributes);
         }
     }
 
@@ -76,17 +78,17 @@ class ProductSeeder extends Seeder
         $values = [];
         foreach ([
             ['Black', 'أسود', '#1F1F1F'],
-            ['White', 'أبيض', '#F6EFDD'],
-            ['Red', 'أحمر', '#DB4444'],
-            ['Yellow', 'أصفر', '#ECB018'],
-            ['Purple', 'بنفسجي', '#8684D4'],
-            ['Pink', 'وردي', '#F4407D'],
-            ['Green', 'أخضر', '#5B9A6A'],
-            ['Blue', 'أزرق', '#5277B8'],
-            ['Grey', 'رمادي', '#9AA0A6'],
-            ['Camel', 'جملي', '#B5794A'],
             ['Navy', 'كحلي', '#243B64'],
-            ['Olive', 'زيتي', '#737A42'],
+            ['Charcoal', 'فحمي', '#4A4E54'],
+            ['Teal', 'أزرق مخضر', '#2F5D62'],
+            ['Green', 'أخضر', '#1F5C3A'],
+            ['Forest Green', 'أخضر غامق', '#2E4A34'],
+            ['Olive', 'زيتي', '#4B5238'],
+            ['Khaki', 'كاكي', '#7A7458'],
+            ['Royal Blue', 'أزرق ملكي', '#1F4FB5'],
+            ['Burgundy', 'نبيتي', '#6B1F2E'],
+            ['Taupe', 'بيج رمادي', '#A58F7A'],
+            ['Brown', 'بني', '#5A3423'],
         ] as $sortOrder => [$name, $ar, $hex]) {
             $values['color:'.$name] = AttributeValue::firstOrCreate(
                 ['attribute_id' => $color->id, 'value->en' => $name],
@@ -94,36 +96,27 @@ class ProductSeeder extends Seeder
             );
         }
 
-        foreach (['XS', 'S', 'M', 'L', 'XL', 'One Size'] as $sortOrder => $name) {
+        foreach (['S', 'M', 'L', 'XL'] as $sortOrder => $name) {
             $values['size:'.$name] = AttributeValue::firstOrCreate(
                 ['attribute_id' => $size->id, 'value->en' => $name],
-                ['value' => ['en' => $name, 'ar' => $name === 'One Size' ? 'مقاس واحد' : $name], 'sort_order' => $sortOrder + 1],
+                ['value' => ['en' => $name, 'ar' => $name], 'sort_order' => $sortOrder + 1],
             );
         }
 
         return $values;
     }
 
-    /** @return array<string, Category> */
-    private function categories(): array
+    private function category(): Category
     {
-        $definitions = [
-            'tops' => ['Tops', 'توبات', 'Shirts, blouses and easy everyday layers.'],
-            't-shirts' => ['T-Shirts', 'تي شيرتات', 'Comfortable wardrobe staples for every day.'],
-            'dresses' => ['Dresses', 'فساتين', 'Effortless dresses for daytime and evenings out.'],
-            'outerwear' => ['Outerwear', 'ملابس خارجية', 'Jackets and polished layers for cooler days.'],
-            'bottoms' => ['Bottoms', 'بناطيل', 'Tailored trousers, denim and relaxed bottoms.'],
-        ];
-
-        $models = [];
-        foreach ($definitions as $slug => [$name, $ar, $description]) {
-            $models[$slug] = Category::updateOrCreate(
-                ['slug' => $slug],
-                ['name' => ['en' => $name, 'ar' => $ar], 'description' => ['en' => $description, 'ar' => $ar], 'status' => true, 'sort_order' => count($models) + 1],
-            );
-        }
-
-        return $models;
+        return Category::updateOrCreate(
+            ['slug' => 'jackets'],
+            [
+                'name' => ['en' => 'Jackets', 'ar' => 'جاكيتات'],
+                'description' => ['en' => 'Coats, bombers and everyday jackets for every season.', 'ar' => 'معاطف وجاكيتات بومبر وجاكيتات يومية لكل المواسم.'],
+                'status' => true,
+                'sort_order' => 1,
+            ],
+        );
     }
 
     /** @return array<string, Collection> */
@@ -153,7 +146,7 @@ class ProductSeeder extends Seeder
         foreach ($item['colors'] as $colorIndex => $color) {
             foreach ($item['sizes'] as $sizeIndex => $size) {
                 $variant = ProductVariant::updateOrCreate(
-                    ['sku' => $item['sku'].'-'.strtoupper(str_replace(' ', '-', $color)).'-'.strtoupper(str_replace(' ', '-', $size))],
+                    ['sku' => $item['sku'].'-'.strtoupper(str_replace(' ', '-', $color)).'-'.$size],
                     [
                         'product_id' => $product->id,
                         'price' => $item['price'],
@@ -167,7 +160,7 @@ class ProductSeeder extends Seeder
 
                 $variant->attributeValues()->sync([$attributes['color:'.$color]->id, $attributes['size:'.$size]->id]);
 
-                if ($warehouse !== null && $item['type'] === ProductType::Real) {
+                if ($warehouse !== null) {
                     WarehouseInventory::updateOrCreate(
                         ['warehouse_id' => $warehouse->id, 'product_variant_id' => $variant->id],
                         ['quantity' => 12 + (($colorIndex + $sizeIndex) * 4), 'reserved_quantity' => 0],
@@ -177,111 +170,61 @@ class ProductSeeder extends Seeder
         }
     }
 
-    /** @return array{0: int|null, 1: int|null} */
+    /** @return array{0: int, 1: int} */
     private function sizeRange(string $size): array
     {
         return match ($size) {
-            'XS' => [40, 52], 'S' => [50, 62], 'M' => [60, 75], 'L' => [73, 88], 'XL' => [85, 105],
-            default => [null, null],
+            'S' => [55, 68], 'M' => [66, 80], 'L' => [78, 92], 'XL' => [90, 110],
         };
     }
 
-    private function attachPlaceholderImages(Product $product, array $item): void
+    /**
+     * @param  array<int, string>  $colors
+     * @param  array<string, AttributeValue>  $attributes
+     */
+    private function attachImages(Product $product, int $number, array $colors, array $attributes): void
     {
         if ($product->getMedia('product_images')->isNotEmpty()) {
             return;
         }
 
-        $availableImages = [
-            base_path('1.jpeg'),
-            base_path('2.jpeg'),
-            base_path('3.jpeg'),
-            base_path('4.jpeg'),
-            base_path('5.jpeg'),
-        ];
+        foreach ($colors as $colorIndex => $color) {
+            $files = glob(__DIR__."/products/product_{$number}/product{$number}_color".($colorIndex + 1).'_*') ?: [];
+            sort($files, SORT_NATURAL);
 
-        // Filter out non-existent images
-        $existingImages = array_filter($availableImages, fn ($path) => file_exists($path));
-
-        if (! empty($existingImages)) {
-            // Attach up to 4 random images for each product from the available jpegs
-            $count = min(4, count($existingImages));
-            $randomKeys = (array) array_rand($existingImages, $count);
-
-            // To ensure we get array of keys even if count is 1
-            if ($count === 1) {
-                $randomKeys = [$randomKeys];
-            }
-
-            foreach ($randomKeys as $key) {
-                $product->addMedia($existingImages[$key])
+            foreach ($files as $file) {
+                $product->addMedia($file)
                     ->preservingOriginal()
-                    ->toMediaCollection('product_images');
-            }
-        } else {
-            foreach ([$item['art'], $item['art_alt']] as $index => $color) {
-                $product->addMediaFromString($this->productArt($item['name'], $item['short'], $color, $index === 1))
-                    ->usingFileName($product->slug.'-'.($index + 1).'.svg')
+                    ->withCustomProperties(['attribute_value_id' => $attributes['color:'.$color]->id])
                     ->toMediaCollection('product_images');
             }
         }
     }
 
-    private function productArt(string $name, string $short, string $color, bool $alternate): string
-    {
-        $safeName = htmlspecialchars($name, ENT_XML1 | ENT_QUOTES, 'UTF-8');
-        $safeShort = htmlspecialchars($short, ENT_XML1 | ENT_QUOTES, 'UTF-8');
-        $accent = $alternate ? '#F6EFDD' : '#FFFFFF';
-        $shape = $alternate
-            ? '<path d="M290 214l92-56 92 56 36 182H254l36-182z" fill="'.$accent.'" opacity=".92"/>'
-            : '<path d="M275 195l42-52h98l42 52 56 41-33 191H252l-33-191 56-40z" fill="'.$accent.'" opacity=".92"/>';
-
-        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 1024" role="img" aria-label="'.$safeName.' demo image">'
-            .'<rect width="768" height="1024" fill="'.$color.'"/><circle cx="622" cy="148" r="160" fill="#fff" opacity=".11"/>'
-            .'<circle cx="90" cy="875" r="210" fill="#000" opacity=".06"/>'.$shape
-            .'<text x="64" y="820" fill="#fff" font-family="Arial, sans-serif" font-size="35" font-weight="700">'.strtoupper($safeName).'</text>'
-            .'<text x="64" y="868" fill="#fff" font-family="Arial, sans-serif" font-size="23" opacity=".84">'.$safeShort.'</text>'
-            .'<text x="64" y="946" fill="#fff" font-family="Arial, sans-serif" font-size="18" letter-spacing="4" opacity=".72">WAQAR / DEMO EDIT</text></svg>';
-    }
-
-    /** @param array<string, Category|Collection> $models @param array<int, string> $keys @return array<int, int> */
-    private function ids(array $models, array $keys): array
-    {
-        return array_map(fn (string $key) => $models[$key]->id, $keys);
-    }
-
     /** @return array<int, array<string, mixed>> */
     private function catalogue(): array
     {
+        // Order matters: entry <n> uses the photos in products/product_<n>/.
         return [
-            $this->item('MSH-001', 'mesh-shirt', 'Mesh Shirt', 'قميص شبكي', 112, null, true, true, ['tops'], ['new-arrivals', 'occasion-ready'], ['Red', 'Yellow'], ['S', 'M', 'L', 'XL'], '#DB4444', '#ECB018'),
-            $this->item('RAG-002', 'raglan-sleeve-t-shirt', 'Raglan Sleeve T-Shirt', 'تي شيرت بأكمام راغلان', 98, null, true, true, ['t-shirts'], ['new-arrivals', 'everyday-essentials'], ['White', 'Purple'], ['XS', 'S', 'M', 'L', 'XL'], '#F6EFDD', '#8684D4'),
-            $this->item('BLU-003', 'off-the-shoulder-blouse', 'Off-the-Shoulder Blouse', 'بلوزة بأكتاف مكشوفة', 160, 128, false, true, ['tops'], ['occasion-ready'], ['Pink', 'Yellow', 'Purple'], ['One Size'], '#F4407D', '#ECB018'),
-            $this->item('KIM-004', 'kimono-sleeve-top', 'Kimono Sleeve Top', 'توب بأكمام كيمونو', 132, 99, false, true, ['tops'], ['autumn-edit'], ['Red', 'White', 'Purple'], ['M', 'L', 'XL'], '#DB4444', '#F6EFDD'),
-            $this->item('TSP-005', 't-shirt-pockets', 'T-Shirt Pockets', 'تي شيرت بجيوب', 120, 102, false, true, ['t-shirts'], ['everyday-essentials'], ['Green', 'Red', 'Yellow'], ['S', 'L', 'XL'], '#5B9A6A', '#DB4444'),
-            $this->item('FLT-006', 'faux-leather-trousers', 'Faux-Leather Trousers', 'بنطال جلد صناعي', 250, 200, false, true, ['bottoms'], ['autumn-edit', 'occasion-ready'], ['Black', 'Camel'], ['S', 'M', 'L'], '#1F1F1F', '#B5794A'),
-            $this->item('PMS-007', 'pleated-midi-skirt', 'Pleated Midi Skirt', 'تنورة ميدي بكسرات', 210, null, true, false, ['bottoms'], ['new-arrivals', 'occasion-ready'], ['Navy', 'Pink'], ['S', 'M', 'L'], '#243B64', '#F4407D'),
-            $this->item('SSD-008', 'satin-slip-dress', 'Satin Slip Dress', 'فستان ساتان انسيابي', 340, 272, false, true, ['dresses'], ['occasion-ready'], ['Olive', 'Black'], ['S', 'M', 'L'], '#737A42', '#1F1F1F'),
-            $this->item('MDS-009', 'floral-midi-dress', 'Floral Midi Dress', 'فستان ميدي مزهر', 310, null, true, true, ['dresses'], ['new-arrivals', 'occasion-ready'], ['Yellow', 'Blue'], ['S', 'M', 'L', 'XL'], '#ECB018', '#5277B8'),
-            $this->item('OSJ-010', 'oversized-denim-jacket', 'Oversized Denim Jacket', 'جاكيت جينز واسع', 420, null, true, true, ['outerwear'], ['new-arrivals', 'autumn-edit'], ['Blue', 'Grey'], ['S', 'M', 'L'], '#5277B8', '#9AA0A6'),
-            $this->item('RKC-011', 'ribbed-knit-cardigan', 'Ribbed Knit Cardigan', 'كارديجان محبوك مضلع', 290, 232, false, true, ['outerwear'], ['autumn-edit', 'everyday-essentials'], ['Camel', 'White'], ['S', 'M', 'L'], '#B5794A', '#F6EFDD'),
-            $this->item('WLT-012', 'wide-leg-trousers', 'Tailored Wide-Leg Trousers', 'بنطال واسع مفصل', 280, null, false, true, ['bottoms'], ['autumn-edit', 'occasion-ready'], ['Black', 'Navy'], ['S', 'M', 'L', 'XL'], '#1F1F1F', '#243B64'),
-            $this->item('CTS-013', 'classic-t-shirt', 'Classic T-Shirt', 'تي شيرت كلاسيكي', 250, null, true, true, ['t-shirts'], ['new-arrivals', 'everyday-essentials'], ['Black', 'White'], ['S', 'M', 'L'], '#1F1F1F', '#F6EFDD'),
-            $this->item('PRJ-014', 'preorder-jacket', 'Pre-Order Jacket', 'جاكيت طلب مسبق', 800, 650, false, false, ['outerwear'], ['autumn-edit'], ['Black', 'Olive'], ['S', 'M', 'L'], '#1F1F1F', '#737A42', ProductType::Advertisement),
+            $this->item('PRD-001', 'classic-car-coat', 'Classic Car Coat', 'معطف كلاسيكي', 2200, null, false, true, ['everyday-essentials', 'autumn-edit'], ['Navy', 'Charcoal', 'Teal']),
+            $this->item('PRD-002', 'retro-track-jacket', 'Retro Track Jacket', 'جاكيت رياضي ريترو', 1250, 999, true, true, ['new-arrivals', 'everyday-essentials'], ['Charcoal', 'Green', 'Royal Blue']),
+            $this->item('PRD-003', 'utility-pocket-jacket', 'Utility Pocket Jacket', 'جاكيت يوتيليتي بجيوب', 1650, null, false, true, ['autumn-edit'], ['Burgundy', 'Forest Green']),
+            $this->item('PRD-004', 'corduroy-field-jacket', 'Corduroy Field Jacket', 'جاكيت كوردروي ميداني', 1450, 1199, true, true, ['new-arrivals', 'autumn-edit'], ['Olive', 'Taupe', 'Navy', 'Khaki']),
+            $this->item('PRD-005', 'leather-bomber-jacket', 'Leather Bomber Jacket', 'جاكيت بومبر جلد', 2400, null, true, true, ['new-arrivals', 'occasion-ready'], ['Brown', 'Black']),
         ];
     }
 
     /** @return array<string, mixed> */
-    private function item(string $sku, string $slug, string $name, string $arName, float $price, ?float $salePrice, bool $new, bool $featured, array $categories, array $collections, array $colors, array $sizes, string $art, string $artAlt, ProductType $type = ProductType::Real): array
+    private function item(string $sku, string $slug, string $name, string $arName, float $price, ?float $salePrice, bool $new, bool $featured, array $collections, array $colors): array
     {
-        return compact('sku', 'slug', 'name', 'price', 'new', 'featured', 'categories', 'collections', 'colors', 'sizes', 'art', 'type') + [
+        return compact('sku', 'slug', 'name', 'price', 'new', 'featured', 'collections', 'colors') + [
             'ar_name' => $arName,
             'sale_price' => $salePrice,
-            'description' => 'A versatile '.$name.' designed for an effortless everyday wardrobe.',
+            'sizes' => ['S', 'M', 'L', 'XL'],
+            'description' => 'A versatile '.$name.' designed to layer easily over an everyday wardrobe.',
             'ar_description' => $arName.' قطعة عملية لإطلالة يومية سهلة وأنيقة.',
-            'short' => 'A considered everyday fashion staple.',
-            'ar_short' => 'قطعة أساسية مدروسة لخزانة يومية أنيقة.',
-            'art_alt' => $artAlt,
+            'short' => 'A considered everyday outerwear staple.',
+            'ar_short' => 'جاكيت أساسي مدروس لخزانة يومية أنيقة.',
         ];
     }
 }

@@ -8,7 +8,6 @@ use App\Actions\Orders\CancelOrderAction;
 use App\Actions\Orders\ConfirmDeliveryResultAction;
 use App\Actions\Orders\ConfirmHandoverAction;
 use App\Actions\Orders\ConfirmOrderAction;
-use App\Actions\Orders\MarkOrderBackorderAction;
 use App\Actions\Orders\PostponeOrderAction;
 use App\Enums\CollectedMethod;
 use App\Enums\DeliveryAssignmentType;
@@ -35,7 +34,7 @@ use Illuminate\Database\Seeder;
  * reservation/deduction, treasury postings and status history all end up
  * exactly as the real flows would leave them. Complements
  * StorefrontDemoSeeder (New, Out for Delivery, Delivered) by covering the
- * internal-ops-heavy statuses: Checking, Postponed, Backorder, Cancelled,
+ * internal-ops-heavy statuses: Checking, Postponed, Cancelled,
  * Assigned, Returned (at delivery) and Partially Returned.
  */
 class OrderOperationsDemoSeeder extends Seeder
@@ -76,7 +75,7 @@ class OrderOperationsDemoSeeder extends Seeder
         $createOrder = app(CreateOrderAction::class);
 
         // Checking — currently under review, no decision made yet.
-        $checkingOrder = $this->place($createOrder, $customer, $warehouse, $area, ['CTS-013' => 1]);
+        $checkingOrder = $this->place($createOrder, $customer, $warehouse, $area, ['PRD-001' => 1]);
         $checkingOrder->update(['status' => OrderStatus::Checking, 'customer_status' => OrderStatus::Checking->customerStatus()]);
         $checkingOrder->statusHistory()->create([
             'from_status' => OrderStatus::New->value,
@@ -86,28 +85,22 @@ class OrderOperationsDemoSeeder extends Seeder
         ]);
 
         // Postponed — Checking needs more information before confirming.
-        $postponedOrder = $this->place($createOrder, $customer, $warehouse, $area, ['RAG-002' => 1]);
+        $postponedOrder = $this->place($createOrder, $customer, $warehouse, $area, ['PRD-002' => 1]);
         (new PostponeOrderAction)->execute($postponedOrder, $checking, 'Could not reach customer to confirm delivery address.');
 
         // Cancelled — Checking rejects it outright.
-        $cancelledOrder = $this->place($createOrder, $customer, $warehouse, $area, ['MSH-001' => 1]);
+        $cancelledOrder = $this->place($createOrder, $customer, $warehouse, $area, ['PRD-003' => 1]);
         app(CancelOrderAction::class)->execute($cancelledOrder, $checking, 'Duplicate order placed by mistake.');
 
         // Confirmed — left sitting in the Delivery Manager's queue, not yet
         // assigned to anyone.
-        $confirmedOrder = $this->place($createOrder, $customer, $warehouse, $area, ['KIM-004' => 1]);
+        $confirmedOrder = $this->place($createOrder, $customer, $warehouse, $area, ['PRD-004' => 1]);
         (new ConfirmOrderAction)->execute($confirmedOrder, $checking);
-
-        // Confirmed, then Backorder — an Advertisement (pre-order) item that
-        // isn't fulfillable yet (Question 14).
-        $backorderOrder = $this->place($createOrder, $customer, $warehouse, $area, ['PRJ-014' => 1]);
-        (new ConfirmOrderAction)->execute($backorderOrder, $checking);
-        (new MarkOrderBackorderAction)->execute($backorderOrder, $deliveryManager, 'Pre-order stock not yet received from supplier.');
 
         // Confirmed → Assigned to a delivery representative, and left there
         // (order still in the courier's hands).
         if ($rep !== null) {
-            $assignedOrder = $this->place($createOrder, $customer, $warehouse, $area, ['WLT-012' => 1]);
+            $assignedOrder = $this->place($createOrder, $customer, $warehouse, $area, ['PRD-005' => 1]);
             (new ConfirmOrderAction)->execute($assignedOrder, $checking);
             app(AssignDeliveryAction::class)->execute($assignedOrder, $deliveryManager, DeliveryAssignmentType::Representative, $rep);
         }
@@ -117,7 +110,7 @@ class OrderOperationsDemoSeeder extends Seeder
             // Delivered, with Accounting collecting cash and the treasury
             // balance moving accordingly.
             if ($shippingCompany !== null) {
-                $deliveredOrder = $this->place($createOrder, $customer, $warehouse, $area, ['MDS-009' => 1, 'CTS-013' => 1]);
+                $deliveredOrder = $this->place($createOrder, $customer, $warehouse, $area, ['PRD-001' => 1, 'PRD-002' => 1]);
                 (new ConfirmOrderAction)->execute($deliveredOrder, $checking);
                 app(AssignDeliveryAction::class)->execute($deliveredOrder, $deliveryManager, DeliveryAssignmentType::ShippingCompany, $shippingCompany);
                 $this->markOutForDelivery($deliveredOrder, $deliveryManager);
@@ -130,7 +123,7 @@ class OrderOperationsDemoSeeder extends Seeder
             // Confirmed → Assigned → Out for Delivery → refused at the door
             // (Returned) — reservation released, nothing ever left stock.
             if ($rep !== null) {
-                $returnedOrder = $this->place($createOrder, $customer, $warehouse, $area, ['BLU-003' => 1]);
+                $returnedOrder = $this->place($createOrder, $customer, $warehouse, $area, ['PRD-003' => 1]);
                 (new ConfirmOrderAction)->execute($returnedOrder, $checking);
                 app(AssignDeliveryAction::class)->execute($returnedOrder, $deliveryManager, DeliveryAssignmentType::Representative, $rep);
                 $this->markOutForDelivery($returnedOrder, $deliveryManager);
@@ -142,7 +135,7 @@ class OrderOperationsDemoSeeder extends Seeder
             // Confirmed → Assigned → Out for Delivery → customer keeps one
             // line and refuses the other (Partially Returned).
             if ($rep !== null) {
-                $partialOrder = $this->place($createOrder, $customer, $warehouse, $area, ['FLT-006' => 1, 'OSJ-010' => 1]);
+                $partialOrder = $this->place($createOrder, $customer, $warehouse, $area, ['PRD-004' => 1, 'PRD-005' => 1]);
                 (new ConfirmOrderAction)->execute($partialOrder, $checking);
                 app(AssignDeliveryAction::class)->execute($partialOrder, $deliveryManager, DeliveryAssignmentType::Representative, $rep);
                 $this->markOutForDelivery($partialOrder, $deliveryManager);
@@ -165,7 +158,7 @@ class OrderOperationsDemoSeeder extends Seeder
         // employee on a guest customer's behalf.
         $createOrder->execute(
             $guestCustomer,
-            [['product_variant_id' => $this->variantFor('SSD-008')->id, 'quantity' => 1]],
+            [['product_variant_id' => $this->variantFor('PRD-001')->id, 'quantity' => 1]],
             $warehouse,
             $area->city->governorate->id,
             $area->city->id,
