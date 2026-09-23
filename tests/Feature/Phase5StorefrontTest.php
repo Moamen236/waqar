@@ -774,3 +774,18 @@ it('keeps a card-picked ?color= through the product URL redirects', function () 
     $this->get(route('product.show', ['slug' => 'old-coat', 'sku' => 'WC-1', 'color' => 7]))->assertRedirect($canonical);
     $this->get($canonical)->assertOk();
 });
+
+it('renders the About page, with every string it uses present in both languages', function () {
+    $this->get(route('pages.about'))->assertOk()->assertInertia(fn ($page) => $page->component('Pages/About'));
+
+    preg_match_all("/t\('(about\.[A-Za-z]+)'\)/", file_get_contents(resource_path('js/storefront/Pages/Pages/About.tsx')), $matches);
+    $keys = array_unique($matches[1]);
+    expect($keys)->not->toBeEmpty();
+
+    foreach (['en', 'ar'] as $locale) {
+        $strings = json_decode(file_get_contents(resource_path("js/storefront/locales/{$locale}.json")), true);
+        foreach ($keys as $key) {
+            expect($strings)->toHaveKey($key);
+        }
+    }
+});
