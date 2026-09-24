@@ -1,6 +1,9 @@
 import { Head, useForm } from '@inertiajs/react';
 import { useMemo, type FormEventHandler } from 'react';
+import FieldError from '../../../Components/Form/FieldError';
+import FormField from '../../../Components/Form/FormField';
 import AdminLayout from '../../../Layouts/AdminLayout';
+import { invalidClass, invalidProps, useClearErrorsOnChange } from '../../../lib/formErrors';
 import type { GeoGovernorate } from '../../../types';
 import { useTranslation } from '../../../lib/useTranslation';
 
@@ -28,13 +31,14 @@ export default function ShippingRateForm({
     geoTree: GeoGovernorate[];
 }) {
     const { t } = useTranslation();
-    const { data, setData, post, put, processing, errors } = useForm({
+    const { data, setData, post, put, processing, errors, clearErrors } = useForm({
         geo_type: rate?.geo_type ?? 'governorate',
         geo_id: rate?.geo_id ? String(rate.geo_id) : '',
         price: rate?.price ?? '',
         free_shipping_threshold: rate?.free_shipping_threshold ?? '',
         is_active: rate?.is_active ?? true,
     });
+    useClearErrorsOnChange(data, errors, clearErrors);
 
     // Flattened once per level so the location select is a plain list with
     // its parent shown for context ("Nasr City — Cairo"), rather than a
@@ -95,8 +99,7 @@ export default function ShippingRateForm({
                             <div className="card-body">
                                 <div className="row">
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.level')}</label>
+                                        <FormField name="geo_type" label={t('admin.level')} error={errors.geo_type} required>
                                             <select
                                                 className="form-control"
                                                 value={data.geo_type}
@@ -114,14 +117,16 @@ export default function ShippingRateForm({
                                                 <option value="district">{t('admin.district')}</option>
                                                 <option value="area">{t('admin.area')}</option>
                                             </select>
-                                            {errors.geo_type && (
-                                                <div className="text-danger fs-13 mt-1">{errors.geo_type}</div>
-                                            )}
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.location')}</label>
+                                        <FormField
+                                            name="geo_id"
+                                            label={t('admin.location')}
+                                            error={errors.geo_id}
+                                            required
+                                            hint={locations.length === 0 ? t('admin.noLocationsExistAtThisLevel') : undefined}
+                                        >
                                             <select
                                                 className="form-control"
                                                 value={data.geo_id}
@@ -134,19 +139,15 @@ export default function ShippingRateForm({
                                                     </option>
                                                 ))}
                                             </select>
-                                            {locations.length === 0 && (
-                                                <div className="text-muted fs-13 mt-1">
-                                                    {t('admin.noLocationsExistAtThisLevel')}
-                                                </div>
-                                            )}
-                                            {errors.geo_id && (
-                                                <div className="text-danger fs-13 mt-1">{errors.geo_id}</div>
-                                            )}
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.shippingPrice')}</label>
+                                        <FormField
+                                            name="price"
+                                            label={t('admin.shippingPrice')}
+                                            error={errors.price}
+                                            required
+                                        >
                                             <input
                                                 className="form-control"
                                                 type="number"
@@ -155,14 +156,15 @@ export default function ShippingRateForm({
                                                 value={data.price}
                                                 onChange={(e) => setData('price', e.target.value)}
                                             />
-                                            {errors.price && (
-                                                <div className="text-danger fs-13 mt-1">{errors.price}</div>
-                                            )}
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.freeShippingOverOptional')}</label>
+                                        <FormField
+                                            name="free_shipping_threshold"
+                                            label={t('admin.freeShippingOverOptional')}
+                                            error={errors.free_shipping_threshold}
+                                            hint={t('admin.leaveEmptyForNeverFreeAt')}
+                                        >
                                             <input
                                                 className="form-control"
                                                 type="number"
@@ -171,10 +173,7 @@ export default function ShippingRateForm({
                                                 value={data.free_shipping_threshold}
                                                 onChange={(e) => setData('free_shipping_threshold', e.target.value)}
                                             />
-                                            <div className="text-muted fs-13 mt-1">
-                                                {t('admin.leaveEmptyForNeverFreeAt')}
-                                            </div>
-                                        </div>
+                                        </FormField>
                                     </div>
                                 </div>
                             </div>
@@ -188,9 +187,9 @@ export default function ShippingRateForm({
                             <div className="card-body">
                                 <div className="form-check form-switch">
                                     <input
-                                        className="form-check-input"
+                                        className={`form-check-input${invalidClass(errors.is_active)}`}
                                         type="checkbox"
-                                        id="rate-active"
+                                        {...invalidProps('is_active', errors.is_active, 'rate-active')}
                                         checked={data.is_active}
                                         onChange={(e) => setData('is_active', e.target.checked)}
                                     />
@@ -198,6 +197,7 @@ export default function ShippingRateForm({
                                         {t('admin.active')}
                                     </label>
                                 </div>
+                                <FieldError name="is_active" message={errors.is_active} id="rate-active" />
                                 <p className="text-muted fs-13 mt-2 mb-0">{t('admin.inactiveRateExplainer')}</p>
                             </div>
                         </div>

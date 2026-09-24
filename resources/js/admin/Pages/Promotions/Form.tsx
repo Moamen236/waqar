@@ -1,7 +1,10 @@
 import { Head, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { type UseFieldArrayReturn, useFieldArray, useForm } from 'react-hook-form';
+import FieldError from '../../Components/Form/FieldError';
+import FormField from '../../Components/Form/FormField';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { invalidClass, invalidProps, useClearServerErrorsOnChange } from '../../lib/formErrors';
 import { useTranslation } from '../../lib/useTranslation';
 
 type TargetType = 'variant' | 'category' | 'collection';
@@ -122,6 +125,30 @@ export default function PromotionForm({
     const rewardsArray = useFieldArray({ control, name: 'rewards' });
     const type = watch('type');
 
+    const sentRows = useRef<{ items: number[]; rewards: number[] }>({ items: [], rewards: [] });
+    // Form names → the keys the server answers with (see onSubmit's payload).
+    useClearServerErrorsOnChange(watch, setServerErrors, (name) => {
+        if (name === 'name_en') return 'name.en';
+        if (name === 'description_en') return 'description.en';
+        if (name.startsWith('items.')) return 'items';
+        if (name.startsWith('rewards.')) return 'rewards';
+
+        return name;
+    });
+
+    /** The server key for a field on a form row, or null if that row wasn't sent. */
+    function rowKey(list: 'items' | 'rewards', formIndex: number, field: string): string | null {
+        const sentIndex = sentRows.current[list].indexOf(formIndex);
+
+        return sentIndex === -1 ? null : `${list}.${sentIndex}.${field}`;
+    }
+
+    const TARGET_FIELD: Record<TargetType, string> = {
+        variant: 'product_variant_id',
+        category: 'category_id',
+        collection: 'collection_id',
+    };
+
     function optionsFor(targetType: TargetType): Option[] {
         if (targetType === 'variant') return variants;
         if (targetType === 'category') return categories;
@@ -144,6 +171,14 @@ export default function PromotionForm({
             is_active: values.is_active,
             items: toPayload(values.items),
             rewards: values.type === 'buy_x_get_y' ? toPayload(values.rewards) : [],
+        };
+
+        // toPayload() drops rows with no target, so the server's
+        // `items.2` may be the form's fourth row. Remember which form row
+        // each sent row came from, to put its error back on that row.
+        sentRows.current = {
+            items: values.items.flatMap((row, i) => (row.target_id !== null ? [i] : [])),
+            rewards: values.rewards.flatMap((row, i) => (row.target_id !== null ? [i] : [])),
         };
 
         const options = { onError: (errors: Record<string, string>) => setServerErrors(errors) };
@@ -176,6 +211,8 @@ export default function PromotionForm({
                         <tbody>
                             {array.fields.map((field, index) => {
                                 const targetType = watch(`${name}.${index}.target_type`);
+                                const targetKey = rowKey(name, index, TARGET_FIELD[targetType]);
+                                const quantityKey = rowKey(name, index, 'quantity');
                                 return (
                                     <tr key={field.id}>
                                         <td>
@@ -189,25 +226,37 @@ export default function PromotionForm({
                                             </select>
                                         </td>
                                         <td>
-                                            <select
-                                                className="form-control form-control-sm"
-                                                {...register(`${name}.${index}.target_id`, { valueAsNumber: true })}
+                                            <FormField
+                                                name={targetKey ?? `${name}.${index}.target_id`}
+                                                error={targetKey ? serverErrors[targetKey] : undefined}
+                                                className=""
                                             >
-                                                <option value="">{t('admin.select')}</option>
-                                                {optionsFor(targetType).map((o) => (
-                                                    <option key={o.id} value={o.id}>
-                                                        {o.label ?? o.name}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                <select
+                                                    className="form-control form-control-sm"
+                                                    {...register(`${name}.${index}.target_id`, { valueAsNumber: true })}
+                                                >
+                                                    <option value="">{t('admin.select')}</option>
+                                                    {optionsFor(targetType).map((o) => (
+                                                        <option key={o.id} value={o.id}>
+                                                            {o.label ?? o.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </FormField>
                                         </td>
                                         <td>
-                                            <input
-                                                type="number"
-                                                min={1}
-                                                className="form-control form-control-sm"
-                                                {...register(`${name}.${index}.quantity`, { valueAsNumber: true })}
-                                            />
+                                            <FormField
+                                                name={quantityKey ?? `${name}.${index}.quantity`}
+                                                error={quantityKey ? serverErrors[quantityKey] : undefined}
+                                                className=""
+                                            >
+                                                <input
+                                                    type="number"
+                                                    min={1}
+                                                    className="form-control form-control-sm"
+                                                    {...register(`${name}.${index}.quantity`, { valueAsNumber: true })}
+                                                />
+                                            </FormField>
                                         </td>
                                         <td>
                                             <button
@@ -224,6 +273,8 @@ export default function PromotionForm({
                         </tbody>
                     </table>
                 </div>
+                {/* About the list as a whole — empty, or missing for Buy X Get Y. */}
+                <FieldError name={name} message={serverErrors[name]} />
                 <button
                     type="button"
                     className="btn btn-sm btn-outline-secondary"
@@ -251,54 +302,64 @@ export default function PromotionForm({
                             <div className="card-body">
                                 <div className="row">
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.nameEnglish')}</label>
+                                        <FormField
+                                            name="name.en"
+                                            label={t('admin.nameEnglish')}
+                                            error={serverErrors['name.en']}
+                                            required
+                                        >
                                             <input className="form-control" {...register('name_en')} />
-                                            {serverErrors['name.en'] && (
-                                                <div className="text-danger small mt-1">{serverErrors['name.en']}</div>
-                                            )}
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.type')}</label>
+                                        <FormField name="type" label={t('admin.type')} error={serverErrors.type} required>
                                             <select className="form-control" {...register('type')}>
                                                 <option value="bundle">{t('admin.bundle')}</option>
                                                 <option value="buy_x_get_y">{t('admin.buyXGetY')}</option>
                                             </select>
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-12">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.descriptionEnglish')}</label>
+                                        <FormField
+                                            name="description.en"
+                                            label={t('admin.descriptionEnglish')}
+                                            error={serverErrors['description.en']}
+                                        >
                                             <textarea
                                                 className="form-control"
                                                 rows={2}
                                                 {...register('description_en')}
                                             />
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.discountType')}</label>
+                                        <FormField
+                                            name="discount_type"
+                                            label={t('admin.discountType')}
+                                            error={serverErrors.discount_type}
+                                            required
+                                        >
                                             <select className="form-control" {...register('discount_type')}>
                                                 <option value="percentage">{t('admin.percentage')}</option>
                                                 <option value="fixed_amount">{t('admin.fixedAmount')}</option>
                                                 <option value="fixed_price">{t('admin.fixedPrice')}</option>
                                                 <option value="free">{t('admin.free')}</option>
                                             </select>
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.discountValue')}</label>
+                                        <FormField
+                                            name="discount_value"
+                                            label={t('admin.discountValue')}
+                                            error={serverErrors.discount_value}
+                                        >
                                             <input
                                                 type="number"
                                                 step="0.01"
                                                 className="form-control"
                                                 {...register('discount_value')}
                                             />
-                                        </div>
+                                        </FormField>
                                     </div>
                                 </div>
                             </div>
@@ -333,55 +394,73 @@ export default function PromotionForm({
                                 <h4 className="card-title">{t('admin.rules')}</h4>
                             </div>
                             <div className="card-body">
-                                <div className="mb-3">
-                                    <label className="form-label">{t('admin.startsAt')}</label>
+                                <FormField name="starts_at" label={t('admin.startsAt')} error={serverErrors.starts_at}>
                                     <input type="datetime-local" className="form-control" {...register('starts_at')} />
-                                </div>
-                                <div className="mb-3">
-                                    <label className="form-label">{t('admin.endsAt')}</label>
+                                </FormField>
+                                <FormField name="ends_at" label={t('admin.endsAt')} error={serverErrors.ends_at}>
                                     <input type="datetime-local" className="form-control" {...register('ends_at')} />
-                                </div>
-                                <div className="mb-3">
-                                    <label className="form-label">{t('admin.priority')}</label>
+                                </FormField>
+                                <FormField
+                                    name="priority"
+                                    label={t('admin.priority')}
+                                    error={serverErrors.priority}
+                                    required
+                                >
                                     <input
                                         type="number"
                                         className="form-control"
                                         {...register('priority', { valueAsNumber: true })}
                                     />
-                                </div>
-                                <div className="mb-3">
-                                    <label className="form-label">{t('admin.usageLimitTotal')}</label>
+                                </FormField>
+                                <FormField
+                                    name="usage_limit"
+                                    label={t('admin.usageLimitTotal')}
+                                    error={serverErrors.usage_limit}
+                                >
                                     <input type="number" className="form-control" {...register('usage_limit')} />
-                                </div>
-                                <div className="mb-3">
-                                    <label className="form-label">{t('admin.usageLimitPerCustomer')}</label>
+                                </FormField>
+                                <FormField
+                                    name="usage_limit_per_customer"
+                                    label={t('admin.usageLimitPerCustomer')}
+                                    error={serverErrors.usage_limit_per_customer}
+                                >
                                     <input
                                         type="number"
                                         className="form-control"
                                         {...register('usage_limit_per_customer')}
                                     />
-                                </div>
+                                </FormField>
                                 <div className="form-check mb-2">
                                     <input
                                         type="checkbox"
-                                        className="form-check-input"
-                                        id="stackable"
+                                        className={`form-check-input${invalidClass(serverErrors.stackable_with_coupons)}`}
+                                        {...invalidProps(
+                                            'stackable_with_coupons',
+                                            serverErrors.stackable_with_coupons,
+                                            'stackable',
+                                        )}
                                         {...register('stackable_with_coupons')}
                                     />
                                     <label className="form-check-label" htmlFor="stackable">
                                         {t('admin.stackableWithCoupons')}
                                     </label>
+                                    <FieldError
+                                        name="stackable_with_coupons"
+                                        message={serverErrors.stackable_with_coupons}
+                                        id="stackable"
+                                    />
                                 </div>
                                 <div className="form-check mb-3">
                                     <input
                                         type="checkbox"
-                                        className="form-check-input"
-                                        id="active"
+                                        className={`form-check-input${invalidClass(serverErrors.is_active)}`}
+                                        {...invalidProps('is_active', serverErrors.is_active, 'active')}
                                         {...register('is_active')}
                                     />
                                     <label className="form-check-label" htmlFor="active">
                                         {t('admin.active')}
                                     </label>
+                                    <FieldError name="is_active" message={serverErrors.is_active} id="active" />
                                 </div>
                             </div>
                             <div className="card-footer border-top">

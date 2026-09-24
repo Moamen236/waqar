@@ -116,6 +116,47 @@ export default function CheckoutIndex({
             area_id: address.area_id,
             address_line: address.address_line,
         }));
+        form.clearErrors();
+    };
+
+    // Every field shows its own server error right under it, and editing a
+    // field clears its message.
+    type TextField = 'email' | 'name' | 'phone' | 'address_line';
+    const setField = (field: TextField, value: string) => {
+        form.setData(field, value);
+        form.clearErrors(field);
+    };
+    const fieldProps = (field: TextField) => ({
+        id: `checkout-${field}`,
+        'aria-invalid': form.errors[field] ? true : undefined,
+        'aria-describedby': form.errors[field] ? `checkout-${field}-error` : undefined,
+        className: `border px-4 py-3 w-full rounded-lg ${form.errors[field] ? 'border-red' : 'border-line'}`,
+    });
+    const fieldError = (field: TextField) =>
+        form.errors[field] ? (
+            <div id={`checkout-${field}-error`} className="caption1 text-red mt-1">
+                {form.errors[field]}
+            </div>
+        ) : null;
+
+    // After a rejected submit, bring the first invalid field into view: the
+    // button sits far below the contact fields, so their errors would
+    // otherwise be off-screen.
+    const fieldOrder = [
+        ['email', 'checkout-email'],
+        ['name', 'checkout-name'],
+        ['phone', 'checkout-phone'],
+        ['governorate_id', 'checkout-governorate'],
+        ['city_id', 'checkout-city'],
+        ['district_id', 'checkout-district'],
+        ['area_id', 'checkout-area'],
+        ['address_line', 'checkout-address_line'],
+    ];
+    const focusFirstError = (errors: Record<string, string>) => {
+        const id = fieldOrder.find(([field]) => field in errors)?.[1];
+        const element = id ? document.getElementById(id) : null;
+        element?.scrollIntoView({ block: 'center' });
+        element?.focus({ preventScroll: true });
     };
 
     return (
@@ -129,7 +170,10 @@ export default function CheckoutIndex({
                             <form
                                 onSubmit={(event) => {
                                     event.preventDefault();
-                                    form.post(route('checkout.store'));
+                                    form.post(route('checkout.store'), {
+                                        preserveScroll: true,
+                                        onError: focusFirstError,
+                                    });
                                 }}
                             >
                                 <div className="login flex justify-between gap-4">
@@ -144,42 +188,36 @@ export default function CheckoutIndex({
                                     <div className="col-span-full">
                                         <input
                                             type="email"
-                                            className="border-line px-4 py-3 w-full rounded-lg"
+                                            {...fieldProps('email')}
                                             placeholder={t('checkout.emailPlaceholder')}
-                                            value={form.data.email}
-                                            onChange={(event) => form.setData('email', event.target.value)}
+                                            value={form.data.email ?? ''}
+                                            onChange={(event) => setField('email', event.target.value)}
                                         />
-                                        {form.errors.email && (
-                                            <div className="caption1 text-red mt-1">{form.errors.email}</div>
-                                        )}
+                                        {fieldError('email')}
                                     </div>
                                     <div>
                                         <input
                                             type="text"
-                                            className="border-line px-4 py-3 w-full rounded-lg"
+                                            {...fieldProps('name')}
                                             placeholder={t('checkout.namePlaceholder')}
                                             value={form.data.name}
-                                            onChange={(event) => form.setData('name', event.target.value)}
+                                            onChange={(event) => setField('name', event.target.value)}
                                             required
                                         />
-                                        {form.errors.name && (
-                                            <div className="caption1 text-red mt-1">{form.errors.name}</div>
-                                        )}
+                                        {fieldError('name')}
                                     </div>
                                     <div>
                                         <input
                                             type="text"
                                             inputMode="numeric"
                                             maxLength={11}
-                                            className="border-line px-4 py-3 w-full rounded-lg"
+                                            {...fieldProps('phone')}
                                             placeholder={t('checkout.phonePlaceholder')}
                                             value={form.data.phone}
-                                            onChange={(event) => form.setData('phone', event.target.value)}
+                                            onChange={(event) => setField('phone', event.target.value)}
                                             required
                                         />
-                                        {form.errors.phone && (
-                                            <div className="caption1 text-red mt-1">{form.errors.phone}</div>
-                                        )}
+                                        {fieldError('phone')}
                                     </div>
                                 </div>
 
@@ -212,25 +250,36 @@ export default function CheckoutIndex({
                                             <GeoCascade
                                                 countries={countries}
                                                 value={geo}
-                                                onChange={(next) => form.setData((data) => ({ ...data, ...next }))}
+                                                onChange={(next) => {
+                                                    form.setData((data) => ({ ...data, ...next }));
+                                                    form.clearErrors(
+                                                        'governorate_id',
+                                                        'city_id',
+                                                        'district_id',
+                                                        'area_id',
+                                                    );
+                                                }}
                                                 idPrefix="checkout"
                                                 optionalBelowGovernorate
+                                                errors={form.errors}
                                             />
                                             <div className="col-span-full">
-                                                <label htmlFor="address_line" className="caption1 capitalize">
+                                                <label htmlFor="checkout-address_line" className="caption1 capitalize">
                                                     {t('address.street')} <span className="text-red">*</span>
                                                 </label>
-                                                <input
-                                                    id="address_line"
-                                                    className="border-line px-4 py-3 w-full rounded-lg mt-2"
-                                                    type="text"
-                                                    placeholder={t('checkout.addressPlaceholder')}
-                                                    value={form.data.address_line}
-                                                    onChange={(event) =>
-                                                        form.setData('address_line', event.target.value)
-                                                    }
-                                                    required
-                                                />
+                                                <div className="mt-2">
+                                                    <input
+                                                        type="text"
+                                                        {...fieldProps('address_line')}
+                                                        placeholder={t('checkout.addressPlaceholder')}
+                                                        value={form.data.address_line}
+                                                        onChange={(event) =>
+                                                            setField('address_line', event.target.value)
+                                                        }
+                                                        required
+                                                    />
+                                                    {fieldError('address_line')}
+                                                </div>
                                             </div>
                                             {customer && (
                                                 <div className="col-span-full flex items-center">
@@ -301,9 +350,9 @@ export default function CheckoutIndex({
                         <div className="lg:sticky lg:top-24 h-fit lg:max-w-[606px] w-full flex-shrink-0 lg:ps-[80px] pe-[16px] max-lg:ps-[16px]">
                             <div className="list_prd flex flex-col gap-7">
                                 {cart.items.map((item) => (
-                                    <div key={item.id} className="item flex items-center justify-between gap-6">
-                                        <div className="flex items-center gap-6">
-                                            <div className="bg_img relative flex-shrink-0 w-[100px] h-[100px]">
+                                    <div key={item.id} className="item flex items-start justify-between gap-5">
+                                        <div className="flex items-start gap-5 min-w-0">
+                                            <div className="bg_img relative flex-shrink-0 w-[92px] aspect-[4/5]">
                                                 <img
                                                     src={item.image ?? '/storefront/images/generated/collection.svg'}
                                                     alt={item.name}
@@ -313,15 +362,55 @@ export default function CheckoutIndex({
                                                     {item.quantity}
                                                 </span>
                                             </div>
-                                            <div>
-                                                <strong className="name text-title">{item.name}</strong>
-                                                <div className="flex items-center gap-2 mt-2">
-                                                    <span className="ph ph-tag text-secondary"></span>
-                                                    <span className="code text-secondary">{item.sku}</span>
+                                            <div className="min-w-0">
+                                                <Link
+                                                    href={route('product.show', {
+                                                        slug: item.slug,
+                                                        sku: item.product_sku,
+                                                    })}
+                                                    className="name text-title hover:underline"
+                                                >
+                                                    {item.name}
+                                                </Link>
+                                                {/* What was actually chosen — colour (with its
+                                                    swatch) and size — so the customer can check
+                                                    each line before placing a cash-on-delivery order. */}
+                                                {item.option_values.length > 0 && (
+                                                    <dl className="mt-2 flex flex-col gap-1 caption1">
+                                                        {item.option_values.map((option) => (
+                                                            <div
+                                                                key={option.attribute}
+                                                                className="flex items-center gap-2"
+                                                            >
+                                                                <dt className="text-secondary">
+                                                                    {option.attribute_label}:
+                                                                </dt>
+                                                                <dd className="flex items-center gap-1.5 text-title">
+                                                                    {option.hex && (
+                                                                        <span
+                                                                            aria-hidden="true"
+                                                                            className="inline-block w-3.5 h-3.5 rounded-full border border-line"
+                                                                            style={{ backgroundColor: option.hex }}
+                                                                        />
+                                                                    )}
+                                                                    {option.value}
+                                                                </dd>
+                                                            </div>
+                                                        ))}
+                                                    </dl>
+                                                )}
+                                                <div className="flex items-center gap-2 mt-2 caption2 text-secondary">
+                                                    <span className="ph ph-tag" aria-hidden="true"></span>
+                                                    <span className="code">{item.sku}</span>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex flex-col items-end gap-1">
+                                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                            {item.quantity > 1 && (
+                                                <span className="caption2 text-secondary">
+                                                    {item.quantity} × {price(item.unit_price)}
+                                                </span>
+                                            )}
                                             <strong className="text-title price">{price(item.subtotal)}</strong>
                                             {/* Same control and route as the cart page — a customer
                                                 who changes their mind here shouldn't have to go back

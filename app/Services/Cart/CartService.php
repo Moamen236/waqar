@@ -146,7 +146,7 @@ class CartService
      * customer never types or edits it.
      *
      * @return array{
-     *     items: array<int, array{id: int, variant_id: int, product_id: int, slug: string, product_sku: string, name: string, sku: string, image: string|null, options: string, unit_price: float, quantity: int, subtotal: float, available: int|null}>,
+     *     items: array<int, array{id: int, variant_id: int, product_id: int, slug: string, product_sku: string, name: string, sku: string, image: string|null, options: string, option_values: array<int, array{attribute: string, attribute_label: string, value: string, hex: string|null}>, unit_price: float, quantity: int, subtotal: float, available: int|null}>,
      *     subtotal: float, discount: float, shipping: float|null, total: float|null,
      *     coupon: array{code: string, type: string, value: float}|null, coupon_error: string|null, count: int
      * }
@@ -188,6 +188,12 @@ class CartService
                 'options' => $variant->attributeValues
                     ->map(fn ($value) => $value->getTranslation('value', app()->getLocale()))
                     ->implode(' / '),
+                // Same pieces, structured: label, value and swatch colour, so
+                // checkout can show "Colour: Black" / "Size: M" per line.
+                'option_values' => $variant->attributeValues
+                    ->map(fn ($value) => ProductPresenter::option($value))
+                    ->values()
+                    ->all(),
                 'unit_price' => $unitPrice,
                 'quantity' => $item->quantity,
                 'subtotal' => $lineTotal,

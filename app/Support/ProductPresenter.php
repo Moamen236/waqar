@@ -151,7 +151,7 @@ class ProductPresenter
     /**
      * @return array{attribute: string, attribute_label: string, value: string, hex: string|null}
      */
-    private static function option(AttributeValue $value): array
+    public static function option(AttributeValue $value): array
     {
         $locale = app()->getLocale();
 

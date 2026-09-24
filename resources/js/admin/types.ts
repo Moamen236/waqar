@@ -39,7 +39,7 @@ export interface SharedProps {
     /** Driven by the {locale} URL segment, same as the storefront (Q20). */
     locale: LocaleProps;
     auth: { employee: AuthEmployee | null };
-    flash: { success?: string | null; error?: string | null };
+    flash: { success?: string | null; warning?: string | null; error?: string | null };
     /** Admin shell data; null on storefront requests. */
     admin: {
         notificationCount: number;

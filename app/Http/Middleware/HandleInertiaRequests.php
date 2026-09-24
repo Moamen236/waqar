@@ -110,6 +110,9 @@ class HandleInertiaRequests extends Middleware
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
+                // Shown as a toast; no controller sets it yet, it is here
+                // so one can ->with('warning', …) without touching the UI.
+                'warning' => fn () => $request->session()->get('warning'),
                 'error' => fn () => $request->session()->get('error'),
             ],
             // Admin shell data — the topbar bell, and nothing else yet.

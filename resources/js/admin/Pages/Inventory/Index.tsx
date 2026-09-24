@@ -2,10 +2,12 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import Modal from 'react-bootstrap/Modal';
 import ExportButton from '../../Components/ExportButton';
+import FormField from '../../Components/Form/FormField';
 import { PaginationFooter } from '../../Components/Pagination';
 import SearchFilter from '../../Components/SearchFilter';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { usePermissions } from '../../Hooks/usePermissions';
+import { useClearErrorsOnChange } from '../../lib/formErrors';
 import { useTranslation } from '../../lib/useTranslation';
 import type { PaginatedData } from '../../types';
 
@@ -43,6 +45,7 @@ export default function InventoryIndex({
         type: movementTypes[0] ?? 'adjustment',
         reason: '',
     });
+    useClearErrorsOnChange(form.data, form.errors, form.clearErrors);
 
     const open = (row: StockRow) => {
         form.setData({
@@ -193,8 +196,7 @@ export default function InventoryIndex({
                                 <span className="text-dark fw-semibold">{adjusting.quantity}</span>
                             </p>
                         )}
-                        <div className="mb-3">
-                            <label className="form-label">{t('admin.movementType')}</label>
+                        <FormField name="type" label={t('admin.movementType')} error={form.errors.type} required>
                             <select
                                 className="form-select"
                                 value={form.data.type}
@@ -206,33 +208,36 @@ export default function InventoryIndex({
                                     </option>
                                 ))}
                             </select>
-                        </div>
-                        <div className="mb-3">
-                            <label className="form-label">{t('admin.quantityChange')}</label>
+                        </FormField>
+                        <FormField
+                            name="quantity"
+                            label={t('admin.quantityChange')}
+                            error={form.errors.quantity}
+                            hint={t('admin.quantityChangeHint')}
+                            required
+                        >
                             <input
                                 type="number"
-                                className={`form-control ${form.errors.quantity ? 'is-invalid' : ''}`}
+                                className="form-control"
                                 value={form.data.quantity}
                                 onChange={(event) => form.setData('quantity', event.target.value)}
                                 placeholder="-3"
                             />
-                            <div className="form-text">{t('admin.quantityChangeHint')}</div>
-                            {form.errors.quantity && (
-                                <div className="invalid-feedback">{form.errors.quantity}</div>
-                            )}
-                        </div>
-                        <div>
-                            <label className="form-label">{t('admin.reason')}</label>
+                        </FormField>
+                        <FormField
+                            name="reason"
+                            label={t('admin.reason')}
+                            error={form.errors.reason}
+                            required
+                            className="mb-0"
+                        >
                             <input
                                 type="text"
-                                className={`form-control ${form.errors.reason ? 'is-invalid' : ''}`}
+                                className="form-control"
                                 value={form.data.reason}
                                 onChange={(event) => form.setData('reason', event.target.value)}
                             />
-                            {form.errors.reason && (
-                                <div className="invalid-feedback">{form.errors.reason}</div>
-                            )}
-                        </div>
+                        </FormField>
                     </Modal.Body>
                     <Modal.Footer>
                         <button type="button" className="btn btn-soft-secondary" onClick={close}>

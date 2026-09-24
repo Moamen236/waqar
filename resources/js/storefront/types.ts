@@ -72,6 +72,8 @@ export interface CartLine {
     sku: string;
     image: string | null;
     options: string;
+    /** The chosen colour/size etc., one entry per attribute, for per-line display. */
+    option_values: VariantOption[];
     unit_price: number;
     quantity: number;
     subtotal: number;

@@ -27,6 +27,7 @@ export default function GeoCascade({
     onChange,
     idPrefix = 'geo',
     optionalBelowGovernorate = false,
+    errors = {},
 }: {
     countries: GeoCountry[];
     value: GeoSelection;
@@ -34,9 +35,25 @@ export default function GeoCascade({
     idPrefix?: string;
     /** Checkout asks only for the governorate; city and area become optional there. */
     optionalBelowGovernorate?: boolean;
+    /** Server validation messages, keyed by the submitted field name. */
+    errors?: Partial<Record<'governorate_id' | 'city_id' | 'district_id' | 'area_id', string>>;
 }) {
     const requiredMark = optionalBelowGovernorate ? null : <span className="text-red">*</span>;
     const { t } = useTranslation();
+
+    // Everything one select needs to show its own error: the red border,
+    // aria wiring, and the message itself (placed right under the select).
+    const invalid = (field: keyof typeof errors, level: string) => ({
+        'aria-invalid': errors[field] ? true : undefined,
+        'aria-describedby': errors[field] ? `${idPrefix}-${level}-error` : undefined,
+        className: `border px-4 py-3 w-full rounded-lg mt-2 ${errors[field] ? 'border-red' : 'border-line'}`,
+    });
+    const message = (field: keyof typeof errors, level: string) =>
+        errors[field] ? (
+            <div id={`${idPrefix}-${level}-error`} className="caption1 text-red mt-1">
+                {errors[field]}
+            </div>
+        ) : null;
     const country = useMemo(
         () =>
             countries.find((item) => item.id === value.country_id) ??
@@ -114,7 +131,7 @@ export default function GeoCascade({
                 </label>
                 <select
                     id={`${idPrefix}-governorate`}
-                    className="border border-line px-4 py-3 w-full rounded-lg mt-2"
+                    {...invalid('governorate_id', 'governorate')}
                     value={value.governorate_id ?? ''}
                     disabled={country === null}
                     onChange={(event) =>
@@ -134,6 +151,7 @@ export default function GeoCascade({
                         </option>
                     ))}
                 </select>
+                {message('governorate_id', 'governorate')}
             </div>
             <div className="select-block">
                 <label htmlFor={`${idPrefix}-city`} className="caption1 capitalize">
@@ -141,7 +159,7 @@ export default function GeoCascade({
                 </label>
                 <select
                     id={`${idPrefix}-city`}
-                    className="border border-line px-4 py-3 w-full rounded-lg mt-2"
+                    {...invalid('city_id', 'city')}
                     value={value.city_id ?? ''}
                     disabled={governorate === null}
                     onChange={(event) =>
@@ -160,6 +178,7 @@ export default function GeoCascade({
                         </option>
                     ))}
                 </select>
+                {message('city_id', 'city')}
             </div>
             <div className="select-block">
                 <label htmlFor={`${idPrefix}-district`} className="caption1 capitalize">
@@ -167,7 +186,7 @@ export default function GeoCascade({
                 </label>
                 <select
                     id={`${idPrefix}-district`}
-                    className="border border-line px-4 py-3 w-full rounded-lg mt-2"
+                    {...invalid('district_id', 'district')}
                     value={value.district_id ?? ''}
                     disabled={city === null || city.districts.length === 0}
                     onChange={(event) =>
@@ -187,6 +206,7 @@ export default function GeoCascade({
                         </option>
                     ))}
                 </select>
+                {message('district_id', 'district')}
             </div>
             <div className="select-block">
                 <label htmlFor={`${idPrefix}-area`} className="caption1 capitalize">
@@ -194,7 +214,7 @@ export default function GeoCascade({
                 </label>
                 <select
                     id={`${idPrefix}-area`}
-                    className="border border-line px-4 py-3 w-full rounded-lg mt-2"
+                    {...invalid('area_id', 'area')}
                     value={value.area_id ?? ''}
                     disabled={city === null}
                     onChange={(event) =>
@@ -208,6 +228,7 @@ export default function GeoCascade({
                         </option>
                     ))}
                 </select>
+                {message('area_id', 'area')}
             </div>
         </>
     );

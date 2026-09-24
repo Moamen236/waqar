@@ -1269,5 +1269,13 @@
     "admin.showAllCouriers": "عرض الكل",
     "admin.showOrders": "عرض الطلبات",
     "admin.owedOnTheRoad": "مع المندوب",
-    "admin.owedDelivered": "تم التسليم ولم يُسدَّد"
+    "admin.owedDelivered": "تم التسليم ولم يُسدَّد",
+    "admin.pleaseFixTheseErrors": "يرجى تصحيح ما يلي:",
+    "admin.fixHighlightedFields": "هناك :count حقول تحتاج إلى مراجعة — وهي مُعلَّمة باللون الأحمر.",
+    "admin.errorForbidden": "ليست لديك صلاحية للقيام بهذا الإجراء.",
+    "admin.errorNotFound": "هذا السجل لم يعد موجوداً — ربما تم حذفه.",
+    "admin.errorSessionExpired": "انتهت صلاحية الجلسة. أعد تحميل الصفحة وحاول مرة أخرى.",
+    "admin.errorTooManyRequests": "محاولات كثيرة جداً. انتظر قليلاً ثم حاول مرة أخرى.",
+    "admin.errorServer": "تعذّر على الخادم إتمام هذا الطلب. حاول مرة أخرى، وتواصل مع الدعم إذا تكرر ذلك.",
+    "admin.errorNetwork": "تعذّر الاتصال بالخادم. تحقق من اتصالك وحاول مرة أخرى."
 }

@@ -316,3 +316,18 @@ it('falls back to the product\'s first photo when the chosen colour has none tag
 
     expect(app(\App\Services\Cart\CartService::class)->summary($cart)['items'][0]['image'])->toBe($first->getUrl());
 });
+
+it('tells checkout which colour each cart line is, with its label and swatch', function () {
+    app()->setLocale('en');
+    [$product, $red] = picProduct();
+
+    $redVariant = $product->variants->first(fn ($v) => $v->attributeValues->first()->id === $red->id);
+    $cart = \App\Models\Cart::create(['session_token' => 'pic-'.uniqid()]);
+    $cart->items()->create(['product_variant_id' => $redVariant->id, 'quantity' => 2]);
+
+    $line = app(\App\Services\Cart\CartService::class)->summary($cart)['items'][0];
+
+    expect($line['option_values'])->toBe([
+        ['attribute' => 'color', 'attribute_label' => 'Color', 'value' => 'Red', 'hex' => '#ff0000'],
+    ]);
+});

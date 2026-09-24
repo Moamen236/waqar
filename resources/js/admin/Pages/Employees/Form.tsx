@@ -1,6 +1,9 @@
 import { Head, useForm } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
+import FieldError from '../../Components/Form/FieldError';
+import FormField from '../../Components/Form/FormField';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { invalidClass, invalidProps, useClearErrorsOnChange } from '../../lib/formErrors';
 import { useTranslation } from '../../lib/useTranslation';
 
 interface EmployeeRecord {
@@ -28,7 +31,7 @@ export default function EmployeeForm({
     teamLeaders: { id: number; full_name: string }[];
 }) {
     const { t } = useTranslation();
-    const { data, setData, post, put, processing, errors } = useForm({
+    const { data, setData, post, put, processing, errors, clearErrors } = useForm({
         full_name: employee?.full_name ?? '',
         email: employee?.email ?? '',
         phone: employee?.phone ?? '',
@@ -39,6 +42,7 @@ export default function EmployeeForm({
         role: employee?.roles[0]?.name ?? roles[0] ?? '',
         team_leader_id: employee?.team_leader_id ?? ('' as number | ''),
     });
+    useClearErrorsOnChange(data, errors, clearErrors);
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -67,80 +71,86 @@ export default function EmployeeForm({
                             <div className="card-body">
                                 <div className="row">
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.fullName')}</label>
+                                        <FormField
+                                            name="full_name"
+                                            label={t('admin.fullName')}
+                                            error={errors.full_name}
+                                            required
+                                        >
                                             <input
                                                 className="form-control"
                                                 value={data.full_name}
                                                 onChange={(e) => setData('full_name', e.target.value)}
                                             />
-                                            {errors.full_name && (
-                                                <div className="text-danger small mt-1">{errors.full_name}</div>
-                                            )}
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.email')}</label>
+                                        <FormField name="email" label={t('admin.email')} error={errors.email} required>
                                             <input
                                                 type="email"
                                                 className="form-control"
                                                 value={data.email}
                                                 onChange={(e) => setData('email', e.target.value)}
                                             />
-                                            {errors.email && (
-                                                <div className="text-danger small mt-1">{errors.email}</div>
-                                            )}
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.phone')}</label>
+                                        <FormField name="phone" label={t('admin.phone')} error={errors.phone} required>
                                             <input
                                                 className="form-control"
                                                 value={data.phone}
                                                 onChange={(e) => setData('phone', e.target.value)}
                                             />
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">
-                                                {employee ? t('admin.newPasswordOptional') : t('admin.password')}
-                                            </label>
+                                        {/* Required only when creating: an edit keeps the
+                                            current password unless a new one is typed. */}
+                                        <FormField
+                                            name="password"
+                                            label={employee ? t('admin.newPasswordOptional') : t('admin.password')}
+                                            error={errors.password}
+                                            required={!employee}
+                                        >
                                             <input
                                                 type="password"
                                                 className="form-control"
+                                                autoComplete="new-password"
                                                 value={data.password}
                                                 onChange={(e) => setData('password', e.target.value)}
                                             />
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.residenceAddress')}</label>
+                                        <FormField
+                                            name="residence_address"
+                                            label={t('admin.residenceAddress')}
+                                            error={errors.residence_address}
+                                            required
+                                        >
                                             <input
                                                 className="form-control"
                                                 value={data.residence_address}
                                                 onChange={(e) => setData('residence_address', e.target.value)}
                                             />
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">
-                                                {employee ? t('admin.newNationalIdOptional') : t('admin.nationalId')}
-                                            </label>
+                                        <FormField
+                                            name="national_id_number"
+                                            label={employee ? t('admin.newNationalIdOptional') : t('admin.nationalId')}
+                                            error={errors.national_id_number}
+                                            required={!employee}
+                                        >
                                             <input
                                                 className="form-control"
                                                 value={data.national_id_number}
                                                 onChange={(e) => setData('national_id_number', e.target.value)}
                                             />
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.role')}</label>
+                                        <FormField name="role" label={t('admin.role')} error={errors.role} required>
                                             <select
                                                 className="form-control"
                                                 value={data.role}
@@ -152,12 +162,15 @@ export default function EmployeeForm({
                                                     </option>
                                                 ))}
                                             </select>
-                                        </div>
+                                        </FormField>
                                     </div>
                                     {needsTeamLeader && (
                                         <div className="col-lg-6">
-                                            <div className="mb-3">
-                                                <label className="form-label">{t('admin.teamLeaderOptional')}</label>
+                                            <FormField
+                                                name="team_leader_id"
+                                                label={t('admin.teamLeaderOptional')}
+                                                error={errors.team_leader_id}
+                                            >
                                                 <select
                                                     className="form-control"
                                                     value={data.team_leader_id}
@@ -175,7 +188,7 @@ export default function EmployeeForm({
                                                         </option>
                                                     ))}
                                                 </select>
-                                            </div>
+                                            </FormField>
                                         </div>
                                     )}
                                 </div>
@@ -197,8 +210,8 @@ export default function EmployeeForm({
                                 <div className="form-check">
                                     <input
                                         type="checkbox"
-                                        className="form-check-input"
-                                        id="active"
+                                        className={`form-check-input${invalidClass(errors.is_active)}`}
+                                        {...invalidProps('is_active', errors.is_active, 'active')}
                                         checked={data.is_active}
                                         onChange={(e) => setData('is_active', e.target.checked)}
                                     />
@@ -206,6 +219,7 @@ export default function EmployeeForm({
                                         {t('admin.active')}
                                     </label>
                                 </div>
+                                <FieldError name="is_active" message={errors.is_active} id="active" />
                             </div>
                         </div>
                     </div>

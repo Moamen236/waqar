@@ -71,10 +71,72 @@ export async function confirmAction(options: {
     return result.isConfirmed;
 }
 
+/**
+ * Corner toasts for news that needs no acknowledgement — a save went
+ * through, or a heads-up. Errors stay as dialogs (below): a refused action
+ * is something the user has to read before carrying on.
+ */
+function toast(icon: 'success' | 'warning' | 'info', text: string, timer: number): void {
+    const { base } = chrome();
+    const rtl = locale() === 'ar';
+
+    void Swal.fire({
+        ...base,
+        toast: true,
+        position: rtl ? 'top-start' : 'top-end',
+        icon,
+        title: text,
+        timer,
+        timerProgressBar: true,
+        showConfirmButton: false,
+        showCloseButton: true,
+    });
+}
+
 export function notifySuccess(text: string): void {
+    toast('success', text, 3000);
+}
+
+export function notifyWarning(text: string): void {
+    toast('warning', text, 6000);
+}
+
+export function notifyInfo(text: string): void {
+    toast('info', text, 4000);
+}
+
+/**
+ * Validation messages that have no field on screen to sit under — the
+ * safety net for server errors the page doesn't render (see
+ * lib/formErrors.ts). Built with DOM nodes, not an html string, so a
+ * message can never inject markup.
+ */
+export function notifyValidation(messages: string[]): void {
     const { t, base } = chrome();
 
-    void Swal.fire({ ...base, icon: 'success', title: t('admin.done'), text, timer: 2500, showConfirmButton: false });
+    const list = document.createElement('ul');
+    list.className = 'text-start mb-0 ps-3';
+    for (const message of messages) {
+        const item = document.createElement('li');
+        item.textContent = message;
+        list.appendChild(item);
+    }
+
+    void Swal.fire({
+        ...base,
+        icon: 'error',
+        title: t('admin.pleaseFixTheseErrors'),
+        html: list,
+        confirmButtonColor: BRAND_PRIMARY,
+        confirmButtonText: t('admin.close'),
+    });
+}
+
+/** The fields are marked on the page; this just says so, briefly. */
+export function notifyFieldErrors(count: number): void {
+    const { t } = chrome();
+
+    toast('warning', t('admin.fixHighlightedFields', { count }), 5000);
 }
 
 export function notifyError(text: string): void {

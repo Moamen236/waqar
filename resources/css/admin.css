@@ -435,3 +435,27 @@ h6,
     border-color: #012c4e;
     box-shadow: 0 0 0 0.2rem rgba(1, 44, 78, 0.12);
 }
+
+/*
+ * Invalid state for controls that can't carry Bootstrap's own `is-invalid`
+ * (see Components/Form/FormField.tsx). react-select renders hashed class
+ * names ending in "-control"; a checkbox/radio group and a dropzone are a
+ * wrapper around several inputs.
+ */
+.field-invalid [class*='-control'],
+.field-invalid .dropzone,
+.dropzone.is-invalid,
+.field-invalid .ql-container,
+.field-invalid .ql-toolbar {
+    border-color: var(--bs-form-invalid-border-color) !important;
+}
+
+.field-invalid .form-check-input,
+.is-invalid .form-check-input {
+    border-color: var(--bs-form-invalid-border-color);
+}
+
+.field-invalid .form-check-label,
+.is-invalid .form-check-label {
+    color: var(--bs-form-invalid-color);
+}

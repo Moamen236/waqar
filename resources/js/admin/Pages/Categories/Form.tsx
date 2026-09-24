@@ -1,6 +1,9 @@
 import { Head, useForm } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
+import FieldError from '../../Components/Form/FieldError';
+import FormField from '../../Components/Form/FormField';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { invalidClass, invalidProps, useClearErrorsOnChange } from '../../lib/formErrors';
 import { useTranslation } from '../../lib/useTranslation';
 
 interface CategoryRecord {
@@ -29,7 +32,7 @@ export default function CategoryForm({
     categories: CategoryOption[];
 }) {
     const { t } = useTranslation();
-    const { data, setData, post, put, processing, errors } = useForm<{
+    const { data, setData, post, put, processing, errors, clearErrors } = useForm<{
         parent_id: number | '';
         name: { en: string; ar: string };
         description: { en: string; ar: string };
@@ -44,6 +47,8 @@ export default function CategoryForm({
         status: category?.status ?? true,
         sort_order: category?.sort_order ?? 0,
     });
+    useClearErrorsOnChange(data, errors, clearErrors);
+    const error = errors as Partial<Record<string, string>>;
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -70,32 +75,35 @@ export default function CategoryForm({
                             <div className="card-body">
                                 <div className="row">
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.nameEnglish')}</label>
+                                        <FormField
+                                            name="name.en"
+                                            label={t('admin.nameEnglish')}
+                                            error={error['name.en']}
+                                            required
+                                        >
                                             <input
                                                 className="form-control"
                                                 value={data.name.en}
                                                 onChange={(e) => setData('name', { ...data.name, en: e.target.value })}
                                             />
-                                            {errors['name.en'] && (
-                                                <div className="text-danger small mt-1">{errors['name.en']}</div>
-                                            )}
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.nameArabic')}</label>
+                                        <FormField name="name.ar" label={t('admin.nameArabic')} error={error['name.ar']}>
                                             <input
                                                 className="form-control"
                                                 dir="rtl"
                                                 value={data.name.ar}
                                                 onChange={(e) => setData('name', { ...data.name, ar: e.target.value })}
                                             />
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.parentCategory')}</label>
+                                        <FormField
+                                            name="parent_id"
+                                            label={t('admin.parentCategory')}
+                                            error={error.parent_id}
+                                        >
                                             <select
                                                 className="form-control"
                                                 value={data.parent_id}
@@ -110,21 +118,24 @@ export default function CategoryForm({
                                                     </option>
                                                 ))}
                                             </select>
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.slugAutoGeneratedIfBlank')}</label>
+                                        <FormField name="slug" label={t('admin.slugAutoGeneratedIfBlank')} error={error.slug}>
                                             <input
                                                 className="form-control"
                                                 value={data.slug}
                                                 onChange={(e) => setData('slug', e.target.value)}
                                             />
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-12">
-                                        <div className="mb-0">
-                                            <label className="form-label">{t('admin.descriptionEnglish')}</label>
+                                        <FormField
+                                            name="description.en"
+                                            label={t('admin.descriptionEnglish')}
+                                            error={error['description.en']}
+                                            className="mb-0"
+                                        >
                                             <textarea
                                                 className="form-control bg-light-subtle"
                                                 rows={5}
@@ -133,7 +144,7 @@ export default function CategoryForm({
                                                     setData('description', { ...data.description, en: e.target.value })
                                                 }
                                             />
-                                        </div>
+                                        </FormField>
                                     </div>
                                 </div>
                             </div>
@@ -151,20 +162,19 @@ export default function CategoryForm({
                                 <h4 className="card-title">{t('admin.status')}</h4>
                             </div>
                             <div className="card-body">
-                                <div className="mb-3">
-                                    <label className="form-label">{t('admin.sortOrder')}</label>
+                                <FormField name="sort_order" label={t('admin.sortOrder')} error={error.sort_order} required>
                                     <input
                                         type="number"
                                         className="form-control"
                                         value={data.sort_order}
                                         onChange={(e) => setData('sort_order', Number(e.target.value))}
                                     />
-                                </div>
+                                </FormField>
                                 <div className="form-check">
                                     <input
                                         type="checkbox"
-                                        className="form-check-input"
-                                        id="status"
+                                        className={`form-check-input${invalidClass(error.status)}`}
+                                        {...invalidProps('status', error.status, 'status')}
                                         checked={data.status}
                                         onChange={(e) => setData('status', e.target.checked)}
                                     />
@@ -172,6 +182,7 @@ export default function CategoryForm({
                                         {t('admin.active')}
                                     </label>
                                 </div>
+                                <FieldError name="status" message={error.status} id="status" />
                             </div>
                         </div>
                     </div>

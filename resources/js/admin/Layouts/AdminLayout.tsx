@@ -8,7 +8,8 @@ import LocaleSwitcher from '../Components/LocaleSwitcher';
 import NotificationBell from '../Components/NotificationBell';
 import ThemeToggle from '../Components/ThemeToggle';
 import { usePermissions } from '../Hooks/usePermissions';
-import { notifyError, notifySuccess } from '../lib/confirm';
+import { notifyError, notifySuccess, notifyWarning } from '../lib/confirm';
+import { listenForErrors } from '../lib/formErrors';
 import type { SharedProps } from '../types';
 import { useTranslation } from '../lib/useTranslation';
 
@@ -409,8 +410,14 @@ export default function AdminLayout({
 
     useEffect(() => {
         if (flash.success) notifySuccess(flash.success);
+        if (flash.warning) notifyWarning(flash.warning);
         if (flash.error) notifyError(flash.error);
-    }, [flash.success, flash.error]);
+    }, [flash.success, flash.warning, flash.error]);
+
+    // Validation and HTTP errors for every visit made from an admin page —
+    // scroll to the first bad field, and never drop a message the page
+    // has no slot for. See lib/formErrors.ts.
+    useEffect(() => listenForErrors(t), [t]);
 
     // Keep the topbar bell current without a websocket. There is no
     // broadcasting stack in this project at all (no config/broadcasting.php,

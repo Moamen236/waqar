@@ -7,6 +7,7 @@ use App\Actions\Search\SearchProductsAction;
 use App\Enums\OrderSource;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
+use App\Exceptions\InsufficientStockException;
 use App\Exports\OrdersExport;
 use App\Http\Controllers\Controller;
 use App\Models\Address;
@@ -29,10 +30,12 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use InvalidArgumentException;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
@@ -607,25 +610,39 @@ class OrderController extends Controller implements HasMiddleware
 
         abort_if($warehouse === null, 422, __('No active warehouse is configured.'));
 
-        $customer = isset($data['customer_id'])
-            ? Customer::findOrFail($data['customer_id'])
-            : $this->createInlineCustomer($data);
+        // The Action's business-rule refusals (stock ran out, no shipping
+        // rate for the address, a coupon that doesn't apply) come back as a
+        // message on the form — as storefront checkout already does —
+        // instead of a 500. One transaction with the inline customer, so a
+        // refused order doesn't leave a guest customer behind to be
+        // duplicated on the retry.
+        try {
+            $order = DB::transaction(function () use ($data, $action, $warehouse, $request) {
+                $customer = isset($data['customer_id'])
+                    ? Customer::findOrFail($data['customer_id'])
+                    : $this->createInlineCustomer($data);
 
-        $order = $action->execute(
-            customer: $customer,
-            items: $data['items'],
-            warehouse: $warehouse,
-            governorateId: (int) $data['governorate_id'],
-            cityId: isset($data['city_id']) ? (int) $data['city_id'] : null,
-            districtId: isset($data['district_id']) ? (int) $data['district_id'] : null,
-            areaId: isset($data['area_id']) ? (int) $data['area_id'] : null,
-            addressLine: $data['address_line'],
-            recipientName: $data['recipient_name'],
-            phone: $data['phone'],
-            orderSource: OrderSource::CustomerService,
-            createdByEmployee: $request->user('employee'),
-            couponCode: $data['coupon_code'] ?? null,
-        );
+                return $action->execute(
+                    customer: $customer,
+                    items: $data['items'],
+                    warehouse: $warehouse,
+                    governorateId: (int) $data['governorate_id'],
+                    cityId: isset($data['city_id']) ? (int) $data['city_id'] : null,
+                    districtId: isset($data['district_id']) ? (int) $data['district_id'] : null,
+                    areaId: isset($data['area_id']) ? (int) $data['area_id'] : null,
+                    addressLine: $data['address_line'],
+                    recipientName: $data['recipient_name'],
+                    phone: $data['phone'],
+                    orderSource: OrderSource::CustomerService,
+                    createdByEmployee: $request->user('employee'),
+                    couponCode: $data['coupon_code'] ?? null,
+                );
+            });
+        } catch (InsufficientStockException) {
+            return back()->with('error', __('One of the items no longer has enough stock. Check the quantities and try again.'));
+        } catch (InvalidArgumentException|RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return redirect()
             ->route('admin.checking.index')

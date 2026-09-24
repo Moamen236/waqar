@@ -1,6 +1,8 @@
 import { Head, useForm } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
+import FormField from '../../Components/Form/FormField';
 import LocaleSwitcher from '../../Components/LocaleSwitcher';
+import { revealErrors, useClearErrorsOnChange } from '../../lib/formErrors';
 import { useTranslation } from '../../lib/useTranslation';
 
 // Split layout: brand hero (login-bg.png) on the start side, the sign-in
@@ -8,15 +10,18 @@ import { useTranslation } from '../../lib/useTranslation';
 // is the whole job. Styles live in admin.css under `.auth-split`.
 export default function Login() {
     const { t } = useTranslation();
-    const { data, setData, post, processing, errors } = useForm({
+    const { data, setData, post, processing, errors, clearErrors } = useForm({
         email: '',
         password: '',
         remember: false,
     });
+    useClearErrorsOnChange(data, errors, clearErrors);
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        post(route('admin.login.store'));
+        // This page is outside AdminLayout, so its global error listener
+        // isn't mounted — focus the first bad field directly.
+        post(route('admin.login.store'), { onError: (formErrors) => window.setTimeout(() => revealErrors(formErrors)) });
     };
 
     return (
@@ -47,10 +52,7 @@ export default function Login() {
                     <p className="text-muted mb-4">{t('admin.enterYourEmailAddressAndPassword')}</p>
 
                     <form onSubmit={submit} className="authentication-form">
-                        <div className="mb-3">
-                            <label className="form-label" htmlFor="email">
-                                {t('admin.email')}
-                            </label>
+                        <FormField name="email" label={t('admin.email')} error={errors.email} required>
                             <input
                                 type="email"
                                 id="email"
@@ -61,12 +63,8 @@ export default function Login() {
                                 autoComplete="username"
                                 autoFocus
                             />
-                            {errors.email && <div className="text-danger fs-13 mt-1">{errors.email}</div>}
-                        </div>
-                        <div className="mb-3">
-                            <label className="form-label" htmlFor="password">
-                                {t('admin.password')}
-                            </label>
+                        </FormField>
+                        <FormField name="password" label={t('admin.password')} error={errors.password} required>
                             <input
                                 type="password"
                                 id="password"
@@ -76,8 +74,7 @@ export default function Login() {
                                 onChange={(e) => setData('password', e.target.value)}
                                 autoComplete="current-password"
                             />
-                            {errors.password && <div className="text-danger fs-13 mt-1">{errors.password}</div>}
-                        </div>
+                        </FormField>
                         <div className="mb-4">
                             <div className="form-check">
                                 <input

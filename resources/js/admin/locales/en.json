@@ -1269,5 +1269,13 @@
     "admin.showAllCouriers": "Show all",
     "admin.showOrders": "Show orders",
     "admin.owedOnTheRoad": "Out with courier",
-    "admin.owedDelivered": "Delivered, unpaid"
+    "admin.owedDelivered": "Delivered, unpaid",
+    "admin.pleaseFixTheseErrors": "Please fix the following:",
+    "admin.fixHighlightedFields": ":count fields need attention — they are marked in red.",
+    "admin.errorForbidden": "You don't have permission to do that.",
+    "admin.errorNotFound": "That record no longer exists — it may have been deleted.",
+    "admin.errorSessionExpired": "Your session has expired. Reload the page and try again.",
+    "admin.errorTooManyRequests": "Too many attempts. Wait a moment and try again.",
+    "admin.errorServer": "The server couldn't complete that request. Try again, and contact support if it keeps happening.",
+    "admin.errorNetwork": "Couldn't reach the server. Check your connection and try again."
 }

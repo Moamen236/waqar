@@ -1,9 +1,12 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import FieldError from '../../../Components/Form/FieldError';
+import FormField from '../../../Components/Form/FormField';
 import { PaginationFooter } from '../../../Components/Pagination';
 import StatusBadge from '../../../Components/StatusBadge';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import { confirmAction } from '../../../lib/confirm';
+import { invalidClass, invalidProps, useClearErrorsOnChange } from '../../../lib/formErrors';
 import type { PaginatedData } from '../../../types';
 import { useTranslation } from '../../../lib/useTranslation';
 import { usePermissions } from '../../../Hooks/usePermissions';
@@ -62,6 +65,11 @@ export default function GeoIndex({
         is_active: true,
     });
 
+    // Errors are keyed by the payload the server saw (submit() below), so
+    // the parent's error sits under its column name, not `parent`.
+    useClearErrorsOnChange(form.data, form.errors, form.clearErrors);
+    const error = form.errors as Partial<Record<string, string>>;
+
     // The parent field is named for the column the level actually uses,
     // so the payload matches what the controller validates.
     const parentField = level === 'governorates' ? 'country_id' : level === 'cities' ? 'governorate_id' : 'city_id';
@@ -98,6 +106,10 @@ export default function GeoIndex({
         const options = {
             preserveScroll: true,
             onSuccess: () => cancelEdit(),
+            // router.post, not form.post (the payload is reshaped above),
+            // so the form's own errors are never filled in by the visit —
+            // every message was being dropped. Hand them over explicitly.
+            onError: (errors: Record<string, string>) => form.setError(errors as never),
         };
 
         if (editing === null) {
@@ -159,14 +171,14 @@ export default function GeoIndex({
                             </div>
                             <div className="card-body">
                                 <form onSubmit={submit}>
-                                    <div className="mb-3">
-                                        <label className="form-label">{parentLabel}</label>
+                                    <FormField name={parentField} label={parentLabel} error={error[parentField]} required>
                                         <select
                                             className="form-select"
                                             value={form.data.parent}
                                             onChange={(event) => {
                                                 form.setData('parent', Number(event.target.value));
                                                 form.setData('district_id', null);
+                                                form.clearErrors(parentField as never);
                                             }}
                                         >
                                             {parents.map((option) => (
@@ -175,14 +187,19 @@ export default function GeoIndex({
                                                 </option>
                                             ))}
                                         </select>
-                                    </div>
+                                    </FormField>
 
                                     {level === 'areas' && (
-                                        <div className="mb-3">
-                                            <label className="form-label">
-                                                {t('admin.district')}{' '}
-                                                <span className="text-muted fs-12">({t('admin.optional')})</span>
-                                            </label>
+                                        <FormField
+                                            name="district_id"
+                                            label={
+                                                <>
+                                                    {t('admin.district')}{' '}
+                                                    <span className="text-muted fs-12">({t('admin.optional')})</span>
+                                                </>
+                                            }
+                                            error={error.district_id}
+                                        >
                                             <select
                                                 className="form-select"
                                                 value={form.data.district_id ?? ''}
@@ -200,11 +217,10 @@ export default function GeoIndex({
                                                     </option>
                                                 ))}
                                             </select>
-                                        </div>
+                                        </FormField>
                                     )}
 
-                                    <div className="mb-3">
-                                        <label className="form-label">{t('admin.nameArabic')}</label>
+                                    <FormField name="name.ar" label={t('admin.nameArabic')} error={error['name.ar']} required>
                                         <input
                                             className="form-control"
                                             dir="rtl"
@@ -214,13 +230,9 @@ export default function GeoIndex({
                                             }
                                             required
                                         />
-                                        {form.errors['name.ar'] && (
-                                            <div className="text-danger fs-13 mt-1">{form.errors['name.ar']}</div>
-                                        )}
-                                    </div>
+                                    </FormField>
 
-                                    <div className="mb-3">
-                                        <label className="form-label">{t('admin.nameEnglish')}</label>
+                                    <FormField name="name.en" label={t('admin.nameEnglish')} error={error['name.en']} required>
                                         <input
                                             className="form-control"
                                             dir="ltr"
@@ -230,22 +242,20 @@ export default function GeoIndex({
                                             }
                                             required
                                         />
-                                        {form.errors['name.en'] && (
-                                            <div className="text-danger fs-13 mt-1">{form.errors['name.en']}</div>
-                                        )}
-                                    </div>
+                                    </FormField>
 
                                     <div className="form-check mb-3">
                                         <input
                                             type="checkbox"
-                                            className="form-check-input"
-                                            id="is_active"
+                                            className={`form-check-input${invalidClass(error.is_active)}`}
+                                            {...invalidProps('is_active', error.is_active, 'is_active')}
                                             checked={form.data.is_active}
                                             onChange={(event) => form.setData('is_active', event.target.checked)}
                                         />
                                         <label className="form-check-label" htmlFor="is_active">
                                             {t('admin.active')}
                                         </label>
+                                        <FieldError name="is_active" message={error.is_active} id="is_active" />
                                     </div>
 
                                     <div className="d-flex gap-2">

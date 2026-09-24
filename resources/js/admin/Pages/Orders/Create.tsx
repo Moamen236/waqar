@@ -386,48 +386,44 @@ export default function OrdersCreate({
 
                                 {isNewCustomer ? (
                                     <div className="row g-3">
-                                        <div className="col-md-6">
-                                            <label className="form-label">
-                                                {t('admin.name')}
-                                                <Required />
-                                            </label>
+                                        <FormField
+                                            name="new_customer.name"
+                                            label={t('admin.name')}
+                                            error={serverErrors['new_customer.name']}
+                                            required
+                                            className="col-md-6"
+                                        >
                                             <input className="form-control" {...register('new_customer.name')} />
-                                            {serverErrors['new_customer.name'] && (
-                                                <div className="text-danger fs-13 mt-1">
-                                                    {serverErrors['new_customer.name']}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="col-md-6">
-                                            <label className="form-label">
-                                                {t('admin.phone')}
-                                                <Required />
-                                            </label>
+                                        </FormField>
+                                        <FormField
+                                            name="new_customer.phone"
+                                            label={t('admin.phone')}
+                                            error={serverErrors['new_customer.phone']}
+                                            required
+                                            className="col-md-6"
+                                        >
                                             <input className="form-control" {...register('new_customer.phone')} />
-                                            {serverErrors['new_customer.phone'] && (
-                                                <div className="text-danger fs-13 mt-1">
-                                                    {serverErrors['new_customer.phone']}
-                                                </div>
-                                            )}
-                                        </div>
+                                        </FormField>
                                         <div className="col-12">
                                             <p className="form-text mb-0">{t('admin.newCustomerAddressNote')}</p>
                                         </div>
                                     </div>
                                 ) : (
                                     <>
-                                        <label className="form-label">
-                                            {t('admin.customer')}
-                                            <Required />
-                                        </label>
-                                        <Select
-                                            options={customerOptions}
-                                            placeholder={t('admin.searchByNameOrPhone')}
-                                            onChange={(option) => selectCustomer(option?.value ?? null)}
-                                        />
-                                        {serverErrors.customer_id && (
-                                            <div className="text-danger fs-13 mt-1">{serverErrors.customer_id}</div>
-                                        )}
+                                        <FormField
+                                            name="customer_id"
+                                            label={t('admin.customer')}
+                                            error={serverErrors.customer_id}
+                                            required
+                                            className=""
+                                        >
+                                            <Select
+                                                inputId={fieldId('customer_id')}
+                                                options={customerOptions}
+                                                placeholder={t('admin.searchByNameOrPhone')}
+                                                onChange={(option) => selectCustomer(option?.value ?? null)}
+                                            />
+                                        </FormField>
                                         {customerId !== null && (
                                             <div className="mt-3">
                                                 <label className="form-label">{t('admin.savedAddresses')}</label>
@@ -475,36 +471,36 @@ export default function OrdersCreate({
                             </div>
                             <div className="card-body">
                                 <div className="row g-3">
-                                    <div className="col-md-6">
-                                        <label className="form-label">
-                                            {t('admin.recipientName')}
-                                            <Required />
-                                        </label>
+                                    <FormField
+                                        name="recipient_name"
+                                        label={t('admin.recipientName')}
+                                        error={serverErrors.recipient_name}
+                                        required
+                                        className="col-md-6"
+                                    >
                                         <input className="form-control" {...register('recipient_name')} />
-                                        {serverErrors.recipient_name && (
-                                            <div className="text-danger fs-13 mt-1">{serverErrors.recipient_name}</div>
-                                        )}
-                                    </div>
-                                    <div className="col-md-6">
-                                        <label className="form-label">
-                                            {t('admin.phone')}
-                                            <Required />
-                                        </label>
+                                    </FormField>
+                                    <FormField
+                                        name="phone"
+                                        label={t('admin.phone')}
+                                        error={serverErrors.phone}
+                                        required
+                                        className="col-md-6"
+                                    >
                                         <input
                                             className="form-control"
                                             inputMode="numeric"
                                             maxLength={11}
                                             {...register('phone')}
                                         />
-                                        {serverErrors.phone && (
-                                            <div className="text-danger fs-13 mt-1">{serverErrors.phone}</div>
-                                        )}
-                                    </div>
-                                    <div className="col-md-3">
-                                        <label className="form-label">
-                                            {t('admin.governorate')}
-                                            <Required />
-                                        </label>
+                                    </FormField>
+                                    <FormField
+                                        name="governorate_id"
+                                        label={t('admin.governorate')}
+                                        error={serverErrors.governorate_id}
+                                        required
+                                        className="col-md-3"
+                                    >
                                         <select
                                             className="form-control"
                                             value={governorateId ?? ''}
@@ -525,16 +521,17 @@ export default function OrdersCreate({
                                                 </option>
                                             ))}
                                         </select>
-                                        {serverErrors.governorate_id && (
-                                            <div className="text-danger fs-13 mt-1">{serverErrors.governorate_id}</div>
-                                        )}
-                                    </div>
+                                    </FormField>
                                     {/* City, district and area are optional, as on
                                         storefront checkout: shipping prices from
                                         whichever levels are picked, and the courier
                                         works from the street address. */}
-                                    <div className="col-md-3">
-                                        <label className="form-label">{t('admin.city')}</label>
+                                    <FormField
+                                        name="city_id"
+                                        label={t('admin.city')}
+                                        error={serverErrors.city_id}
+                                        className="col-md-3"
+                                    >
                                         <select
                                             className="form-control"
                                             value={cityId ?? ''}
@@ -551,9 +548,13 @@ export default function OrdersCreate({
                                                 </option>
                                             ))}
                                         </select>
-                                    </div>
-                                    <div className="col-md-3">
-                                        <label className="form-label">{t('admin.district')}</label>
+                                    </FormField>
+                                    <FormField
+                                        name="district_id"
+                                        label={t('admin.district')}
+                                        error={serverErrors.district_id}
+                                        className="col-md-3"
+                                    >
                                         <select
                                             className="form-control"
                                             value={watch('district_id') ?? ''}
@@ -568,9 +569,13 @@ export default function OrdersCreate({
                                                 </option>
                                             ))}
                                         </select>
-                                    </div>
-                                    <div className="col-md-3">
-                                        <label className="form-label">{t('admin.area')}</label>
+                                    </FormField>
+                                    <FormField
+                                        name="area_id"
+                                        label={t('admin.area')}
+                                        error={serverErrors.area_id}
+                                        className="col-md-3"
+                                    >
                                         <select
                                             className="form-control"
                                             value={watch('area_id') ?? ''}
@@ -585,17 +590,16 @@ export default function OrdersCreate({
                                                 </option>
                                             ))}
                                         </select>
-                                    </div>
-                                    <div className="col-md-12">
-                                        <label className="form-label">
-                                            {t('admin.addressLine')}
-                                            <Required />
-                                        </label>
+                                    </FormField>
+                                    <FormField
+                                        name="address_line"
+                                        label={t('admin.addressLine')}
+                                        error={serverErrors.address_line}
+                                        required
+                                        className="col-md-12"
+                                    >
                                         <input className="form-control" {...register('address_line')} />
-                                        {serverErrors.address_line && (
-                                            <div className="text-danger fs-13 mt-1">{serverErrors.address_line}</div>
-                                        )}
-                                    </div>
+                                    </FormField>
                                 </div>
                             </div>
                         </div>
@@ -611,14 +615,14 @@ export default function OrdersCreate({
                                             <tr>
                                                 <th>
                                                     {t('admin.product')}
-                                                    <Required />
+                                                    <RequiredMark />
                                                 </th>
                                                 <th style={{ width: 120 }} className="text-end">
                                                     {t('admin.unitPrice')}
                                                 </th>
                                                 <th style={{ width: 100 }}>
                                                     {t('admin.qty')}
-                                                    <Required />
+                                                    <RequiredMark />
                                                 </th>
                                                 <th style={{ width: 120 }} className="text-end">
                                                     {t('admin.lineTotal')}
@@ -634,18 +638,28 @@ export default function OrdersCreate({
                                                 return (
                                                     <tr key={field.id}>
                                                         <td style={{ minWidth: 280 }}>
-                                                            <VariantPicker
-                                                                onResolve={(variant) => {
-                                                                    setPicked((current) => ({
-                                                                        ...current,
-                                                                        [index]: variant,
-                                                                    }));
-                                                                    setValue(
-                                                                        `items.${index}.product_variant_id`,
-                                                                        variant?.id ?? null,
-                                                                    );
-                                                                }}
-                                                            />
+                                                            {/* Row errors come back as items.N.field —
+                                                                the form's rows are sent as-is, so N is
+                                                                this row's index. */}
+                                                            <FormField
+                                                                name={`items.${index}.product_variant_id`}
+                                                                error={serverErrors[`items.${index}.product_variant_id`]}
+                                                                className=""
+                                                            >
+                                                                <VariantPicker
+                                                                    onResolve={(variant) => {
+                                                                        setPicked((current) => ({
+                                                                            ...current,
+                                                                            [index]: variant,
+                                                                        }));
+                                                                        setValue(
+                                                                            `items.${index}.product_variant_id`,
+                                                                            variant?.id ?? null,
+                                                                            { shouldDirty: true },
+                                                                        );
+                                                                    }}
+                                                                />
+                                                            </FormField>
                                                         </td>
                                                         <td className="text-end" dir="ltr">
                                                             {unitPrice === null ? (
@@ -655,14 +669,20 @@ export default function OrdersCreate({
                                                             )}
                                                         </td>
                                                         <td>
-                                                            <input
-                                                                type="number"
-                                                                min={1}
-                                                                className="form-control form-control-sm"
-                                                                {...register(`items.${index}.quantity`, {
-                                                                    valueAsNumber: true,
-                                                                })}
-                                                            />
+                                                            <FormField
+                                                                name={`items.${index}.quantity`}
+                                                                error={serverErrors[`items.${index}.quantity`]}
+                                                                className=""
+                                                            >
+                                                                <input
+                                                                    type="number"
+                                                                    min={1}
+                                                                    className="form-control form-control-sm"
+                                                                    {...register(`items.${index}.quantity`, {
+                                                                        valueAsNumber: true,
+                                                                    })}
+                                                                />
+                                                            </FormField>
                                                         </td>
                                                         <td className="text-end fw-medium" dir="ltr">
                                                             {unitPrice === null ? (
@@ -693,9 +713,7 @@ export default function OrdersCreate({
                                 >
                                     {t('admin.addItem')}
                                 </button>
-                                {serverErrors.items && (
-                                    <div className="text-danger fs-13 mt-2">{serverErrors.items}</div>
-                                )}
+                                <FieldError name="items" message={serverErrors.items} />
                             </div>
                         </div>
                     </div>
@@ -717,16 +735,18 @@ export default function OrdersCreate({
                                     <label className="form-label">{t('admin.warehouse')}</label>
                                     <input type="hidden" {...register('warehouse_id', { valueAsNumber: true })} />
                                     <input className="form-control" value={warehouse?.name ?? ''} readOnly disabled />
+                                    <FieldError name="warehouse_id" message={serverErrors.warehouse_id} />
                                 </div>
-                                <div className="mb-3">
-                                    <label className="form-label">{t('admin.couponCodeOptional')}</label>
+                                <FormField
+                                    name="coupon_code"
+                                    label={t('admin.couponCodeOptional')}
+                                    error={serverErrors.coupon_code}
+                                >
                                     <input className="form-control" {...register('coupon_code')} />
-                                    {totals?.coupon_error && (
-                                        <div className="text-danger fs-13 mt-1">{totals.coupon_error}</div>
-                                    )}
-                                </div>
-                                {serverErrors.warehouse_id && (
-                                    <div className="text-danger fs-13 mb-2">{serverErrors.warehouse_id}</div>
+                                </FormField>
+                                {/* The live quote's verdict on the code, before submit. */}
+                                {!serverErrors.coupon_code && totals?.coupon_error && (
+                                    <div className="text-danger fs-13 mt-n2 mb-3">{totals.coupon_error}</div>
                                 )}
 
                                 <table className="table mb-0">
