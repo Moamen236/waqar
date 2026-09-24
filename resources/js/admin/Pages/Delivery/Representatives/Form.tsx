@@ -68,7 +68,12 @@ export default function RepresentativeForm({ representative }: { representative:
                                         </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <FormField name="status" label={t('admin.status')} error={errors.status} required>
+                                        <FormField
+                                            name="status"
+                                            label={t('admin.status')}
+                                            error={errors.status}
+                                            required
+                                        >
                                             <select
                                                 className="form-control"
                                                 value={data.status}
@@ -80,7 +85,12 @@ export default function RepresentativeForm({ representative }: { representative:
                                         </FormField>
                                     </div>
                                     <div className="col-lg-12">
-                                        <FormField name="notes" label={t('admin.notes')} error={errors.notes} className="mb-0">
+                                        <FormField
+                                            name="notes"
+                                            label={t('admin.notes')}
+                                            error={errors.notes}
+                                            className="mb-0"
+                                        >
                                             <textarea
                                                 className="form-control"
                                                 rows={3}

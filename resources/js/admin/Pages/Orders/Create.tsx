@@ -3,7 +3,10 @@ import { useEffect, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import Select from 'react-select';
 import AsyncSelect from 'react-select/async';
+import FieldError from '../../Components/Form/FieldError';
+import FormField, { RequiredMark } from '../../Components/Form/FormField';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { fieldId, useClearServerErrorsOnChange } from '../../lib/formErrors';
 import type { GeoTree, Warehouse } from '../../types';
 import { useTranslation } from '../../lib/useTranslation';
 
@@ -218,13 +221,6 @@ interface FormValues {
     coupon_code: string;
 }
 
-/** Marks a field the server rejects the order without. Visual only — aria-hidden, the validation message is what a screen reader gets. */
-const Required = () => (
-    <span className="text-danger ms-1" aria-hidden="true">
-        *
-    </span>
-);
-
 // Ported from Admin Template/order-checkout.html's Personal Details /
 // Shipping Details / Order Summary card layout.
 export default function OrdersCreate({
@@ -259,6 +255,8 @@ export default function OrdersCreate({
         },
     });
     const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+    // Form names are the server's keys here (the form posts as-is), so no aliases.
+    useClearServerErrorsOnChange(watch, setServerErrors);
 
     const governorateId = watch('governorate_id');
     const cityId = watch('city_id');
@@ -643,7 +641,9 @@ export default function OrdersCreate({
                                                                 this row's index. */}
                                                             <FormField
                                                                 name={`items.${index}.product_variant_id`}
-                                                                error={serverErrors[`items.${index}.product_variant_id`]}
+                                                                error={
+                                                                    serverErrors[`items.${index}.product_variant_id`]
+                                                                }
                                                                 className=""
                                                             >
                                                                 <VariantPicker

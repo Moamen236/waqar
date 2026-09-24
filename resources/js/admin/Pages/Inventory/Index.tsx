@@ -94,10 +94,7 @@ export default function InventoryIndex({
                     <div className="card">
                         <div className="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
                             <h4 className="card-title flex-grow-1">{t('admin.stockOnHand')}</h4>
-                            <Link
-                                href={route('admin.inventory.movements')}
-                                className="btn btn-sm btn-soft-info"
-                            >
+                            <Link href={route('admin.inventory.movements')} className="btn btn-sm btn-soft-info">
                                 {t('admin.adjustmentHistory')}
                             </Link>
                             <SearchFilter

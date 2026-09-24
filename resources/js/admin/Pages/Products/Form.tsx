@@ -6,8 +6,12 @@ import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import Select from 'react-select';
 import type { FormDataConvertible } from '@inertiajs/core';
+import FieldError from '../../Components/Form/FieldError';
+import FormField from '../../Components/Form/FormField';
+import ValidationSummary from '../../Components/Form/ValidationSummary';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { confirmAction } from '../../lib/confirm';
+import { invalidClass, invalidProps, pickError, useClearServerErrorsOnChange } from '../../lib/formErrors';
 import { useTranslation } from '../../lib/useTranslation';
 
 interface Option {
@@ -226,6 +230,24 @@ export default function ProductForm({
         },
     });
     const { fields, append, remove } = useFieldArray({ control, name: 'variants' });
+
+    // Edits clear their own errors. The form's flat names map onto the
+    // translatable keys the payload sends (onSubmit); the rest match.
+    const SERVER_KEY: Record<string, string> = {
+        name_en: 'name.en',
+        name_ar: 'name.ar',
+        description_en: 'description.en',
+        short_description_en: 'short_description.en',
+    };
+    useClearServerErrorsOnChange(watch, setServerErrors, (name) => SERVER_KEY[name] ?? name);
+
+    /** For inputs outside react-hook-form (the size guide table). */
+    const clearServerErrors = (prefix: string) =>
+        setServerErrors((current) =>
+            Object.fromEntries(
+                Object.entries(current).filter(([key]) => key !== prefix && !key.startsWith(`${prefix}.`)),
+            ),
+        );
     const productType = watch('product_type');
 
     const onDrop = useCallback((files: File[]) => {
@@ -423,15 +445,9 @@ export default function ProductForm({
         >
             <Head title={product ? t('admin.editProduct') : t('admin.newProduct')} />
             <form onSubmit={handleSubmit(onSubmit)}>
-                {Object.keys(serverErrors).length > 0 && (
-                    <div className="alert alert-danger">
-                        <ul className="mb-0 ps-3">
-                            {Object.entries(serverErrors).map(([field, message]) => (
-                                <li key={field}>{message}</li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
+                {/* A long, multi-card form: every error listed at the top as
+                    well as under its field, each one a link to that field. */}
+                <ValidationSummary errors={serverErrors} />
                 <div className="row">
                     {/* Left column — product-add.html's preview card. */}
                     <div className="col-xl-3 col-lg-4">
@@ -655,82 +671,99 @@ export default function ProductForm({
                             <div className="card-body">
                                 <div className="row">
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.nameEnglish')}</label>
+                                        <FormField
+                                            name="name.en"
+                                            label={t('admin.nameEnglish')}
+                                            error={serverErrors['name.en']}
+                                            required
+                                        >
                                             <input className="form-control" {...register('name_en')} />
-                                            {serverErrors['name.en'] && (
-                                                <div className="text-danger small mt-1">{serverErrors['name.en']}</div>
-                                            )}
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.nameArabic')}</label>
+                                        <FormField
+                                            name="name.ar"
+                                            label={t('admin.nameArabic')}
+                                            error={serverErrors['name.ar']}
+                                        >
                                             <input className="form-control" dir="rtl" {...register('name_ar')} />
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">SKU</label>
-                                            {/* Disabled on create: the SKU is assigned by
-                                                SkuGenerator when the product is inserted, so
-                                                there is nothing here to edit. It is shown
-                                                rather than hidden because the variant SKUs
-                                                below are derived from it. Editing an existing
-                                                product still allows a correction — an assigned
-                                                SKU is a starting value, not a permanent one. */}
+                                        {/* Disabled on create: the SKU is assigned by
+                                            SkuGenerator when the product is inserted, so
+                                            there is nothing here to edit. It is shown
+                                            rather than hidden because the variant SKUs
+                                            below are derived from it. Editing an existing
+                                            product still allows a correction — an assigned
+                                            SKU is a starting value, not a permanent one.
+                                            Required only then, for the same reason. */}
+                                        <FormField
+                                            name="sku"
+                                            label="SKU"
+                                            error={serverErrors.sku}
+                                            required={product !== null}
+                                            hint={product === null ? t('admin.skuAssignedOnSave') : undefined}
+                                        >
                                             <input
                                                 className="form-control"
                                                 disabled={product === null}
                                                 {...register('sku')}
                                             />
-                                            {product === null && (
-                                                <div className="form-text">{t('admin.skuAssignedOnSave')}</div>
-                                            )}
-                                            {serverErrors.sku && (
-                                                <div className="text-danger small mt-1">{serverErrors.sku}</div>
-                                            )}
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.slugAutoGeneratedIfBlank')}</label>
+                                        <FormField
+                                            name="slug"
+                                            label={t('admin.slugAutoGeneratedIfBlank')}
+                                            error={serverErrors.slug}
+                                        >
                                             <input className="form-control" {...register('slug')} />
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-12">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.description')}</label>
+                                        <FormField
+                                            name="description.en"
+                                            label={t('admin.description')}
+                                            error={serverErrors['description.en']}
+                                        >
                                             <ReactQuillField control={control} name="description_en" />
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.shortDescription')}</label>
+                                        <FormField
+                                            name="short_description.en"
+                                            label={t('admin.shortDescription')}
+                                            error={serverErrors['short_description.en']}
+                                        >
                                             <textarea
                                                 className="form-control"
                                                 rows={4}
                                                 {...register('short_description_en')}
                                             />
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.categories')}</label>
+                                        <FormField
+                                            {...pickError(serverErrors, 'category_ids')}
+                                            label={t('admin.categories')}
+                                        >
                                             <MultiSelectField
                                                 control={control}
                                                 name="category_ids"
                                                 options={categoryOptions}
                                             />
-                                        </div>
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.collections')}</label>
+                                        </FormField>
+                                        <FormField
+                                            {...pickError(serverErrors, 'collection_ids')}
+                                            label={t('admin.collections')}
+                                        >
                                             <MultiSelectField
                                                 control={control}
                                                 name="collection_ids"
                                                 options={collectionOptions}
                                             />
-                                        </div>
+                                        </FormField>
                                     </div>
                                 </div>
                             </div>
@@ -743,40 +776,47 @@ export default function ProductForm({
                             <div className="card-body">
                                 <div className="row mb-4">
                                     <div className="col-lg-4">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.price')}</label>
+                                        <FormField
+                                            name="price"
+                                            label={t('admin.price')}
+                                            error={serverErrors.price}
+                                            required
+                                        >
                                             <input
                                                 type="number"
                                                 step="0.01"
                                                 className="form-control"
                                                 {...register('price')}
                                             />
-                                            {serverErrors.price && (
-                                                <div className="text-danger small mt-1">{serverErrors.price}</div>
-                                            )}
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-4">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.salePrice')}</label>
+                                        <FormField
+                                            name="sale_price"
+                                            label={t('admin.salePrice')}
+                                            error={serverErrors.sale_price}
+                                        >
                                             <input
                                                 type="number"
                                                 step="0.01"
                                                 className="form-control"
                                                 {...register('sale_price')}
                                             />
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-4">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.costPriceInternalOnly')}</label>
+                                        <FormField
+                                            name="cost_price"
+                                            label={t('admin.costPriceInternalOnly')}
+                                            error={serverErrors.cost_price}
+                                        >
                                             <input
                                                 type="number"
                                                 step="0.01"
                                                 className="form-control"
                                                 {...register('cost_price')}
                                             />
-                                        </div>
+                                        </FormField>
                                     </div>
                                 </div>
 
@@ -811,37 +851,68 @@ export default function ProductForm({
                                                             {...register(`variants.${index}.sku`)}
                                                         />
                                                     </td>
+                                                    {/* Variants post as-is, so the server's
+                                                        variants.N is this row. */}
                                                     <td style={{ minWidth: 220 }}>
-                                                        <MultiSelectField
-                                                            control={control}
-                                                            name={`variants.${index}.attribute_value_ids`}
-                                                            options={attributeValueOptions}
-                                                        />
+                                                        <FormField
+                                                            {...pickError(
+                                                                serverErrors,
+                                                                `variants.${index}.attribute_value_ids`,
+                                                            )}
+                                                            className=""
+                                                        >
+                                                            <MultiSelectField
+                                                                control={control}
+                                                                name={`variants.${index}.attribute_value_ids`}
+                                                                options={attributeValueOptions}
+                                                            />
+                                                        </FormField>
                                                     </td>
                                                     <td style={{ minWidth: 110 }}>
-                                                        <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            className="form-control form-control-sm"
-                                                            {...register(`variants.${index}.price`)}
-                                                        />
+                                                        <FormField
+                                                            name={`variants.${index}.price`}
+                                                            error={serverErrors[`variants.${index}.price`]}
+                                                            className=""
+                                                        >
+                                                            <input
+                                                                type="number"
+                                                                step="0.01"
+                                                                className="form-control form-control-sm"
+                                                                {...register(`variants.${index}.price`)}
+                                                            />
+                                                        </FormField>
                                                     </td>
                                                     <td style={{ minWidth: 110 }}>
-                                                        <input
-                                                            type="number"
-                                                            step="0.01"
-                                                            className="form-control form-control-sm"
-                                                            {...register(`variants.${index}.sale_price`)}
-                                                        />
+                                                        <FormField
+                                                            name={`variants.${index}.sale_price`}
+                                                            error={serverErrors[`variants.${index}.sale_price`]}
+                                                            className=""
+                                                        >
+                                                            <input
+                                                                type="number"
+                                                                step="0.01"
+                                                                className="form-control form-control-sm"
+                                                                {...register(`variants.${index}.sale_price`)}
+                                                            />
+                                                        </FormField>
                                                     </td>
                                                     <td>
                                                         <div className="form-check">
                                                             <input
                                                                 type="checkbox"
-                                                                className="form-check-input"
+                                                                className={`form-check-input${invalidClass(serverErrors[`variants.${index}.status`])}`}
+                                                                {...invalidProps(
+                                                                    `variants.${index}.status`,
+                                                                    serverErrors[`variants.${index}.status`],
+                                                                )}
+                                                                aria-label={t('admin.active')}
                                                                 {...register(`variants.${index}.status`)}
                                                             />
                                                         </div>
+                                                        <FieldError
+                                                            name={`variants.${index}.status`}
+                                                            message={serverErrors[`variants.${index}.status`]}
+                                                        />
                                                     </td>
                                                     <td>
                                                         <button
@@ -875,9 +946,7 @@ export default function ProductForm({
                                 >
                                     {t('admin.addVariant')}
                                 </button>
-                                {serverErrors.variants && (
-                                    <div className="text-danger small mt-2">{serverErrors.variants}</div>
-                                )}
+                                <FieldError name="variants" message={serverErrors.variants} />
 
                                 {availableSizes.length > 0 && (
                                     <>
@@ -893,42 +962,62 @@ export default function ProductForm({
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {availableSizes.map((size) => (
+                                                    {/* size_guides is posted in this same order
+                                                        (see onSubmit), so size_guides.N is row N. */}
+                                                    {availableSizes.map((size, row) => (
                                                         <tr key={size.id}>
                                                             <td style={{ minWidth: 140 }}>{size.value}</td>
-                                                            {(['min', 'max'] as const).map((bound) => (
-                                                                <td key={bound} style={{ minWidth: 110 }}>
-                                                                    <input
-                                                                        type="number"
-                                                                        step="0.01"
-                                                                        min="0"
-                                                                        className="form-control form-control-sm"
-                                                                        value={sizeGuides[size.id]?.[bound] ?? ''}
-                                                                        onChange={(event) =>
-                                                                            setSizeGuides((prev) => ({
-                                                                                ...prev,
-                                                                                [size.id]: {
-                                                                                    min: prev[size.id]?.min ?? '',
-                                                                                    max: prev[size.id]?.max ?? '',
-                                                                                    [bound]: event.target.value,
-                                                                                },
-                                                                            }))
-                                                                        }
-                                                                    />
-                                                                </td>
-                                                            ))}
+                                                            {(['min', 'max'] as const).map((bound) => {
+                                                                const key = `size_guides.${row}.weight_${bound}`;
+
+                                                                return (
+                                                                    <td key={bound} style={{ minWidth: 110 }}>
+                                                                        <FormField
+                                                                            name={key}
+                                                                            error={serverErrors[key]}
+                                                                            className=""
+                                                                        >
+                                                                            <input
+                                                                                type="number"
+                                                                                step="0.01"
+                                                                                min="0"
+                                                                                className="form-control form-control-sm"
+                                                                                aria-label={`${size.value} — ${t(
+                                                                                    bound === 'min'
+                                                                                        ? 'admin.weightMinKg'
+                                                                                        : 'admin.weightMaxKg',
+                                                                                )}`}
+                                                                                value={
+                                                                                    sizeGuides[size.id]?.[bound] ?? ''
+                                                                                }
+                                                                                onChange={(event) => {
+                                                                                    setSizeGuides((prev) => ({
+                                                                                        ...prev,
+                                                                                        [size.id]: {
+                                                                                            min:
+                                                                                                prev[size.id]?.min ??
+                                                                                                '',
+                                                                                            max:
+                                                                                                prev[size.id]?.max ??
+                                                                                                '',
+                                                                                            [bound]: event.target.value,
+                                                                                        },
+                                                                                    }));
+                                                                                    clearServerErrors(
+                                                                                        `size_guides.${row}`,
+                                                                                    );
+                                                                                }}
+                                                                            />
+                                                                        </FormField>
+                                                                    </td>
+                                                                );
+                                                            })}
                                                         </tr>
                                                     ))}
                                                 </tbody>
                                             </table>
                                         </div>
-                                        {Object.entries(serverErrors)
-                                            .filter(([key]) => key.startsWith('size_guides'))
-                                            .map(([key, message]) => (
-                                                <div key={key} className="text-danger small mt-2">
-                                                    {message}
-                                                </div>
-                                            ))}
+                                        <FieldError name="size_guides" message={serverErrors.size_guides} />
                                     </>
                                 )}
                             </div>
@@ -941,77 +1030,62 @@ export default function ProductForm({
                             <div className="card-body">
                                 <div className="row">
                                     <div className="col-lg-4">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.productType')}</label>
+                                        <FormField
+                                            name="product_type"
+                                            label={t('admin.productType')}
+                                            error={serverErrors.product_type}
+                                            required
+                                            hint={
+                                                productType === 'advertisement'
+                                                    ? t('admin.advertisementStockExplainer')
+                                                    : undefined
+                                            }
+                                        >
                                             <select className="form-control" {...register('product_type')}>
                                                 <option value="real">{t('admin.realInventoryTracked')}</option>
                                                 <option value="advertisement">
                                                     {t('admin.advertisementPreOrderNotTracked')}
                                                 </option>
                                             </select>
-                                            {productType === 'advertisement' && (
-                                                <div className="form-text">
-                                                    {t('admin.advertisementStockExplainer')}
-                                                </div>
-                                            )}
-                                        </div>
+                                        </FormField>
                                     </div>
                                     <div className="col-lg-4">
-                                        <div className="mb-3">
-                                            <label className="form-label">{t('admin.sortOrder')}</label>
+                                        <FormField
+                                            name="sort_order"
+                                            label={t('admin.sortOrder')}
+                                            error={serverErrors.sort_order}
+                                            required
+                                        >
                                             <input
                                                 type="number"
                                                 className="form-control"
                                                 {...register('sort_order', { valueAsNumber: true })}
                                             />
-                                        </div>
+                                        </FormField>
                                     </div>
                                 </div>
-                                <div className="d-flex gap-4">
-                                    <div className="form-check">
-                                        <input
-                                            type="checkbox"
-                                            className="form-check-input"
-                                            id="status"
-                                            {...register('status')}
-                                        />
-                                        <label className="form-check-label" htmlFor="status">
-                                            {t('admin.active')}
-                                        </label>
-                                    </div>
-                                    <div className="form-check">
-                                        <input
-                                            type="checkbox"
-                                            className="form-check-input"
-                                            id="featured"
-                                            {...register('is_featured')}
-                                        />
-                                        <label className="form-check-label" htmlFor="featured">
-                                            {t('admin.featured')}
-                                        </label>
-                                    </div>
-                                    <div className="form-check">
-                                        <input
-                                            type="checkbox"
-                                            className="form-check-input"
-                                            id="isNew"
-                                            {...register('is_new')}
-                                        />
-                                        <label className="form-check-label" htmlFor="isNew">
-                                            {t('admin.new')}
-                                        </label>
-                                    </div>
-                                    <div className="form-check">
-                                        <input
-                                            type="checkbox"
-                                            className="form-check-input"
-                                            id="onSale"
-                                            {...register('is_on_sale')}
-                                        />
-                                        <label className="form-check-label" htmlFor="onSale">
-                                            {t('admin.onSaleBadge')}
-                                        </label>
-                                    </div>
+                                <div className="d-flex flex-wrap gap-4">
+                                    {(
+                                        [
+                                            ['status', 'status', 'admin.active'],
+                                            ['is_featured', 'featured', 'admin.featured'],
+                                            ['is_new', 'isNew', 'admin.new'],
+                                            ['is_on_sale', 'onSale', 'admin.onSaleBadge'],
+                                        ] as const
+                                    ).map(([name, id, label]) => (
+                                        <div className="form-check" key={name}>
+                                            <input
+                                                type="checkbox"
+                                                className={`form-check-input${invalidClass(serverErrors[name])}`}
+                                                {...invalidProps(name, serverErrors[name], id)}
+                                                {...register(name)}
+                                            />
+                                            <label className="form-check-label" htmlFor={id}>
+                                                {t(label)}
+                                            </label>
+                                            <FieldError name={name} message={serverErrors[name]} id={id} />
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                             {/* The primary submit lives in the preview card's

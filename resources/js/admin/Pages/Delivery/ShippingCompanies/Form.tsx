@@ -126,7 +126,12 @@ export default function ShippingCompanyForm({ shippingCompany }: { shippingCompa
                                         </FormField>
                                     </div>
                                     <div className="col-lg-4">
-                                        <FormField name="status" label={t('admin.status')} error={errors.status} required>
+                                        <FormField
+                                            name="status"
+                                            label={t('admin.status')}
+                                            error={errors.status}
+                                            required
+                                        >
                                             <select
                                                 className="form-control"
                                                 value={data.status}
@@ -151,7 +156,11 @@ export default function ShippingCompanyForm({ shippingCompany }: { shippingCompa
                                         </FormField>
                                     </div>
                                     <div className="col-lg-4">
-                                        <FormField name="bank_name" label={t('admin.bankName')} error={errors.bank_name}>
+                                        <FormField
+                                            name="bank_name"
+                                            label={t('admin.bankName')}
+                                            error={errors.bank_name}
+                                        >
                                             <input
                                                 className="form-control"
                                                 value={data.bank_name}
@@ -173,7 +182,12 @@ export default function ShippingCompanyForm({ shippingCompany }: { shippingCompa
                                         </FormField>
                                     </div>
                                     <div className="col-lg-12">
-                                        <FormField name="notes" label={t('admin.notes')} error={errors.notes} className="mb-0">
+                                        <FormField
+                                            name="notes"
+                                            label={t('admin.notes')}
+                                            error={errors.notes}
+                                            className="mb-0"
+                                        >
                                             <textarea
                                                 className="form-control"
                                                 rows={2}

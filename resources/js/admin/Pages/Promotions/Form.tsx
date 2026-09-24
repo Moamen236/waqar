@@ -312,7 +312,12 @@ export default function PromotionForm({
                                         </FormField>
                                     </div>
                                     <div className="col-lg-6">
-                                        <FormField name="type" label={t('admin.type')} error={serverErrors.type} required>
+                                        <FormField
+                                            name="type"
+                                            label={t('admin.type')}
+                                            error={serverErrors.type}
+                                            required
+                                        >
                                             <select className="form-control" {...register('type')}>
                                                 <option value="bundle">{t('admin.bundle')}</option>
                                                 <option value="buy_x_get_y">{t('admin.buyXGetY')}</option>

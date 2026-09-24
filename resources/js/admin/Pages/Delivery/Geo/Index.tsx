@@ -171,7 +171,12 @@ export default function GeoIndex({
                             </div>
                             <div className="card-body">
                                 <form onSubmit={submit}>
-                                    <FormField name={parentField} label={parentLabel} error={error[parentField]} required>
+                                    <FormField
+                                        name={parentField}
+                                        label={parentLabel}
+                                        error={error[parentField]}
+                                        required
+                                    >
                                         <select
                                             className="form-select"
                                             value={form.data.parent}
@@ -220,7 +225,12 @@ export default function GeoIndex({
                                         </FormField>
                                     )}
 
-                                    <FormField name="name.ar" label={t('admin.nameArabic')} error={error['name.ar']} required>
+                                    <FormField
+                                        name="name.ar"
+                                        label={t('admin.nameArabic')}
+                                        error={error['name.ar']}
+                                        required
+                                    >
                                         <input
                                             className="form-control"
                                             dir="rtl"
@@ -232,7 +242,12 @@ export default function GeoIndex({
                                         />
                                     </FormField>
 
-                                    <FormField name="name.en" label={t('admin.nameEnglish')} error={error['name.en']} required>
+                                    <FormField
+                                        name="name.en"
+                                        label={t('admin.nameEnglish')}
+                                        error={error['name.en']}
+                                        required
+                                    >
                                         <input
                                             className="form-control"
                                             dir="ltr"

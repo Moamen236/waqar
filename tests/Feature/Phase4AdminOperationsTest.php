@@ -371,6 +371,29 @@ it('takes an order with only the governorate and street address, pricing shippin
     ])->assertSessionHasErrors('governorate_id');
 });
 
+it('turns a refused order into a message on the form, and files no customer for it', function () {
+    $geo = p4Geo();
+    $warehouse = Warehouse::create(['name' => 'Main Warehouse', 'address' => 'Cairo', 'phone' => '01012345678']);
+    ShippingRate::create(['geo_type' => 'governorate', 'geo_id' => $geo['governorate']->id, 'price' => 30]);
+    $variant = p4Variant($warehouse->id, 2);
+    [$agent] = p4Employee('Customer Service');
+
+    // More than the warehouse holds: CreateOrderAction refuses it. That used
+    // to surface as a 500 — and the guest customer filed first was left
+    // behind, to be filed again on the retry.
+    $this->actingAs($agent, 'employee')->post(route('admin.orders.store'), [
+        'new_customer' => ['name' => 'Too Keen', 'phone' => '01000000009'],
+        'items' => [['product_variant_id' => $variant->id, 'quantity' => 5]],
+        'governorate_id' => $geo['governorate']->id,
+        'address_line' => '5 Queue St',
+        'recipient_name' => 'Too Keen',
+        'phone' => '01000000009',
+    ])->assertRedirect()->assertSessionHas('error');
+
+    expect(Order::count())->toBe(0)
+        ->and(Customer::where('name', 'Too Keen')->exists())->toBeFalse();
+});
+
 it('rejects an order that names neither an existing customer nor a new one', function () {
     $geo = p4Geo();
     $warehouse = Warehouse::create(['name' => 'Main Warehouse', 'address' => 'Cairo', 'phone' => '01012345678']);

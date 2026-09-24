@@ -21,7 +21,9 @@ export default function Login() {
         e.preventDefault();
         // This page is outside AdminLayout, so its global error listener
         // isn't mounted — focus the first bad field directly.
-        post(route('admin.login.store'), { onError: (formErrors) => window.setTimeout(() => revealErrors(formErrors)) });
+        post(route('admin.login.store'), {
+            onError: (formErrors) => window.setTimeout(() => revealErrors(formErrors)),
+        });
     };
 
     return (

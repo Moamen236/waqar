@@ -99,7 +99,12 @@ export default function ShippingRateForm({
                             <div className="card-body">
                                 <div className="row">
                                     <div className="col-lg-6">
-                                        <FormField name="geo_type" label={t('admin.level')} error={errors.geo_type} required>
+                                        <FormField
+                                            name="geo_type"
+                                            label={t('admin.level')}
+                                            error={errors.geo_type}
+                                            required
+                                        >
                                             <select
                                                 className="form-control"
                                                 value={data.geo_type}
@@ -125,7 +130,11 @@ export default function ShippingRateForm({
                                             label={t('admin.location')}
                                             error={errors.geo_id}
                                             required
-                                            hint={locations.length === 0 ? t('admin.noLocationsExistAtThisLevel') : undefined}
+                                            hint={
+                                                locations.length === 0
+                                                    ? t('admin.noLocationsExistAtThisLevel')
+                                                    : undefined
+                                            }
                                         >
                                             <select
                                                 className="form-control"

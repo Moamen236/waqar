@@ -7,7 +7,7 @@
  * than trailing it, unlike the storefront: Q2 ships the staff UI
  * Arabic-only, so Arabic is the primary script here.
  */
-@import "./fonts/thmanyah-sans.css";
+@import './fonts/thmanyah-sans.css';
 
 /* Admin — the real Larkon theme (Section 23), not a generic Bootstrap
  * substitute. The theme's own compiled CSS (vendor.min.css, icons.min.css,
@@ -39,7 +39,7 @@
      * font variables. The theme's Google Fonts import (Hanken Grotesk +
      * Play) is removed from app.min.css/app-rtl.min.css, so nothing remote
      * is fetched either. */
-    --bs-font-sans-serif: "Thmanyah Sans", system-ui, sans-serif;
+    --bs-font-sans-serif: 'Thmanyah Sans', system-ui, sans-serif;
 
     --bs-primary: #012c4e;
     --bs-primary-rgb: 1, 44, 78;
@@ -355,7 +355,7 @@ h5,
 h6,
 .jvm-tooltip,
 .jvectormap-label {
-    font-family: "Thmanyah Sans", var(--bs-body-font-family, system-ui), sans-serif;
+    font-family: 'Thmanyah Sans', var(--bs-body-font-family, system-ui), sans-serif;
 }
 
 /* Admin sign-in (Pages/Auth/Login.tsx) — split layout: brand photo on the

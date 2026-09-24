@@ -36,7 +36,20 @@ export function invalidProps(name: string, error?: string, id: string = fieldId(
 
 export const invalidClass = (error?: string) => (error ? ' is-invalid' : '');
 
-const FOCUSABLE = 'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])';
+/**
+ * For a field that posts an array (a multi-select): Laravel reports a bad
+ * entry as `category_ids.2`, not `category_ids`. Returns the key actually
+ * present — the field's own, else its first entry's — with its message,
+ * ready to spread into FormField as `name`/`error`.
+ */
+export function pickError(errors: Partial<Record<string, string>>, base: string): { name: string; error?: string } {
+    const name = errors[base] ? base : (Object.keys(errors).find((key) => key.startsWith(`${base}.`)) ?? base);
+
+    return { name, error: errors[name] };
+}
+
+const FOCUSABLE =
+    'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
  * After a failed submit: bring the first error into view and put the caret
