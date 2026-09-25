@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import OrderSummaryCard from '../../Components/OrderSummaryCard';
 import ShippingAddressCard from '../../Components/ShippingAddressCard';
 import StatusBadge from '../../Components/StatusBadge';
@@ -85,6 +85,16 @@ interface Treasury extends Option {
     type: string;
 }
 
+/** admin.returns.replacement-quote — shipping/total are null when no rate covers the address. */
+interface ReplacementQuote {
+    returned_value: number;
+    subtotal: number;
+    credit: number;
+    difference: number;
+    shipping: number | null;
+    total: number | null;
+}
+
 const REFUND_METHODS = ['bank_transfer', 'wallet', 'cash'];
 
 // Each refund method posts against the treasury of the same type —
@@ -126,7 +136,33 @@ export default function ReturnsShow({
     // Resolved by the picker once a product and every colour/size it has
     // are chosen; null until then.
     const [replacementVariant, setReplacementVariant] = useState<number | null>(null);
+    // As many as came back, so the whole returned value is credited.
+    const [replacementQty, setReplacementQty] = useState(ret.items.reduce((sum, item) => sum + item.quantity, 0) || 1);
+    const [fetchedQuote, setFetchedQuote] = useState<ReplacementQuote | null>(null);
+    // Only meaningful while an item is chosen — derived rather than cleared
+    // in the effect, so picking a new product never shows a stale price.
+    const replacementQuote = replacementVariant === null ? null : fetchedQuote;
     const [pickupCourier, setPickupCourier] = useState<string>('');
+
+    useEffect(() => {
+        if (replacementVariant === null) return;
+
+        const controller = new AbortController();
+        const query = new URLSearchParams({
+            'items[0][product_variant_id]': String(replacementVariant),
+            'items[0][quantity]': String(replacementQty),
+        });
+
+        fetch(`${route('admin.returns.replacement-quote', ret.id)}?${query}`, {
+            headers: { Accept: 'application/json' },
+            signal: controller.signal,
+        })
+            .then((response) => (response.ok ? response.json() : null))
+            .then((body: ReplacementQuote | null) => setFetchedQuote(body))
+            .catch(() => {});
+
+        return () => controller.abort();
+    }, [replacementVariant, replacementQty, ret.id]);
 
     function handleMethodChange(next: string) {
         setMethod(next);
@@ -188,7 +224,7 @@ export default function ReturnsShow({
         if (!(await confirmAction({ title: t('admin.createReplacementQ') }))) return;
 
         router.post(route('admin.returns.replace', ret.id), {
-            items: [{ product_variant_id: replacementVariant, quantity: 1 }],
+            items: [{ product_variant_id: replacementVariant, quantity: replacementQty }],
         });
     }
 
@@ -690,10 +726,89 @@ export default function ReturnsShow({
                                                     onResolve={(variant) => setReplacementVariant(variant?.id ?? null)}
                                                 />
                                             </div>
+                                            <div className="mb-2 d-flex align-items-center gap-2">
+                                                <label className="form-label fs-13 mb-0" htmlFor="replacement-qty">
+                                                    {t('admin.qty')}
+                                                </label>
+                                                <input
+                                                    id="replacement-qty"
+                                                    type="number"
+                                                    min={1}
+                                                    className="form-control form-control-sm"
+                                                    style={{ maxWidth: 90 }}
+                                                    value={replacementQty}
+                                                    onChange={(e) =>
+                                                        setReplacementQty(Math.max(1, Number(e.target.value) || 1))
+                                                    }
+                                                />
+                                            </div>
+
+                                            {/* What the customer will pay the courier, before
+                                                anyone commits — the same math the order is
+                                                created with. */}
+                                            {replacementQuote !== null && (
+                                                <table className="table table-sm fs-13 mb-2">
+                                                    <tbody>
+                                                        <tr>
+                                                            <td className="px-0 text-muted">
+                                                                {t('admin.replacementNewItems')}
+                                                            </td>
+                                                            <td className="px-0 text-end" dir="ltr">
+                                                                {price(replacementQuote.subtotal)}
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td className="px-0 text-muted">
+                                                                {t('admin.replacementReturnedCredit')}
+                                                            </td>
+                                                            <td className="px-0 text-end" dir="ltr">
+                                                                −{price(replacementQuote.credit)}
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td className="px-0">{t('admin.replacementDifference')}</td>
+                                                            <td className="px-0 text-end" dir="ltr">
+                                                                {price(replacementQuote.difference)}
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td className="px-0">{t('admin.replacementShipping')}</td>
+                                                            <td className="px-0 text-end" dir="ltr">
+                                                                {replacementQuote.shipping === null
+                                                                    ? '—'
+                                                                    : price(replacementQuote.shipping)}
+                                                            </td>
+                                                        </tr>
+                                                        <tr className="fw-semibold border-top">
+                                                            <td className="px-0">
+                                                                {t('admin.replacementCustomerPays')}
+                                                            </td>
+                                                            <td className="px-0 text-end" dir="ltr">
+                                                                {replacementQuote.total === null
+                                                                    ? '—'
+                                                                    : price(replacementQuote.total)}
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            )}
+                                            {replacementQuote !== null &&
+                                                replacementQuote.returned_value > replacementQuote.subtotal && (
+                                                    <p className="text-muted fs-12 mb-2">
+                                                        {t('admin.replacementNoRefundOnTradeDown')}
+                                                    </p>
+                                                )}
+                                            {replacementQuote !== null && replacementQuote.shipping === null && (
+                                                <p className="text-danger fs-13 mb-2">
+                                                    {t('admin.replacementNoShippingRate')}
+                                                </p>
+                                            )}
                                             <button
                                                 type="button"
                                                 className="btn btn-primary w-100"
-                                                disabled={replacementVariant === null}
+                                                disabled={
+                                                    replacementVariant === null || replacementQuote?.total === null
+                                                }
                                                 onClick={sendReplacement}
                                             >
                                                 {t('admin.createReplacementOrder')}

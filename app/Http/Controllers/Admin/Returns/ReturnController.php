@@ -73,7 +73,7 @@ class ReturnController extends Controller implements HasMiddleware
             new Middleware('permission:returns.receive', only: ['receive']),
             new Middleware('permission:returns.assign_pickup', only: ['assignPickup']),
             new Middleware('permission:returns.refund', only: ['refund']),
-            new Middleware('permission:returns.replace', only: ['replace', 'productSearch']),
+            new Middleware('permission:returns.replace', only: ['replace', 'productSearch', 'replacementQuote']),
         ];
     }
 
@@ -270,6 +270,27 @@ class ReturnController extends Controller implements HasMiddleware
         }
 
         return back()->with('success', __('Collection assigned to :name.', ['name' => $assignee->name]));
+    }
+
+    /**
+     * The price breakdown for a replacement before it is created: the
+     * returned goods' credit, the difference to pay, and shipping to the
+     * original order's address. Same math replace() will apply.
+     */
+    public function replacementQuote(Request $request, OrderReturn $return, CreateReplacementOrderAction $action): JsonResponse
+    {
+        $data = $request->validate([
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.product_variant_id' => ['required', 'integer', 'exists:product_variants,id'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+        ]);
+
+        abort_unless(
+            OrderReturn::query()->visibleTo($request->user('employee'))->whereKey($return->getKey())->exists(),
+            403,
+        );
+
+        return response()->json($action->quote($return, $data['items']));
     }
 
     /**

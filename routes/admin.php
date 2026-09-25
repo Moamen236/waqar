@@ -284,6 +284,7 @@ Route::middleware('auth:employee')->group(function () {
     // Who goes to collect the goods coming back.
     Route::post('returns/{return}/assign-pickup', [ReturnController::class, 'assignPickup'])->name('returns.assign-pickup');
     Route::post('returns/{return}/replace', [ReturnController::class, 'replace'])->name('returns.replace');
+    Route::get('returns/{return}/replacement-quote', [ReturnController::class, 'replacementQuote'])->name('returns.replacement-quote');
 
     // Collections (Vice Chairman) — no template counterpart, built from scratch.
     Route::get('collections', [CollectionController::class, 'index'])->name('collections.index');

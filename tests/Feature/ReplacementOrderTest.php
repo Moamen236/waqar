@@ -268,3 +268,51 @@ it('finds the replacement by product name, with its colours and sizes, for whoev
         ->getJson(route('admin.returns.product-search', ['q' => 'Widget']))
         ->assertForbidden();
 });
+
+it('quotes the replacement with the same credit, difference and location shipping the order is then created with', function () {
+    [$return, $staff, $geo] = rpReceivedReturn();
+    $dearer = rpVariant($geo['warehouse']->id, 200.0);
+
+    // 200 new − 100 returned = 100 difference, + 50 shipping for the
+    // original address's governorate (setUpGeoAndShipping's rate).
+    $this->actingAs($staff, 'employee')
+        ->getJson(route('admin.returns.replacement-quote', [
+            $return,
+            'items' => [['product_variant_id' => $dearer->id, 'quantity' => 1]],
+        ]))
+        ->assertOk()
+        ->assertExactJson([
+            'returned_value' => 100.0,
+            'subtotal' => 200.0,
+            'credit' => 100.0,
+            'difference' => 100.0,
+            'shipping' => 50.0,
+            'total' => 150.0,
+        ]);
+
+    $this->actingAs($staff, 'employee')->post(route('admin.returns.replace', $return), [
+        'items' => [['product_variant_id' => $dearer->id, 'quantity' => 1]],
+    ])->assertRedirect();
+
+    $replacement = Order::where('replaces_order_id', $return->order_id)->firstOrFail();
+    expect((float) $replacement->total)->toBe(150.0)
+        ->and((float) $replacement->shipping_amount)->toBe(50.0)
+        ->and((float) $replacement->discount_amount)->toBe(100.0);
+});
+
+it('credits every returned unit when the same quantity is sent back out', function () {
+    [$return, $staff, $geo] = rpReceivedReturn();
+    $same = rpVariant($geo['warehouse']->id, 100.0);
+
+    // One unit came back (100 credit); sending two out charges one unit's
+    // price as the difference, plus shipping.
+    $this->actingAs($staff, 'employee')
+        ->getJson(route('admin.returns.replacement-quote', [
+            $return,
+            'items' => [['product_variant_id' => $same->id, 'quantity' => 2]],
+        ]))
+        ->assertOk()
+        ->assertJsonPath('credit', 100)
+        ->assertJsonPath('difference', 100)
+        ->assertJsonPath('total', 150);
+});

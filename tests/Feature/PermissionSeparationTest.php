@@ -89,6 +89,7 @@ it('gates every workflow action behind its own permission', function () {
         'admin.returns.assign-pickup' => 'returns.assign_pickup',
         'admin.returns.replace' => 'returns.replace',
         'admin.returns.product-search' => 'returns.replace',
+        'admin.returns.replacement-quote' => 'returns.replace',
         'admin.geo.store' => 'geo.create',
         'admin.geo.update' => 'geo.update',
         'admin.geo.destroy' => 'geo.delete',

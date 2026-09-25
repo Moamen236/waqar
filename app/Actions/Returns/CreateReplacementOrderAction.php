@@ -8,7 +8,9 @@ use App\Enums\ReturnStatus;
 use App\Models\Employee;
 use App\Models\Order;
 use App\Models\OrderReturn;
+use App\Models\ProductVariant;
 use App\Models\Warehouse;
+use App\Services\Shipping\ShippingRateResolver;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -43,7 +45,57 @@ use RuntimeException;
  */
 class CreateReplacementOrderAction
 {
-    public function __construct(private readonly CreateOrderAction $createOrder) {}
+    public function __construct(
+        private readonly CreateOrderAction $createOrder,
+        private readonly ShippingRateResolver $shippingRates,
+    ) {}
+
+    /**
+     * What the replacement would cost the customer, without creating it —
+     * the preview on the return screen. Priced the way execute() will price
+     * it: the outgoing item at its current price, shipping from the rate
+     * for the original order's address (the replacement goes to the same
+     * place), and the returned goods as the credit.
+     *
+     * `shipping` is null when no rate covers that address; execute() would
+     * refuse the same order, so the screen can say so before anyone clicks.
+     *
+     * @param  array<int, array{product_variant_id: int, quantity: int}>  $items
+     * @return array{returned_value: float, subtotal: float, credit: float, difference: float, shipping: float|null, total: float|null}
+     */
+    public function quote(OrderReturn $return, array $items): array
+    {
+        $variants = ProductVariant::query()->whereIn('id', array_column($items, 'product_variant_id'))->get()->keyBy('id');
+
+        $subtotal = round(array_sum(array_map(
+            fn (array $item) => (float) $variants->get($item['product_variant_id'])?->effectivePrice() * $item['quantity'],
+            $items,
+        )), 2);
+
+        $original = $return->order;
+        $rate = $this->shippingRates->resolve(
+            $original->shipping_governorate_id,
+            $original->shipping_city_id,
+            $original->shipping_district_id,
+            $original->shipping_area_id,
+        );
+
+        // Same free-shipping threshold rule CreateOrderAction applies.
+        $shipping = $rate === null
+            ? null
+            : ($rate->free_shipping_threshold !== null && $subtotal >= (float) $rate->free_shipping_threshold ? 0.0 : (float) $rate->price);
+
+        $price = $this->price($this->returnedValue($return), $subtotal, $shipping ?? 0.0);
+
+        return [
+            'returned_value' => $this->returnedValue($return),
+            'subtotal' => $subtotal,
+            'credit' => $price['credit'],
+            'difference' => round($subtotal - $price['credit'], 2),
+            'shipping' => $shipping,
+            'total' => $shipping === null ? null : $price['total'],
+        ];
+    }
 
     /**
      * @param  array<int, array{product_variant_id: int, quantity: int}>  $items  what goes out
@@ -91,12 +143,12 @@ class CreateReplacementOrderAction
                 $employee,
             );
 
-            $credit = min($this->returnedValue($return), (float) $order->subtotal);
-            $total = round((float) $order->subtotal - $credit + (float) $order->shipping_amount, 2);
+            $price = $this->price($this->returnedValue($return), (float) $order->subtotal, (float) $order->shipping_amount);
+            $total = $price['total'];
 
             $order->update([
                 'replaces_order_id' => $original->id,
-                'discount_amount' => $credit,
+                'discount_amount' => $price['credit'],
                 'total' => $total,
             ]);
 
@@ -112,6 +164,23 @@ class CreateReplacementOrderAction
 
             return $order->fresh();
         });
+    }
+
+    /**
+     * The one pricing rule both quote() and execute() use: the returned
+     * goods are credited up to the outgoing subtotal (never below zero on a
+     * trade-down), and the customer pays the difference plus shipping.
+     *
+     * @return array{credit: float, total: float}
+     */
+    private function price(float $returnedValue, float $subtotal, float $shipping): array
+    {
+        $credit = min($returnedValue, $subtotal);
+
+        return [
+            'credit' => $credit,
+            'total' => round($subtotal - $credit + $shipping, 2),
+        ];
     }
 
     /**
