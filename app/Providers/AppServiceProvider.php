@@ -21,6 +21,7 @@ use App\Observers\TreasuryTransactionObserver;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Activitylog\Facades\CauserResolver;
 use Spatie\Permission\Events\PermissionAttachedEvent;
@@ -43,6 +44,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if(env('APP_ENV') === 'production'){
+            URL::forceScheme('https');
+        }
         // Super Admin bypasses every permission check outright (spec
         // Section 15: "Full system access") rather than needing every
         // permission explicitly assigned — Spatie's own recommended
