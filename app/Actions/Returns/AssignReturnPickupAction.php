@@ -28,11 +28,10 @@ class AssignReturnPickupAction
 {
     /**
      * Once approved the goods are agreed and someone has to go and get
-     * them; once received they are already here.
+     * them. Once received they are already here, so there is nobody to send.
      */
     private const ASSIGNABLE_FROM = [
         ReturnStatus::Approved,
-        ReturnStatus::Inspected,
     ];
 
     public function execute(

@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Admin\Returns;
 
 use App\Actions\Returns\AcceptReturnShippingFeeAction;
-use App\Actions\Returns\ApproveReturnAction;
 use App\Actions\Returns\AssignReturnPickupAction;
 use App\Actions\Returns\CheckReturnAction;
 use App\Actions\Returns\CreateReplacementOrderAction;
 use App\Actions\Returns\ReceiveReturnAction;
 use App\Actions\Returns\RefundReturnAction;
 use App\Actions\Returns\RequestReturnAction;
+use App\Actions\Search\SearchProductsAction;
 use App\Enums\DeliveryAssignmentType;
 use App\Enums\OrderStatus;
 use App\Enums\RefundMethod;
@@ -19,12 +19,14 @@ use App\Http\Controllers\Controller;
 use App\Models\DeliveryRepresentative;
 use App\Models\Order;
 use App\Models\OrderReturn;
-use App\Models\ProductVariant;
+use App\Models\Product;
 use App\Models\ReturnReason;
 use App\Models\ShippingCompany;
 use App\Models\Treasury;
 use App\Models\Warehouse;
 use App\Support\DateRangeFilter;
+use App\Support\ProductPresenter;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -47,7 +49,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 class ReturnController extends Controller implements HasMiddleware
 {
     /**
-     * Not CRUD-shaped: approve/receive/refund are three sequential
+     * Not CRUD-shaped: check/receive/refund are sequential
      * business transitions on the same return, not create/update/delete
      * of a record, so split by transition name. returns.create covers
      * filing one on a customer's behalf + recording their shipping-fee
@@ -61,13 +63,17 @@ class ReturnController extends Controller implements HasMiddleware
             // cannot phone a customer about a return it is not allowed to
             // open. It gets no create/store — verifying a return is not
             // the same as filing one.
-            new Middleware('permission:returns.create|returns.check', only: ['index', 'show']),
-            new Middleware('permission:returns.create', only: ['create', 'store', 'acceptShippingFee']),
+            new Middleware('permission:returns.view', only: ['index', 'show']),
+            new Middleware('permission:returns.create', only: ['create', 'store']),
+            // The fee is usually agreed on Checking's call, so the caller may
+            // record it as well as whoever filed the return.
+            new Middleware('permission:returns.create|returns.check', only: ['acceptShippingFee']),
             new Middleware('permission:returns.check', only: ['check']),
             new Middleware('permission:returns.export', only: ['export']),
-            new Middleware('permission:returns.approve', only: ['approve']),
-            new Middleware('permission:returns.receive', only: ['receive', 'assignPickup']),
-            new Middleware('permission:returns.refund', only: ['refund', 'replace']),
+            new Middleware('permission:returns.receive', only: ['receive']),
+            new Middleware('permission:returns.assign_pickup', only: ['assignPickup']),
+            new Middleware('permission:returns.refund', only: ['refund']),
+            new Middleware('permission:returns.replace', only: ['replace', 'productSearch']),
         ];
     }
 
@@ -90,6 +96,28 @@ class ReturnController extends Controller implements HasMiddleware
             'returns' => $returns,
             'status' => $request->query('status'),
             'filters' => $range,
+        ]);
+    }
+
+    /**
+     * The replacement picker's search: a product by name, returned with its
+     * colours, sizes and variants so the item is chosen the way a customer
+     * would pick it. A swap may be any product in the catalogue, not just
+     * the returned one's siblings. Same search and shape as the admin
+     * order-create picker, but its own route so it follows returns.replace
+     * rather than orders.create.
+     */
+    public function productSearch(Request $request, SearchProductsAction $search): JsonResponse
+    {
+        $data = $request->validate([
+            'q' => ['required', 'string', 'max:255'],
+        ]);
+
+        $products = $search->execute($data['q'], app()->getLocale(), 15)
+            ->load(['variants.attributeValues.attribute']);
+
+        return response()->json([
+            'products' => $products->map(fn (Product $product) => ProductPresenter::picker($product))->values(),
         ]);
     }
 
@@ -193,20 +221,6 @@ class ReturnController extends Controller implements HasMiddleware
             // the main warehouse, shown read-only (same arrangement as
             // admin order-create).
             'warehouse' => Warehouse::main()?->only(['id', 'name']),
-            // What can be sent as a replacement. Same flat list the admin
-            // order-create screen uses — a swap is chosen from the whole
-            // catalogue, not just the returned product's siblings.
-            'variants' => ProductVariant::query()
-                ->where('status', true)
-                ->whereHas('product')
-                ->with('product:id,name')
-                ->get()
-                ->map(fn (ProductVariant $variant) => [
-                    'id' => $variant->id,
-                    'label' => $variant->product->getTranslation('name', app()->getLocale()).' — '.$variant->sku,
-                    'price' => (float) $variant->effectivePrice(),
-                ])
-                ->values(),
             // Who can be sent to collect the goods coming back.
             'representatives' => DeliveryRepresentative::query()->where('status', 'active')->get(['id', 'name']),
             'shippingCompanies' => ShippingCompany::query()->where('status', 'active')->get(['id', 'name']),
@@ -283,13 +297,6 @@ class ReturnController extends Controller implements HasMiddleware
             ->with('success', __('Replacement order #:number created.', ['number' => $order->order_number]));
     }
 
-    public function approve(Request $request, OrderReturn $return, ApproveReturnAction $action): RedirectResponse
-    {
-        $action->execute($return, $request->user('employee'));
-
-        return back()->with('success', __('Return approved.'));
-    }
-
     /**
      * Checking's phone call: confirm the reason, reschedule if the
      * customer could not be reached, or cancel it outright. One endpoint
@@ -327,7 +334,11 @@ class ReturnController extends Controller implements HasMiddleware
 
         abort_if($warehouse === null, 422, __('No active warehouse is configured.'));
 
-        $action->execute($return, $request->user('employee'), $warehouse);
+        try {
+            $action->execute($return, $request->user('employee'), $warehouse);
+        } catch (RuntimeException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
 
         return back()->with('success', __('Return received and restocked.'));
     }

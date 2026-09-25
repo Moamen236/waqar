@@ -42,3 +42,7 @@ Thumbs.db
 # graphify knowledge graph output
 /graphify-out
 /products
+/.freebuff
+/.junie
+/.windsurf
+/.cursor/*

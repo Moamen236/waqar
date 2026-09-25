@@ -160,7 +160,7 @@ it('refuses to delete an area an order was shipped to, with a readable message r
 });
 
 it('keeps the screens behind the geo permissions', function () {
-    $checker = geoEmployee('Checking'); // holds neither geo.view nor geo.manage
+    $checker = geoEmployee('Checking'); // holds neither geo.view nor any geo write grant
     $country = geoCountry();
 
     $this->actingAs($checker, 'employee')->get(route('admin.geo.index', 'governorates'))->assertForbidden();

@@ -60,7 +60,14 @@ class ReconciliationController extends Controller implements HasMiddleware
 
         return Inertia::render('Accounting/Reconciliation/Show', [
             'shippingCompany' => $shippingCompany,
-            'statements' => $shippingCompany->statements()->latest('id')->get(),
+            // One statement per settlement period, forever — paginated
+            // rather than the whole history on every visit. Its own page
+            // name, and the query string kept, so paging it doesn't drop
+            // the draft period being worked on above.
+            'statements' => $shippingCompany->statements()
+                ->latest('id')
+                ->paginate(20, ['*'], 'statements_page')
+                ->withQueryString(),
             'draft' => $draft,
             'periodStart' => $request->query('period_start'),
             'periodEnd' => $request->query('period_end'),

@@ -2,8 +2,10 @@ import { Head, router } from '@inertiajs/react';
 import 'flatpickr/dist/flatpickr.css';
 import { useState } from 'react';
 import Flatpickr from 'react-flatpickr';
+import { PaginationFooter } from '../../../Components/Pagination';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import { confirmAction } from '../../../lib/confirm';
+import type { PaginatedData } from '../../../types';
 import { usePermissions } from '../../../Hooks/usePermissions';
 import { useTranslation } from '../../../lib/useTranslation';
 
@@ -44,7 +46,7 @@ export default function ReconciliationShow({
     treasuries,
 }: {
     shippingCompany: { id: number; name: string };
-    statements: Statement[];
+    statements: PaginatedData<Statement>;
     draft: Draft | null;
     periodStart: string | null;
     periodEnd: string | null;
@@ -184,7 +186,7 @@ export default function ReconciliationShow({
                             </tr>
                         </thead>
                         <tbody>
-                            {statements.map((statement) => (
+                            {statements.data.map((statement) => (
                                 <tr key={statement.id}>
                                     <td>
                                         {statement.period_start} – {statement.period_end}
@@ -240,7 +242,7 @@ export default function ReconciliationShow({
                                     </td>
                                 </tr>
                             ))}
-                            {statements.length === 0 && (
+                            {statements.data.length === 0 && (
                                 <tr>
                                     <td colSpan={6} className="text-center text-muted py-4">
                                         {t('admin.noStatementsYet')}
@@ -250,6 +252,7 @@ export default function ReconciliationShow({
                         </tbody>
                     </table>
                 </div>
+                <PaginationFooter data={statements} />
             </div>
         </AdminLayout>
     );

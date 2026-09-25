@@ -228,6 +228,7 @@ return [
         'kept_quantities' => 'الكميات المحتفظ بها',
         'kept_quantities.*' => 'الكمية المحتفظ بها',
         'label' => 'الاسم المختصر',
+        'manager_employee_id' => 'المسؤول',
         'message' => 'الرسالة',
         'method' => 'الطريقة',
         'name' => 'الاسم',

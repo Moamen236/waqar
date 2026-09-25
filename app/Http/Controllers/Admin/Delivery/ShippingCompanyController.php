@@ -31,7 +31,7 @@ class ShippingCompanyController extends Controller implements HasMiddleware
     public function index(): Response
     {
         return Inertia::render('Delivery/ShippingCompanies/Index', [
-            'shippingCompanies' => ShippingCompany::query()->latest('id')->paginate(20),
+            'shippingCompanies' => ShippingCompany::query()->latest('id')->paginate(20)->withQueryString(),
         ]);
     }
 

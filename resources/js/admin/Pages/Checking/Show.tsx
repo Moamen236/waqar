@@ -3,6 +3,7 @@ import { useState } from 'react';
 import OrderSummaryCard from '../../Components/OrderSummaryCard';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { usePermissions } from '../../Hooks/usePermissions';
 import { confirmAction } from '../../lib/confirm';
 import { useTranslation } from '../../lib/useTranslation';
 
@@ -176,7 +177,12 @@ export default function CheckingShow({ order, stock }: { order: OrderDetail; sto
         router.post(route('admin.checking.resume', order.id));
     }
 
-    const allows = (action: keyof typeof ALLOWED_FROM) => ALLOWED_FROM[action].includes(order.status);
+    // Legal at this status AND granted to this employee — each transition
+    // is its own permission (checking.confirm, checking.cancel, …).
+    const { can } = usePermissions();
+    const allows = (action: keyof typeof ALLOWED_FROM) =>
+        ALLOWED_FROM[action].includes(order.status) && can(`checking.${action}`);
+    const canResume = can('checking.backorder');
     const canAct = (Object.keys(ALLOWED_FROM) as (keyof typeof ALLOWED_FROM)[]).some(allows);
 
     return (
@@ -311,7 +317,7 @@ export default function CheckingShow({ order, stock }: { order: OrderDetail; sto
                             <StatusBadge status={order.status} />
                         </div>
                         <div className="card-body">
-                            {order.status === 'Backorder' ? (
+                            {order.status === 'Backorder' && canResume ? (
                                 <>
                                     <StockPanel stock={stock} countHold={false} />
                                     {!stock.can_resume && (

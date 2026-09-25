@@ -3,12 +3,11 @@ import EmptyState, { EmptyRow } from '../Components/EmptyState';
 import StatCard from '../Components/StatCard';
 import StatusBadge from '../Components/StatusBadge';
 import AdminLayout from '../Layouts/AdminLayout';
+import { usePermissions } from '../Hooks/usePermissions';
 import { useTranslation } from '../lib/useTranslation';
 
 interface OrderStats {
     today: number;
-    awaiting_checking: number;
-    out_for_delivery: number;
     delivered_this_month: number;
     revenue_this_month: string;
 }
@@ -44,9 +43,9 @@ interface LowStockRow {
  * figure on it is a real query in DashboardController.
  *
  * Each block is also conditional on its prop being present at all — the
- * controller omits the ones the viewer lacks permission for, so a
- * Checking employee gets the order tiles and nothing else, and the grid
- * simply closes up.
+ * controller omits the ones the viewer lacks permission for, and the grid
+ * simply closes up. A tile's link is shown only when the viewer can open
+ * the page it points at.
  */
 export default function Dashboard({
     stats,
@@ -55,6 +54,8 @@ export default function Dashboard({
 }: {
     stats: {
         orders: OrderStats | null;
+        checking: number | null;
+        delivery: number | null;
         catalog: { active_products: number; total_products: number } | null;
         customers: number | null;
         returns: number | null;
@@ -64,6 +65,7 @@ export default function Dashboard({
     lowestStock: LowStockRow[] | null;
 }) {
     const { t, price, dateTime } = useTranslation();
+    const { can } = usePermissions();
 
     return (
         <AdminLayout title={t('admin.dashboard')}>
@@ -71,41 +73,63 @@ export default function Dashboard({
 
             <div className="row g-4">
                 {stats.orders && (
-                    <>
-                        <div className="col-md-6 col-xl-3">
-                            <StatCard
-                                label={t('admin.ordersToday')}
-                                value={stats.orders.today}
-                                icon="bx-cart-alt"
-                                variant="primary"
-                                caption={t('admin.awaitingChecking')}
-                                href={route('admin.checking.index')}
-                                linkLabel={String(stats.orders.awaiting_checking)}
-                            />
-                        </div>
-                        <div className="col-md-6 col-xl-3">
-                            <StatCard
-                                label={t('admin.outForDelivery')}
-                                value={stats.orders.out_for_delivery}
-                                icon="bxs-truck"
-                                variant="info"
-                                caption={t('admin.pendingAction')}
-                                href={route('admin.delivery.index')}
-                                linkLabel={t('admin.viewAll')}
-                            />
-                        </div>
-                        <div className="col-md-6 col-xl-3">
-                            <StatCard
-                                label={t('admin.revenueThisMonth')}
-                                value={price(Number(stats.orders.revenue_this_month))}
-                                icon="bx-wallet"
-                                variant="success"
-                                caption={t('admin.deliveredThisMonth')}
-                                href={route('admin.accounting.index')}
-                                linkLabel={String(stats.orders.delivered_this_month)}
-                            />
-                        </div>
-                    </>
+                    <div className="col-md-6 col-xl-3">
+                        <StatCard
+                            label={t('admin.ordersToday')}
+                            value={stats.orders.today}
+                            icon="bx-cart-alt"
+                            variant="primary"
+                            caption={t('admin.viewAll')}
+                            href={route('admin.orders.index')}
+                            linkLabel={t('admin.navAllOrders')}
+                        />
+                    </div>
+                )}
+
+                {stats.checking !== null && (
+                    <div className="col-md-6 col-xl-3">
+                        <StatCard
+                            label={t('admin.awaitingChecking')}
+                            value={stats.checking}
+                            icon="bx-check-square"
+                            variant="warning"
+                            caption={t('admin.pendingAction')}
+                            href={route('admin.checking.index')}
+                            linkLabel={t('admin.viewAll')}
+                        />
+                    </div>
+                )}
+
+                {stats.delivery !== null && (
+                    <div className="col-md-6 col-xl-3">
+                        <StatCard
+                            label={t('admin.outForDelivery')}
+                            value={stats.delivery}
+                            icon="bxs-truck"
+                            variant="info"
+                            caption={t('admin.pendingAction')}
+                            href={route('admin.delivery.index')}
+                            linkLabel={t('admin.viewAll')}
+                        />
+                    </div>
+                )}
+
+                {stats.orders && (
+                    <div className="col-md-6 col-xl-3">
+                        <StatCard
+                            label={t('admin.revenueThisMonth')}
+                            value={price(Number(stats.orders.revenue_this_month))}
+                            icon="bx-wallet"
+                            variant="success"
+                            caption={
+                                can('accounting.view')
+                                    ? t('admin.deliveredThisMonth')
+                                    : `${t('admin.deliveredThisMonth')}: ${stats.orders.delivered_this_month}`
+                            }
+                            href={can('accounting.view') ? route('admin.accounting.index') : undefined}
+                            linkLabel={String(stats.orders.delivered_this_month)}
+                        />
+                    </div>
                 )}
 
                 {stats.returns !== null && (

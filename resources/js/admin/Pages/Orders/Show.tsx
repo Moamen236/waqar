@@ -4,6 +4,7 @@ import OrderSummaryCard from '../../Components/OrderSummaryCard';
 import PaymentInstalments, { type Instalment } from '../../Components/PaymentInstalments';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { usePermissions } from '../../Hooks/usePermissions';
 import { useTranslation } from '../../lib/useTranslation';
 
 interface OrderItem {
@@ -87,6 +88,7 @@ export default function OrderShow({
     workflow: { checking: boolean; delivery: boolean; accounting: boolean };
 }) {
     const { t, price, dateTime, isRtl } = useTranslation();
+    const { can } = usePermissions();
 
     const destination = [order.shipping_area?.name, order.shipping_city?.name, order.shipping_governorate?.name]
         .filter(Boolean)
@@ -98,22 +100,26 @@ export default function OrderShow({
             breadcrumbs={[{ label: t('admin.orderBook'), href: route('admin.orders.index') }]}
             actions={
                 <>
-                    <Link
-                        href={route('admin.orders.invoice', order.id)}
-                        target="_blank"
-                        className="btn btn-sm btn-soft-primary d-flex align-items-center gap-1"
-                    >
-                        <i className="bx bx-printer" />
-                        {t('admin.invoice')}
-                    </Link>
-                    <Link
-                        href={route('admin.orders.label', order.id)}
-                        target="_blank"
-                        className="btn btn-sm btn-soft-primary d-flex align-items-center gap-1"
-                    >
-                        <i className="bx bx-package" />
-                        {t('admin.shippingLabel')}
-                    </Link>
+                    {can('orders.print_invoice') && (
+                        <Link
+                            href={route('admin.orders.invoice', order.id)}
+                            target="_blank"
+                            className="btn btn-sm btn-soft-primary d-flex align-items-center gap-1"
+                        >
+                            <i className="bx bx-printer" />
+                            {t('admin.invoice')}
+                        </Link>
+                    )}
+                    {can('orders.print_label') && (
+                        <Link
+                            href={route('admin.orders.label', order.id)}
+                            target="_blank"
+                            className="btn btn-sm btn-soft-primary d-flex align-items-center gap-1"
+                        >
+                            <i className="bx bx-package" />
+                            {t('admin.shippingLabel')}
+                        </Link>
+                    )}
                     {workflow.checking && (
                         <Link
                             href={route('admin.checking.show', order.id)}

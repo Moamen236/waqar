@@ -35,7 +35,10 @@
     {{-- Read by the storefront's fetch() calls (mini-cart, search suggest, shipping quote) --}}
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title inertia>{{ config('app.name', 'WAQAR') }} Admin</title>
-    <link rel="shortcut icon" href="{{ asset('admin-theme/assets/images/favicon.ico') }}">
+    {{-- Internal operations: never indexed, and wears the brand mark
+         rather than the Larkon template's icon. --}}
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="32x32">
     <link href="{{ asset('admin-theme/assets/css/vendor.min.css') }}" rel="stylesheet" type="text/css">
     <link href="{{ asset('admin-theme/assets/css/icons.min.css') }}" rel="stylesheet" type="text/css">
     @php($rtl = in_array(app()->getLocale(), ['ar'], true))

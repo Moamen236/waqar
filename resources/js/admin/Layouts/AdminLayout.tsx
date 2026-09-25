@@ -103,19 +103,19 @@ const NAV: NavGroup[] = [
                 label: 'admin.navChecking',
                 href: route('admin.checking.index'),
                 icon: 'bx-check-square',
-                permission: 'orders.view',
+                permission: 'checking.view',
             },
             {
                 label: 'admin.navDeliveryBoard',
                 href: route('admin.delivery.index'),
                 icon: 'bxs-truck',
-                permission: 'orders.view',
+                permission: 'delivery.view',
             },
             {
                 label: 'admin.navAccounting',
                 href: route('admin.accounting.index'),
                 icon: 'bx-wallet',
-                permission: 'orders.view',
+                permission: 'accounting.view',
             },
         ],
     },
@@ -161,11 +161,7 @@ const NAV: NavGroup[] = [
                 label: 'admin.navReturnsRefunds',
                 href: route('admin.returns.index'),
                 icon: 'bx-undo',
-                // Everyone who holds returns.manage also holds
-                // returns.create per PermissionSeeder's defaults — .create
-                // is the broader set (also Customer Service), so it's the
-                // right gate for just showing the nav link.
-                permission: 'returns.create',
+                permission: 'returns.view',
             },
         ],
     },
@@ -203,12 +199,24 @@ const NAV: NavGroup[] = [
                 permission: 'promotions.view',
             },
             {
+                label: 'admin.navReviews',
+                href: route('admin.reviews.index'),
+                icon: 'bx-star',
+                permission: 'reviews.moderate',
+            },
+            {
                 label: 'admin.navInventory',
                 href: route('admin.inventory.index'),
                 icon: 'bx-box',
                 // .view, not .adjust — plenty of roles have reason to see
                 // stock levels without being able to correct them.
                 permission: 'inventory.view',
+            },
+            {
+                label: 'admin.navWarehouses',
+                href: route('admin.warehouses.index'),
+                icon: 'bx-buildings',
+                permission: 'warehouses.view',
             },
         ],
     },

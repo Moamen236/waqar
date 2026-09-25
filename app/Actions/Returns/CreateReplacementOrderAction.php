@@ -53,11 +53,12 @@ class CreateReplacementOrderAction
         return DB::transaction(function () use ($return, $items, $employee) {
             $return = OrderReturn::query()->lockForUpdate()->findOrFail($return->id);
 
-            // Approved is the point the goods are agreed and on their way
-            // back. Earlier and the swap has not been confirmed with the
-            // customer; later and a refund may already have been paid.
-            if (! in_array($return->status, [ReturnStatus::Approved, ReturnStatus::Inspected], true)) {
-                throw new RuntimeException(__('Only an approved or inspected return can be replaced.'));
+            // Only once the goods are back and checked: a replacement is the
+            // alternative to the refund, the last step of the return. Earlier
+            // and nothing has come back yet; later and a refund may already
+            // have been paid.
+            if ($return->status !== ReturnStatus::Inspected) {
+                throw new RuntimeException(__('Only a received return can be replaced.'));
             }
 
             if ($return->order->replaces_order_id !== null) {

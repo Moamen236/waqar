@@ -8,7 +8,14 @@ import { installRoute } from '../lib/ziggy';
 installRoute();
 
 createInertiaApp({
-    title: (title) => (title ? `${title} — WAQAR` : 'WAQAR'),
+    // "Page | Brand", matching the server-rendered <title> (App\Support\
+    // StorefrontMeta) so nothing flickers when the app takes over. The
+    // brand follows the page language; the home title already carries it.
+    title: (title) => {
+        const brand = document.documentElement.lang === 'ar' ? 'وقار' : 'WAQAR';
+
+        return !title ? brand : title.includes('WAQAR') ? title : `${title} | ${brand}`;
+    },
     // Lazy, not eager: every page becomes its own Rollup chunk, so a
     // visit downloads the shell plus the one page it needs instead of
     // every page in the area up front. Inertia accepts the promise

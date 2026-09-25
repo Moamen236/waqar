@@ -794,3 +794,47 @@ it('renders the Home and About pages, with every string they use present in both
         }
     }
 });
+
+it('server-renders page-specific SEO and sharing tags that crawlers can read without JavaScript', function () {
+    $warehouse = p5Warehouse();
+    $product = p5Product($warehouse->id, overrides: [
+        'name' => ['ar' => 'جاكيت كتان', 'en' => 'Linen Overshirt'],
+        'slug' => 'linen-overshirt', 'sku' => 'LO-1', 'short_description' => ['ar' => 'قماش كتان خفيف.', 'en' => 'Light linen, easy fit.'],
+    ]);
+    Category::create(['name' => ['en' => 'Jackets', 'ar' => 'جواكت'], 'slug' => 'jackets', 'status' => true]);
+
+    // Home: brand title, default description, share image, canonical + hreflang.
+    $home = $this->get('/en')->assertOk()->getContent();
+    expect($home)
+        ->toContain('<title inertia>WAQAR | وقار — Modern menswear</title>')
+        ->toContain('<meta property="og:image" content="'.asset('storefront/images/og/waqar-share.jpg').'">')
+        ->toContain('<meta name="twitter:card" content="summary_large_image">')
+        ->toContain('<link rel="canonical" href="'.url('/en').'">')
+        ->toContain('hreflang="ar" href="'.url('/ar').'"')
+        ->toContain('hreflang="x-default" href="'.url('/ar').'"')
+        ->toContain('<meta name="robots" content="index, follow, max-image-preview:large">')
+        ->and(substr_count($home, '<title'))->toBe(1)
+        ->and(substr_count($home, 'name="description"'))->toBe(1);
+
+    // Product: its own name, description, type and price; canonical drops the query string.
+    $url = route('product.show', ['locale' => 'en', 'slug' => 'linen-overshirt', 'sku' => 'LO-1']);
+    $productPage = $this->get($url.'?color=3')->assertOk()->getContent();
+    expect($productPage)
+        ->toContain('<title inertia>Linen Overshirt | WAQAR</title>')
+        ->toContain('<meta name="description" content="Light linen, easy fit.">')
+        ->toContain('<meta property="og:type" content="product">')
+        ->toContain('<meta property="product:price:currency" content="EGP">')
+        ->toContain('<link rel="canonical" href="'.$url.'">');
+
+    // Arabic category listing: localized title and brand.
+    $category = $this->get('/ar/category/jackets')->assertOk()->getContent();
+    expect($category)
+        ->toContain('<title inertia>جواكت | وقار</title>')
+        ->toContain('<meta property="og:locale" content="ar_EG">');
+
+    // Cart: kept out of search results, no hreflang.
+    $cart = $this->get('/en/cart')->assertOk()->getContent();
+    expect($cart)
+        ->toContain('<meta name="robots" content="noindex, follow">')
+        ->not->toContain('hreflang=');
+});

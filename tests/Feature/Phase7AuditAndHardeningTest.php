@@ -529,3 +529,30 @@ it('gives every page a fresh nonce rather than a reusable one', function () {
 
     expect($first)->not->toBe($second);
 });
+
+it('locks a brute-forced admin login out after five attempts', function () {
+    // Five wrong passwords are a bad day; the sixth inside a minute is a
+    // script. The limiter is keyed on email + IP, so a second address is
+    // still on its own budget rather than sharing this one's.
+    for ($i = 0; $i < 5; $i++) {
+        $this->post('/en/admin/login', ['email' => 'chairman@waqar.test', 'password' => 'wrong'])
+            ->assertStatus(302);
+    }
+
+    $this->post('/en/admin/login', ['email' => 'chairman@waqar.test', 'password' => 'wrong'])
+        ->assertStatus(429);
+
+    $this->post('/en/admin/login', ['email' => 'someone.else@waqar.test', 'password' => 'wrong'])
+        ->assertStatus(302);
+});
+
+it('rate-limits the storefront credential endpoints too', function () {
+    foreach (['/en/login', '/en/register', '/en/forgot-password', '/en/reset-password'] as $path) {
+        for ($i = 0; $i < 5; $i++) {
+            $this->post($path, ['email' => 'shopper@example.test', 'password' => 'wrong']);
+        }
+
+        $this->post($path, ['email' => 'shopper@example.test', 'password' => 'wrong'])
+            ->assertStatus(429, "{$path} should be throttled");
+    }
+});

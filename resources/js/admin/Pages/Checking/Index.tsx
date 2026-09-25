@@ -22,7 +22,7 @@ export default function CheckingIndex({ orders }: { orders: PaginatedData<OrderS
                             {/* Returns needing the same phone call. They live
                                 on the returns screen rather than being copied
                                 here, so there is one place a return is read. */}
-                            {can('returns.check') && (
+                            {can('returns.check') && can('returns.view') && (
                                 <Link
                                     href={route('admin.returns.index', { status: 'requested' })}
                                     className="btn btn-sm btn-soft-primary"

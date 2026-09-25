@@ -48,6 +48,7 @@ class ShippingRateController extends Controller implements HasMiddleware
                 ->orderBy('geo_type')
                 ->orderBy('geo_id')
                 ->paginate(20)
+                ->withQueryString()
                 ->through(fn (ShippingRate $rate) => [
                     'id' => $rate->id,
                     'geo_type' => $rate->geo_type,

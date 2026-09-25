@@ -48,12 +48,22 @@ class DashboardController extends Controller
     {
         $employee = $request->user('employee');
 
+        $visible = fn () => Order::query()->visibleTo($employee);
+
+        // Each tile is gated by the screen it summarises and links to, so a
+        // count never shows up for a queue the viewer cannot open.
         return Inertia::render('Dashboard', [
             'stats' => [
                 'orders' => $employee->can('orders.view') ? $this->orderStats($request) : null,
+                'checking' => $employee->can('checking.view')
+                    ? $visible()->whereIn('status', [OrderStatus::New, OrderStatus::Checking])->count()
+                    : null,
+                'delivery' => $employee->can('delivery.view')
+                    ? $visible()->whereIn('status', [OrderStatus::Assigned, OrderStatus::OutForDelivery])->count()
+                    : null,
                 'catalog' => $employee->can('products.view') ? $this->catalogStats() : null,
                 'customers' => $employee->can('customers.view') ? Customer::query()->count() : null,
-                'returns' => $employee->can('returns.create') ? $this->openReturns() : null,
+                'returns' => $employee->can('returns.view') ? $this->openReturns() : null,
                 'treasury' => $employee->can('treasury.view') ? $this->treasuryBalance() : null,
             ],
             'latestOrders' => $employee->can('orders.view') ? $this->latestOrders($request) : null,
@@ -70,12 +80,6 @@ class DashboardController extends Controller
 
         return [
             'today' => $visible()->whereDate('created_at', today())->count(),
-            'awaiting_checking' => $visible()
-                ->whereIn('status', [OrderStatus::New, OrderStatus::Checking])
-                ->count(),
-            'out_for_delivery' => $visible()
-                ->whereIn('status', [OrderStatus::Assigned, OrderStatus::OutForDelivery])
-                ->count(),
             // Delivered but not yet reconciled by Accounting: the queue
             // /admin/accounting works from.
             'delivered_this_month' => $visible()

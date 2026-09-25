@@ -171,5 +171,14 @@
     "Order #:number has nothing left to collect.": "Order #:number has nothing left to collect.",
     "Select orders carried by the same courier.": "Select orders carried by the same courier.",
     "Some of the selected orders are no longer available.": "Some of the selected orders are no longer available.",
-    "The courier only owes :amount for these orders.": "The courier only owes :amount for these orders."
+    "The courier only owes :amount for these orders.": "The courier only owes :amount for these orders.",
+    "Review #:id": "Review #:id",
+    ":count reviews approved.": ":count reviews approved.",
+    ":count reviews rejected.": ":count reviews rejected.",
+    "Review approved — it now shows on the product page.": "Review approved — it now shows on the product page.",
+    "Review rejected — it is hidden from the product page.": "Review rejected — it is hidden from the product page.",
+    "Warehouse created.": "Warehouse created.",
+    "Warehouse updated.": "Warehouse updated.",
+    "Warehouse deleted.": "Warehouse deleted.",
+    "This warehouse has stock history and cannot be deleted — deactivate it instead.": "This warehouse has stock history and cannot be deleted — deactivate it instead."
 }

@@ -59,6 +59,9 @@ export interface PaginatedData<T> {
     last_page: number;
     per_page: number;
     total: number;
+    /** 1-based position of the first and last row on this page; null when the page is empty. */
+    from?: number | null;
+    to?: number | null;
     links: { url: string | null; label: string; active: boolean }[];
 }
 

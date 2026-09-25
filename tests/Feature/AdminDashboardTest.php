@@ -127,15 +127,28 @@ it('counts only the orders the viewer is allowed to see, by real status', functi
         ->assertInertia(fn ($page) => $page
             ->component('Dashboard')
             ->where('stats.orders.today', 5)
-            ->where('stats.orders.awaiting_checking', 2)
-            ->where('stats.orders.out_for_delivery', 1)
             ->where('stats.orders.delivered_this_month', 2)
             // Revenue is Delivered only — the point at which stock actually
             // deducts (Section 07). The three non-delivered orders above
             // must not appear in it.
             ->where('stats.orders.revenue_this_month', '400.00')
+            // The Order Book does not open Checking or the Delivery Board,
+            // so their queue tiles stay off this dashboard.
+            ->where('stats.checking', null)
+            ->where('stats.delivery', null)
             ->etc()
         );
+
+    // Each queue tile belongs to the role that can open that queue.
+    $this->actingAs(adtEmployee('Checking'), 'employee')
+        ->withLocale('ar')
+        ->get(route('admin.dashboard'))
+        ->assertInertia(fn ($page) => $page->where('stats.checking', 2)->where('stats.delivery', null)->etc());
+
+    $this->actingAs(adtEmployee('Delivery Manager'), 'employee')
+        ->withLocale('ar')
+        ->get(route('admin.dashboard'))
+        ->assertInertia(fn ($page) => $page->where('stats.delivery', 1)->where('stats.checking', null)->etc());
 });
 
 it('omits a block entirely when the viewer lacks the permission that guards it', function () {
@@ -371,6 +384,8 @@ it('refuses a single order the viewer’s scope does not cover', function () {
         ->get(route('admin.orders.show', $storefrontOrder))
         ->assertForbidden();
 
+    // Chairman reads the order, but holds no checking.view — so the
+    // "Open in Checking" link is not offered, even at a Checking status.
     $this->actingAs(adtEmployee('Chairman'), 'employee')
         ->withLocale('ar')
         ->get(route('admin.orders.show', $storefrontOrder))
@@ -378,11 +393,16 @@ it('refuses a single order the viewer’s scope does not cover', function () {
         ->assertInertia(fn ($page) => $page
             ->component('Orders/Show')
             ->where('order.id', $storefrontOrder->id)
-            ->where('workflow.checking', true)
+            ->where('workflow.checking', false)
             ->where('workflow.delivery', false)
             ->where('workflow.accounting', false)
             ->etc()
         );
+
+    $this->actingAs(adtEmployee('Checking'), 'employee')
+        ->withLocale('ar')
+        ->get(route('admin.orders.show', $storefrontOrder))
+        ->assertInertia(fn ($page) => $page->where('workflow.checking', true)->etc());
 });
 
 it('keeps status transitions off the order book', function () {
@@ -440,10 +460,10 @@ it('refuses to delete an order that still holds a stock reservation', function (
 it('gates order deletion behind its own permission, not the status one', function () {
     $order = adtOrder(OrderStatus::Cancelled);
 
-    // Checking cancels orders daily (orders.status.update) but must not be
-    // able to remove them from the book.
+    // Checking cancels orders daily (checking.cancel) but must not be able
+    // to remove them from the book.
     $checking = adtEmployee('Checking');
-    expect($checking->can('orders.status.update'))->toBeTrue()
+    expect($checking->can('checking.cancel'))->toBeTrue()
         ->and($checking->can('orders.delete'))->toBeFalse();
 
     $this->actingAs($checking, 'employee')

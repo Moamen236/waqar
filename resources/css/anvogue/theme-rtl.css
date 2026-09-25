@@ -7,9 +7,6 @@
  * every directional declaration in its compiled theme is mirrored here and
  * rescoped under [dir="rtl"], which outranks the LTR rule on specificity.
  */
-[dir="rtl"] .swiper-pagination .swiper-pagination-bullet::before {
-    transform: translate(50%, -50%);
-}
 [dir="rtl"] .section-swiper-navigation .swiper-button-prev::after, [dir="rtl"] .section-swiper-navigation .swiper-button-prev2::after {
     padding-left: 2px;
 }
@@ -84,17 +81,8 @@
 [dir="rtl"] .modal-newsletter .modal-cart-main .tab-item, [dir="rtl"] .modal-video-block .modal-cart-main .tab-item, [dir="rtl"] .modal-sizeguide-block .modal-cart-main .tab-item, [dir="rtl"] .modal-quickview-block .modal-cart-main .tab-item, [dir="rtl"] .modal-order-detail-block .modal-cart-main .tab-item, [dir="rtl"] .modal-cart-block .modal-cart-main .tab-item, [dir="rtl"] .modal-wishlist-block .modal-cart-main .tab-item, [dir="rtl"] .modal-search-block .modal-cart-main .tab-item {
     right: 0;
 }
-[dir="rtl"] .modal-newsletter .modal-search-main, [dir="rtl"] .modal-video-block .modal-search-main, [dir="rtl"] .modal-sizeguide-block .modal-search-main, [dir="rtl"] .modal-quickview-block .modal-search-main, [dir="rtl"] .modal-order-detail-block .modal-search-main, [dir="rtl"] .modal-cart-block .modal-search-main, [dir="rtl"] .modal-wishlist-block .modal-search-main, [dir="rtl"] .modal-search-block .modal-search-main {
-    transform: translate(50%, -50%);
-}
-[dir="rtl"] .modal-newsletter .modal-sizeguide-main, [dir="rtl"] .modal-video-block .modal-sizeguide-main, [dir="rtl"] .modal-sizeguide-block .modal-sizeguide-main, [dir="rtl"] .modal-quickview-block .modal-sizeguide-main, [dir="rtl"] .modal-order-detail-block .modal-sizeguide-main, [dir="rtl"] .modal-cart-block .modal-sizeguide-main, [dir="rtl"] .modal-wishlist-block .modal-sizeguide-main, [dir="rtl"] .modal-search-block .modal-sizeguide-main {
-    transform: translate(50%, -50%);
-}
 [dir="rtl"] .modal-newsletter .modal-sizeguide-main table td, [dir="rtl"] .modal-newsletter .modal-sizeguide-main table th, [dir="rtl"] .modal-video-block .modal-sizeguide-main table td, [dir="rtl"] .modal-video-block .modal-sizeguide-main table th, [dir="rtl"] .modal-sizeguide-block .modal-sizeguide-main table td, [dir="rtl"] .modal-sizeguide-block .modal-sizeguide-main table th, [dir="rtl"] .modal-quickview-block .modal-sizeguide-main table td, [dir="rtl"] .modal-quickview-block .modal-sizeguide-main table th, [dir="rtl"] .modal-order-detail-block .modal-sizeguide-main table td, [dir="rtl"] .modal-order-detail-block .modal-sizeguide-main table th, [dir="rtl"] .modal-cart-block .modal-sizeguide-main table td, [dir="rtl"] .modal-cart-block .modal-sizeguide-main table th, [dir="rtl"] .modal-wishlist-block .modal-sizeguide-main table td, [dir="rtl"] .modal-wishlist-block .modal-sizeguide-main table th, [dir="rtl"] .modal-search-block .modal-sizeguide-main table td, [dir="rtl"] .modal-search-block .modal-sizeguide-main table th {
     text-align: right;
-}
-[dir="rtl"] .modal-newsletter .modal-video-main, [dir="rtl"] .modal-video-block .modal-video-main, [dir="rtl"] .modal-sizeguide-block .modal-video-main, [dir="rtl"] .modal-quickview-block .modal-video-main, [dir="rtl"] .modal-order-detail-block .modal-video-main, [dir="rtl"] .modal-cart-block .modal-video-main, [dir="rtl"] .modal-wishlist-block .modal-video-main, [dir="rtl"] .modal-search-block .modal-video-main {
-    transform: translate(50%, -50%);
 }
 [dir="rtl"] .modal-compare-block {
     right: 0;
@@ -107,9 +95,6 @@
 }
 [dir="rtl"] .top-nav .choose-type .list-option {
     right: -16px;
-}
-[dir="rtl"] .top-nav .choose-type .list-option::before {
-    transform: translateX(50%) rotate(45deg);
 }
 [dir="rtl"] .menu-main ul li a::before, [dir="rtl"] .menu-main ul li .link::before {
     right: 0;
@@ -133,9 +118,6 @@
     margin-right: -16px;
     margin-left: -16px;
 }
-[dir="rtl"] .slider-toys-kid .slick-dots li button::before {
-    transform: translate(50%, -50%);
-}
 [dir="rtl"] .product-item .product-thumb .list-action-right {
     transform: translateX(-60px);
 }
@@ -150,7 +132,6 @@
     left: unset;
 }
 [dir="rtl"] .product-item.style-2 .tag-action::before, [dir="rtl"] .product-item.style-5 .tag-action::before {
-    transform: translate(50%, -50%) rotate(45deg);
     left: unset;
 }
 [dir="rtl"] .product-item .product-thumb .product-img img:nth-child(2) {
@@ -171,11 +152,9 @@
 }
 [dir="rtl"] .list-color .color-item .tag-action, [dir="rtl"] .list-color-image .color-item .tag-action {
     left: unset;
-    transform: translateX(50%);
 }
 [dir="rtl"] .list-color .color-item .tag-action::before, [dir="rtl"] .list-color-image .color-item .tag-action::before {
     left: unset;
-    transform: translateX(50%) rotate(45deg);
 }
 [dir="rtl"] .product-detail .popup-img {
     right: 0;
@@ -244,9 +223,6 @@
 [dir="rtl"] .block-input input {
     right: 0;
     left: 0;
-}
-[dir="rtl"] .block-input .icon-checkbox {
-    transform: translate(50%, -50%);
 }
 [dir="rtl"] .list-product-block:has(.active.five-col) .list-product .product-item .product-thumb .list-action .button-main {
     padding-right: 0;
@@ -326,24 +302,11 @@
     padding-right: 16px;
     padding-left: 16px;
 }
-[dir="rtl"] .list-testimonial.list-testimonial-yoga .slick-dots li button::before {
-    transform: translate(50%, -50%);
-}
 [dir="rtl"] .list-instagram .item::before {
     right: 0;
 }
-[dir="rtl"] .popular-product .item .product-infor, [dir="rtl"] .lookbook .item .product-infor {
-    transform: translate(50%, 10px);
-}
 [dir="rtl"] .popular-product .item .product-infor::before, [dir="rtl"] .lookbook .item .product-infor::before {
     right: calc(50% - 4px);
-    transform: rotate(45deg) translateX(50%);
-}
-[dir="rtl"] .popular-product .dots.bottom-dot .product-infor, [dir="rtl"] .lookbook .dots.bottom-dot .product-infor {
-    transform: translate(50%, -10px);
-}
-[dir="rtl"] .popular-product .dots:hover .product-infor, [dir="rtl"] .lookbook .dots:hover .product-infor {
-    transform: translate(50%, 0);
 }
 [dir="rtl"] .featured-product.underwear .mySwiper .swiper-wrapper, [dir="rtl"] .featured-product.cosmetic .mySwiper .swiper-wrapper {
     right: 20px;

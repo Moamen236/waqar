@@ -1,0 +1,109 @@
+name: waqar_test
+
+services:
+  test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: waqar_test
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    env_file:
+      - .env.testing
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - waqar_test
+    command: >
+      sh -c "
+        php artisan migrate --force --database=mysql &&
+        ./vendor/bin/pest --parallel
+      "
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: waqar_test_nginx
+    restart: unless-stopped
+    ports:
+      - "35488:80"
+    volumes:
+      - ./:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - test
+    networks:
+      - waqar_test
+
+  mysql:
+    image: mysql:8.0
+    container_name: waqar_test_mysql
+    environment:
+      MYSQL_DATABASE: waqar
+      MYSQL_USER: waqar
+      MYSQL_PASSWORD: secret
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - waqar_test_mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+    networks:
+      - waqar_test
+
+  redis:
+    image: redis:7-alpine
+    container_name: waqar_test_redis
+    volumes:
+      - waqar_test_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - waqar_test
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: waqar_test_phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+    ports:
+      - "25751:80"
+    depends_on:
+      - mysql
+    networks:
+      - waqar_test
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: waqar_test_mailpit
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    ports:
+      - "34102:8025"
+    networks:
+      - waqar_test
+
+networks:
+  waqar_test:
+    driver: bridge
+
+volumes:
+  waqar_test_mysql_data:
+    driver: local
+  waqar_test_redis_data:
+    driver: local

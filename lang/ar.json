@@ -171,5 +171,14 @@
     "Order #:number has nothing left to collect.": "لا يوجد مبلغ متبقٍ للتحصيل على الطلب رقم :number.",
     "Select orders carried by the same courier.": "اختر طلبات مع نفس المندوب.",
     "Some of the selected orders are no longer available.": "بعض الطلبات المحددة لم تعد متاحة.",
-    "The courier only owes :amount for these orders.": "المستحق على المندوب لهذه الطلبات :amount فقط."
+    "The courier only owes :amount for these orders.": "المستحق على المندوب لهذه الطلبات :amount فقط.",
+    "Review #:id": "تقييم رقم :id",
+    ":count reviews approved.": "تم اعتماد :count تقييمات.",
+    ":count reviews rejected.": "تم رفض :count تقييمات.",
+    "Review approved — it now shows on the product page.": "تم اعتماد التقييم — يظهر الآن في صفحة المنتج.",
+    "Review rejected — it is hidden from the product page.": "تم رفض التقييم — أصبح مخفياً من صفحة المنتج.",
+    "Warehouse created.": "تم إنشاء المخزن.",
+    "Warehouse updated.": "تم تحديث المخزن.",
+    "Warehouse deleted.": "تم حذف المخزن.",
+    "This warehouse has stock history and cannot be deleted — deactivate it instead.": "هذا المخزن له سجل مخزون ولا يمكن حذفه — قم بإلغاء تفعيله بدلاً من ذلك."
 }

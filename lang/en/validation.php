@@ -257,6 +257,7 @@ return [
         'kept_quantities' => 'kept quantities',
         'kept_quantities.*' => 'kept quantity',
         'label' => 'label',
+        'manager_employee_id' => 'manager',
         'message' => 'message',
         'method' => 'method',
         'name' => 'name',

@@ -37,7 +37,7 @@ class PromotionController extends Controller implements HasMiddleware
     public function index(): Response
     {
         return Inertia::render('Promotions/Index', [
-            'promotions' => Promotion::query()->latest('id')->paginate(20),
+            'promotions' => Promotion::query()->latest('id')->paginate(20)->withQueryString(),
         ]);
     }
 

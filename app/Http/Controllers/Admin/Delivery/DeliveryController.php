@@ -53,8 +53,9 @@ class DeliveryController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:orders.view', only: ['index']),
-            new Middleware('permission:orders.assign', only: ['assignForm', 'assign', 'assignBulk', 'reassign']),
+            new Middleware('permission:delivery.view', only: ['index']),
+            new Middleware('permission:delivery.assign', only: ['assignForm', 'assign', 'assignBulk']),
+            new Middleware('permission:delivery.move', only: ['reassign']),
         ];
     }
 

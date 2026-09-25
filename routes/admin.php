@@ -23,8 +23,10 @@ use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\PromotionController;
 use App\Http\Controllers\Admin\Reports\ReportController;
 use App\Http\Controllers\Admin\Returns\ReturnController;
+use App\Http\Controllers\Admin\ReviewController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\TreasuryController;
+use App\Http\Controllers\Admin\WarehouseController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -49,7 +51,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest:employee')->group(function () {
     Route::get('login', [LoginController::class, 'create'])->name('login');
-    Route::post('login', [LoginController::class, 'store'])->name('login.store');
+    Route::post('login', [LoginController::class, 'store'])
+        ->middleware('throttle:login')
+        ->name('login.store');
 });
 
 Route::middleware('auth:employee')->group(function () {
@@ -79,6 +83,8 @@ Route::middleware('auth:employee')->group(function () {
     // every SKU in the catalogue. Gated on orders.create, not
     // products.view — see OrderController::productSearch().
     Route::get('orders/product-search', [OrderController::class, 'productSearch'])->name('orders.product-search');
+    // Same for customers — see OrderController::customerSearch().
+    Route::get('orders/customer-search', [OrderController::class, 'customerSearch'])->name('orders.customer-search');
     Route::post('orders', [OrderController::class, 'store'])->name('orders.store');
 
     // The whole order book. Every other order screen below is a role's work
@@ -265,12 +271,12 @@ Route::middleware('auth:employee')->group(function () {
     Route::post('returns', [ReturnController::class, 'store'])->name('returns.store');
     // Registered ahead of returns/{return} for the usual wildcard reason.
     Route::get('returns/export', [ReturnController::class, 'export'])->name('returns.export');
+    Route::get('returns/product-search', [ReturnController::class, 'productSearch'])->name('returns.product-search');
     Route::get('returns/{return}', [ReturnController::class, 'show'])->name('returns.show');
     Route::post('returns/{return}/accept-shipping-fee', [ReturnController::class, 'acceptShippingFee'])->name('returns.accept-shipping-fee');
     // Checking's phone call — confirm / reschedule / cancel, one endpoint
     // because they are one decision taken on one call.
     Route::post('returns/{return}/check', [ReturnController::class, 'check'])->name('returns.check');
-    Route::post('returns/{return}/approve', [ReturnController::class, 'approve'])->name('returns.approve');
     Route::post('returns/{return}/receive', [ReturnController::class, 'receive'])->name('returns.receive');
     Route::post('returns/{return}/refund', [ReturnController::class, 'refund'])->name('returns.refund');
     // Send a different item instead of refunding — a new order linked to
@@ -286,6 +292,14 @@ Route::middleware('auth:employee')->group(function () {
     Route::get('collections/{collection}/edit', [CollectionController::class, 'edit'])->name('collections.edit');
     Route::put('collections/{collection}', [CollectionController::class, 'update'])->name('collections.update');
     Route::delete('collections/{collection}', [CollectionController::class, 'destroy'])->name('collections.destroy');
+
+    // Customer reviews — the moderation queue (reviews.moderate). The bulk
+    // route sits ahead of reviews/{review} so "bulk" is never read as an id.
+    Route::get('reviews', [ReviewController::class, 'index'])->name('reviews.index');
+    Route::post('reviews/bulk', [ReviewController::class, 'bulk'])->name('reviews.bulk');
+    Route::get('reviews/{review}', [ReviewController::class, 'show'])->name('reviews.show');
+    Route::post('reviews/{review}/approve', [ReviewController::class, 'approve'])->name('reviews.approve');
+    Route::post('reviews/{review}/reject', [ReviewController::class, 'reject'])->name('reviews.reject');
 
     // Promotions (Vice Chairman) — bundle / buy-X-get-Y (Question 17).
     Route::get('promotions', [PromotionController::class, 'index'])->name('promotions.index');
@@ -319,6 +333,14 @@ Route::middleware('auth:employee')->group(function () {
     Route::get('inventory/movements', [InventoryController::class, 'movements'])->name('inventory.movements');
     Route::get('inventory/export', [InventoryController::class, 'export'])->name('inventory.export');
     Route::post('inventory/adjust', [InventoryController::class, 'adjust'])->name('inventory.adjust');
+
+    // The stock locations themselves (Warehouse Manager), CRUD-split.
+    Route::get('warehouses', [WarehouseController::class, 'index'])->name('warehouses.index');
+    Route::get('warehouses/create', [WarehouseController::class, 'create'])->name('warehouses.create');
+    Route::post('warehouses', [WarehouseController::class, 'store'])->name('warehouses.store');
+    Route::get('warehouses/{warehouse}/edit', [WarehouseController::class, 'edit'])->name('warehouses.edit');
+    Route::put('warehouses/{warehouse}', [WarehouseController::class, 'update'])->name('warehouses.update');
+    Route::delete('warehouses/{warehouse}', [WarehouseController::class, 'destroy'])->name('warehouses.destroy');
 
     // Reporting & analytics. Four routes for the whole module, not one per
     // report: the report is a route *parameter*, resolved through

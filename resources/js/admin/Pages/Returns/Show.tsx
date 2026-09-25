@@ -1,8 +1,9 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import OrderSummaryCard from '../../Components/OrderSummaryCard';
 import ShippingAddressCard from '../../Components/ShippingAddressCard';
 import StatusBadge from '../../Components/StatusBadge';
+import VariantPicker from '../../Components/VariantPicker';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { confirmAction } from '../../lib/confirm';
 import { usePermissions } from '../../Hooks/usePermissions';
@@ -80,12 +81,6 @@ interface Option {
     name: string;
 }
 
-interface VariantOption {
-    id: number;
-    label: string;
-    price: number;
-}
-
 interface Treasury extends Option {
     type: string;
 }
@@ -106,14 +101,12 @@ export default function ReturnsShow({
     return: ret,
     warehouse,
     treasuries,
-    variants,
     representatives,
     shippingCompanies,
 }: {
     return: ReturnDetail;
     warehouse: { id: number; name: string } | null;
     treasuries: Treasury[];
-    variants: VariantOption[];
     representatives: Option[];
     shippingCompanies: Option[];
 }) {
@@ -130,7 +123,9 @@ export default function ReturnsShow({
     const [reference, setReference] = useState('');
     const [checkNotes, setCheckNotes] = useState('');
     const [checkError, setCheckError] = useState<string | null>(null);
-    const [replacementVariant, setReplacementVariant] = useState<string>('');
+    // Resolved by the picker once a product and every colour/size it has
+    // are chosen; null until then.
+    const [replacementVariant, setReplacementVariant] = useState<number | null>(null);
     const [pickupCourier, setPickupCourier] = useState<string>('');
 
     function handleMethodChange(next: string) {
@@ -139,25 +134,38 @@ export default function ReturnsShow({
         if (match) setTreasuryId(match.id);
     }
 
-    const needsShippingFeeConsent =
-        ret.stage === 'post_delivery' && ret.status === 'requested' && !ret.customer_accepted_return_shipping_fee_at;
-    const canApprove =
-        ret.status === 'requested' &&
-        (ret.stage !== 'post_delivery' || ret.customer_accepted_return_shipping_fee_at) &&
-        can('returns.approve');
-    const canReceive = ret.status === 'approved' && can('returns.receive');
-    const canRefund = ret.status === 'inspected' && can('returns.refund');
-    // Checking's call. Available on a requested return regardless of the
-    // shipping-fee consent: the call is often where that consent is
-    // obtained, so gating it behind consent would be circular.
-    const canCheck = ret.status === 'requested' && can('returns.check');
-    // Once the swap is agreed and the goods are on their way back. Shares
-    // returns.refund because replacing and refunding are the two ways a
-    // return ends — the same decision, one of which moves money.
-    const canReplace = ['approved', 'inspected'].includes(ret.status) && can('returns.refund');
-    // Naming a courier is warehouse work — the same grant that receives
-    // the goods when they arrive.
-    const canAssignPickup = ['approved', 'inspected'].includes(ret.status) && can('returns.receive');
+    // The return moves through five steps in a fixed order, and the server
+    // enforces the same order: fee → call (its Confirm is the approval) →
+    // courier → receive → refund OR replacement. Each step's state is read
+    // straight off the return, so the card only ever offers the next one.
+    const status = ret.status;
+    const feeNeeded = ret.stage === 'post_delivery';
+    const feeAgreed = !feeNeeded || ret.customer_accepted_return_shipping_fee_at !== null;
+    const cancelled = status === 'rejected';
+    const received = ['inspected', 'refunded', 'completed'].includes(status);
+    const approved = status === 'approved' || received;
+    const courier = ret.delivery_representative?.name ?? ret.shipping_company?.name ?? null;
+    const [changingCourier, setChangingCourier] = useState(false);
+
+    const steps: Record<1 | 2 | 3 | 4 | 5, StepState> = {
+        1: feeAgreed ? 'done' : status === 'requested' ? 'current' : 'waiting',
+        2: cancelled ? 'cancelled' : approved ? 'done' : status === 'requested' ? 'current' : 'waiting',
+        3: cancelled
+            ? 'cancelled'
+            : received || (status === 'approved' && courier !== null)
+              ? 'done'
+              : status === 'approved'
+                ? 'current'
+                : 'waiting',
+        4: cancelled
+            ? 'cancelled'
+            : received
+              ? 'done'
+              : status === 'approved' && courier !== null
+                ? 'current'
+                : 'waiting',
+        5: cancelled ? 'cancelled' : status === 'inspected' ? 'current' : received ? 'done' : 'waiting',
+    };
 
     function assignPickup() {
         if (pickupCourier === '') return;
@@ -165,16 +173,22 @@ export default function ReturnsShow({
         router.post(
             route('admin.returns.assign-pickup', ret.id),
             { assignment_type: type, assignee_id: Number(id) },
-            { preserveScroll: true, onSuccess: () => setPickupCourier('') },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setPickupCourier('');
+                    setChangingCourier(false);
+                },
+            },
         );
     }
 
     async function sendReplacement() {
-        if (replacementVariant === '') return;
+        if (replacementVariant === null) return;
         if (!(await confirmAction({ title: t('admin.createReplacementQ') }))) return;
 
         router.post(route('admin.returns.replace', ret.id), {
-            items: [{ product_variant_id: Number(replacementVariant), quantity: 1 }],
+            items: [{ product_variant_id: replacementVariant, quantity: 1 }],
         });
     }
 
@@ -201,11 +215,6 @@ export default function ReturnsShow({
     async function acceptFee() {
         if (!(await confirmAction({ title: t('admin.recordAcceptedReturnFee') }))) return;
         router.post(route('admin.returns.accept-shipping-fee', ret.id), { return_shipping_fee: shippingFee });
-    }
-
-    async function approve() {
-        if (!(await confirmAction({ title: t('admin.approveThisReturn') }))) return;
-        router.post(route('admin.returns.approve', ret.id));
     }
 
     async function receive() {
@@ -401,246 +410,357 @@ export default function ReturnsShow({
                             <StatusBadge status={ret.status} />
                         </div>
                         <div className="card-body">
-                            {/* Checking's phone call. Sits above the
-                                warehouse actions because it is the step
-                                that comes first — though it is a
-                                verification, not a gate, so approve stays
-                                reachable without it. */}
-                            {canCheck && (
-                                <div className="border rounded p-3 mb-3">
-                                    <div className="fw-semibold">{t('admin.checkWithCustomer')}</div>
-                                    <p className="text-muted fs-13 mb-2">{t('admin.checkWithCustomerHint')}</p>
-                                    <textarea
-                                        className="form-control mb-2"
-                                        rows={2}
-                                        placeholder={t('admin.callNotesPlaceholder')}
-                                        value={checkNotes}
-                                        onChange={(event) => {
-                                            setCheckNotes(event.target.value);
-                                            setCheckError(null);
-                                        }}
-                                    />
-                                    {checkError !== null && <div className="text-danger fs-13 mb-2">{checkError}</div>}
-                                    <div className="d-flex flex-wrap gap-2">
-                                        <button
-                                            type="button"
-                                            className="btn btn-success btn-sm"
-                                            onClick={() => check('confirm')}
-                                        >
-                                            {t('admin.checkReturn_confirm')}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="btn btn-soft-secondary btn-sm"
-                                            onClick={() => check('reschedule')}
-                                        >
-                                            {t('admin.checkReturn_reschedule')}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="btn btn-soft-danger btn-sm"
-                                            onClick={() => check('cancel')}
-                                        >
-                                            {t('admin.checkReturn_cancel')}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {ret.checked_at !== null && (
-                                <div className="alert alert-light border fs-13" role="status">
-                                    <div className="fw-semibold">
-                                        {t('admin.checkedBy', {
-                                            name: ret.checked_by?.full_name ?? '—',
-                                            at: dateTime(ret.checked_at),
-                                        })}
-                                    </div>
-                                    {ret.checking_notes && <div className="mt-1">{ret.checking_notes}</div>}
-                                </div>
-                            )}
-
-                            {needsShippingFeeConsent && (
-                                <>
-                                    <p className="fs-13 text-muted">{t('admin.returnShippingFeeExplainer')}</p>
-                                    <div className="mb-2">
-                                        <label className="form-label fs-13">{t('admin.returnShippingFee')}</label>
-                                        <input
-                                            type="number"
-                                            step="0.01"
-                                            className="form-control"
-                                            value={shippingFee}
-                                            onChange={(e) => setShippingFee(e.target.value)}
-                                        />
-                                    </div>
-                                    <button type="button" className="btn btn-primary btn-sm" onClick={acceptFee}>
-                                        {t('admin.recordAcceptedFee')}
-                                    </button>
-                                </>
-                            )}
-
-                            {canApprove && (
-                                <button type="button" className="btn btn-success" onClick={approve}>
-                                    {t('admin.approveReturn')}
-                                </button>
-                            )}
-
-                            {canReceive && (
-                                <>
-                                    {/* Not selectable — received items always
-                                        restock into the main warehouse. */}
-                                    <div className="mb-2">
-                                        <label className="form-label fs-13">{t('admin.receivingWarehouse')}</label>
-                                        <input
-                                            className="form-control"
-                                            value={warehouse?.name ?? ''}
-                                            readOnly
-                                            disabled
-                                        />
-                                    </div>
-                                    <button
-                                        type="button"
-                                        className="btn btn-primary"
-                                        onClick={receive}
-                                        disabled={!warehouse}
-                                    >
-                                        {t('admin.confirmReceivedAndRestock')}
-                                    </button>
-                                </>
-                            )}
-
-                            {canRefund && (
-                                <>
-                                    <div className="mb-2">
-                                        <label className="form-label fs-13">{t('admin.treasury')}</label>
-                                        <select
-                                            className="form-control"
-                                            value={treasuryId}
-                                            onChange={(e) => setTreasuryId(Number(e.target.value))}
-                                        >
-                                            {treasuries.map((account) => (
-                                                <option key={account.id} value={account.id}>
-                                                    {account.name} ({t(`treasury.type.${account.type}`)})
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="mb-2">
-                                        <label className="form-label fs-13">{t('admin.method')}</label>
-                                        <select
-                                            className="form-control"
-                                            value={method}
-                                            onChange={(e) => handleMethodChange(e.target.value)}
-                                        >
-                                            {REFUND_METHODS.map((m) => (
-                                                <option key={m} value={m}>
-                                                    {t(`refundMethod.${m}`)}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="mb-2">
-                                        <label className="form-label fs-13">{t('admin.referenceNumber')}</label>
-                                        <input
-                                            className="form-control"
-                                            value={reference}
-                                            onChange={(e) => setReference(e.target.value)}
-                                        />
-                                    </div>
-                                    <button
-                                        type="button"
-                                        className="btn btn-success"
-                                        onClick={refund}
-                                        disabled={!reference}
-                                    >
-                                        {t('admin.recordRefund')}
-                                    </button>
-                                </>
-                            )}
-
-                            {/* Who goes and gets it. Returns named nobody at
-                                all before — the warehouse simply restocked
-                                whenever someone pressed Received. */}
-                            {canAssignPickup && (
-                                <div className="border rounded p-3 mt-3">
-                                    <div className="fw-semibold">{t('admin.collectionCourier')}</div>
-                                    <p className="text-muted fs-13 mb-2">
-                                        {ret.delivery_representative?.name ??
-                                            ret.shipping_company?.name ??
-                                            t('admin.noCourierAssignedYet')}
-                                    </p>
-                                    <div className="d-flex gap-2">
-                                        <select
-                                            className="form-select"
-                                            value={pickupCourier}
-                                            onChange={(event) => setPickupCourier(event.target.value)}
-                                        >
-                                            <option value="">{t('admin.chooseCourier')}</option>
-                                            {representatives.map((rep) => (
-                                                <option key={`r${rep.id}`} value={`representative:${rep.id}`}>
-                                                    {rep.name}
-                                                </option>
-                                            ))}
-                                            {shippingCompanies.map((company) => (
-                                                <option key={`c${company.id}`} value={`shipping_company:${company.id}`}>
-                                                    {company.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <button
-                                            type="button"
-                                            className="btn btn-soft-primary"
-                                            disabled={pickupCourier === ''}
-                                            onClick={assignPickup}
-                                        >
-                                            {t('admin.send')}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Send a different item instead of refunding.
-                                Sits beside the refund because they are the
-                                two ways a return ends, and only one of them
-                                moves money out. */}
-                            {canReplace && (
-                                <div className="border rounded p-3 mt-3">
-                                    <div className="fw-semibold">{t('admin.sendReplacement')}</div>
-                                    <p className="text-muted fs-13 mb-2">{t('admin.sendReplacementHint')}</p>
-                                    <select
-                                        className="form-select mb-2"
-                                        value={replacementVariant}
-                                        onChange={(event) => setReplacementVariant(event.target.value)}
-                                    >
-                                        <option value="">{t('admin.chooseTheItemToSend')}</option>
-                                        {variants.map((variant) => (
-                                            <option key={variant.id} value={variant.id}>
-                                                {variant.label} — {price(variant.price)}
-                                            </option>
+                            <ol className="list-unstyled mb-0">
+                                {/* 1 — what the customer pays to send it back.
+                                    Usually agreed on the call itself, so the
+                                    caller may record it too. */}
+                                <Step n={1} title={t('admin.returnStep1')} state={steps[1]}>
+                                    {steps[1] === 'done' && (
+                                        <p className="text-muted fs-13 mb-0">
+                                            {feeNeeded
+                                                ? t('admin.returnFeeAgreed', {
+                                                      amount: price(Number(ret.return_shipping_fee ?? 0)),
+                                                  })
+                                                : t('admin.returnFeeNotNeeded')}
+                                        </p>
+                                    )}
+                                    {steps[1] === 'current' &&
+                                        (can('returns.create') || can('returns.check') ? (
+                                            <>
+                                                <p className="fs-13 text-muted">
+                                                    {t('admin.returnShippingFeeExplainer')}
+                                                </p>
+                                                <div className="d-flex gap-2">
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        className="form-control"
+                                                        aria-label={t('admin.returnShippingFee')}
+                                                        value={shippingFee}
+                                                        onChange={(e) => setShippingFee(e.target.value)}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-primary text-nowrap"
+                                                        onClick={acceptFee}
+                                                    >
+                                                        {t('admin.recordAcceptedFee')}
+                                                    </button>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <NoAccess />
                                         ))}
-                                    </select>
-                                    <button
-                                        type="button"
-                                        className="btn btn-primary w-100"
-                                        disabled={replacementVariant === ''}
-                                        onClick={sendReplacement}
-                                    >
-                                        {t('admin.createReplacementOrder')}
-                                    </button>
-                                </div>
-                            )}
+                                </Step>
 
-                            {!canCheck &&
-                                !canReplace &&
-                                !needsShippingFeeConsent &&
-                                !canApprove &&
-                                !canReceive &&
-                                !canRefund && (
-                                    <p className="text-muted mb-0">{t('admin.noActionAvailableAtThisStatus')}</p>
-                                )}
+                                {/* 2 — Checking's call. Confirm is the one and
+                                    only way a return is approved. */}
+                                <Step n={2} title={t('admin.returnStep2')} state={steps[2]}>
+                                    {ret.checked_at !== null && (
+                                        <div className="fs-13 mb-2">
+                                            <div className="fw-semibold">
+                                                {t('admin.checkedBy', {
+                                                    name: ret.checked_by?.full_name ?? '—',
+                                                    at: dateTime(ret.checked_at),
+                                                })}
+                                            </div>
+                                            {ret.checking_notes && (
+                                                <div className="text-muted">{ret.checking_notes}</div>
+                                            )}
+                                        </div>
+                                    )}
+                                    {steps[2] === 'cancelled' && (
+                                        <p className="text-danger fs-13 mb-0">{t('admin.returnCancelledOnCall')}</p>
+                                    )}
+                                    {steps[2] === 'current' &&
+                                        (can('returns.check') ? (
+                                            <>
+                                                <p className="text-muted fs-13 mb-2">
+                                                    {t('admin.checkWithCustomerHint')}
+                                                </p>
+                                                <textarea
+                                                    className="form-control mb-2"
+                                                    rows={2}
+                                                    placeholder={t('admin.callNotesPlaceholder')}
+                                                    value={checkNotes}
+                                                    onChange={(event) => {
+                                                        setCheckNotes(event.target.value);
+                                                        setCheckError(null);
+                                                    }}
+                                                />
+                                                {checkError !== null && (
+                                                    <div className="text-danger fs-13 mb-2">{checkError}</div>
+                                                )}
+                                                {/* Reschedule and Cancel never wait for the
+                                                    fee — the customer may refuse to pay it. */}
+                                                {!feeAgreed && (
+                                                    <p className="text-warning fs-13 mb-2">
+                                                        {t('admin.returnConfirmNeedsFee')}
+                                                    </p>
+                                                )}
+                                                <div className="d-flex flex-wrap gap-2">
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-success btn-sm"
+                                                        disabled={!feeAgreed}
+                                                        onClick={() => check('confirm')}
+                                                    >
+                                                        {t('admin.checkReturn_confirm')}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-soft-secondary btn-sm"
+                                                        onClick={() => check('reschedule')}
+                                                    >
+                                                        {t('admin.checkReturn_reschedule')}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-soft-danger btn-sm"
+                                                        onClick={() => check('cancel')}
+                                                    >
+                                                        {t('admin.checkReturn_cancel')}
+                                                    </button>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <NoAccess />
+                                        ))}
+                                </Step>
+
+                                {/* 3 — who goes and gets it. Can still be
+                                    changed until the goods arrive. */}
+                                <Step n={3} title={t('admin.returnStep3')} state={steps[3]}>
+                                    {steps[3] === 'done' && courier !== null && (
+                                        <p className="text-muted fs-13 mb-0">
+                                            {courier}
+                                            {status === 'approved' &&
+                                                can('returns.assign_pickup') &&
+                                                !changingCourier && (
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-link btn-sm p-0 ms-2 align-baseline"
+                                                        onClick={() => setChangingCourier(true)}
+                                                    >
+                                                        {t('admin.changeCourier')}
+                                                    </button>
+                                                )}
+                                        </p>
+                                    )}
+                                    {(steps[3] === 'current' || changingCourier) &&
+                                        (can('returns.assign_pickup') ? (
+                                            <div className="d-flex gap-2 mt-1">
+                                                <select
+                                                    className="form-select"
+                                                    value={pickupCourier}
+                                                    onChange={(event) => setPickupCourier(event.target.value)}
+                                                >
+                                                    <option value="">{t('admin.chooseCourier')}</option>
+                                                    {representatives.map((rep) => (
+                                                        <option key={`r${rep.id}`} value={`representative:${rep.id}`}>
+                                                            {rep.name}
+                                                        </option>
+                                                    ))}
+                                                    {shippingCompanies.map((company) => (
+                                                        <option
+                                                            key={`c${company.id}`}
+                                                            value={`shipping_company:${company.id}`}
+                                                        >
+                                                            {company.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-primary"
+                                                    disabled={pickupCourier === ''}
+                                                    onClick={assignPickup}
+                                                >
+                                                    {t('admin.send')}
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <NoAccess />
+                                        ))}
+                                </Step>
+
+                                {/* 4 — the goods are back; restock into the
+                                    main warehouse (never selectable). */}
+                                <Step n={4} title={t('admin.returnStep4')} state={steps[4]}>
+                                    {steps[4] === 'done' && (
+                                        <p className="text-muted fs-13 mb-0">{t('admin.returnReceivedDone')}</p>
+                                    )}
+                                    {steps[4] === 'current' &&
+                                        (can('returns.receive') ? (
+                                            <>
+                                                <p className="text-muted fs-13 mb-2">
+                                                    {t('admin.receivingWarehouse')}: {warehouse?.name ?? '—'}
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-primary"
+                                                    onClick={receive}
+                                                    disabled={!warehouse}
+                                                >
+                                                    {t('admin.confirmReceivedAndRestock')}
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <NoAccess />
+                                        ))}
+                                </Step>
+
+                                {/* 5 — the two ways a return ends. Pick one. */}
+                                <Step n={5} title={t('admin.returnStep5')} state={steps[5]} last>
+                                    {status === 'refunded' && (
+                                        <p className="text-muted fs-13 mb-0">
+                                            {ret.refund
+                                                ? t('admin.returnRefundedDone', {
+                                                      amount: price(Number(ret.refund.net_amount)),
+                                                      method: t(`refundMethod.${ret.refund.method}`),
+                                                  })
+                                                : t('admin.returnRefundedDone', { amount: '—', method: '—' })}
+                                        </p>
+                                    )}
+                                    {status === 'completed' && (
+                                        <p className="text-muted fs-13 mb-0">{t('admin.returnReplacedDone')}</p>
+                                    )}
+                                    {steps[5] === 'current' && !can('returns.refund') && !can('returns.replace') && (
+                                        <NoAccess />
+                                    )}
+                                    {steps[5] === 'current' && can('returns.refund') && (
+                                        <div className="border rounded p-3">
+                                            <div className="fw-semibold mb-2">{t('admin.recordRefund')}</div>
+                                            <div className="mb-2">
+                                                <label className="form-label fs-13">{t('admin.method')}</label>
+                                                <select
+                                                    className="form-control"
+                                                    value={method}
+                                                    onChange={(e) => handleMethodChange(e.target.value)}
+                                                >
+                                                    {REFUND_METHODS.map((m) => (
+                                                        <option key={m} value={m}>
+                                                            {t(`refundMethod.${m}`)}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="mb-2">
+                                                <label className="form-label fs-13">{t('admin.treasury')}</label>
+                                                <select
+                                                    className="form-control"
+                                                    value={treasuryId}
+                                                    onChange={(e) => setTreasuryId(Number(e.target.value))}
+                                                >
+                                                    {treasuries.map((account) => (
+                                                        <option key={account.id} value={account.id}>
+                                                            {account.name} ({t(`treasury.type.${account.type}`)})
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="mb-2">
+                                                <label className="form-label fs-13">{t('admin.referenceNumber')}</label>
+                                                <input
+                                                    className="form-control"
+                                                    value={reference}
+                                                    onChange={(e) => setReference(e.target.value)}
+                                                />
+                                            </div>
+                                            <button
+                                                type="button"
+                                                className="btn btn-success w-100"
+                                                onClick={refund}
+                                                disabled={!reference}
+                                            >
+                                                {t('admin.recordRefund')}
+                                            </button>
+                                        </div>
+                                    )}
+                                    {steps[5] === 'current' && can('returns.refund') && can('returns.replace') && (
+                                        <div className="text-center text-muted fs-13 my-2">{t('admin.or')}</div>
+                                    )}
+                                    {steps[5] === 'current' && can('returns.replace') && (
+                                        <div className="border rounded p-3">
+                                            <div className="fw-semibold">{t('admin.sendReplacement')}</div>
+                                            <p className="text-muted fs-13 mb-2">{t('admin.sendReplacementHint')}</p>
+                                            <div className="mb-2">
+                                                <VariantPicker
+                                                    searchUrl={route('admin.returns.product-search')}
+                                                    onResolve={(variant) => setReplacementVariant(variant?.id ?? null)}
+                                                />
+                                            </div>
+                                            <button
+                                                type="button"
+                                                className="btn btn-primary w-100"
+                                                disabled={replacementVariant === null}
+                                                onClick={sendReplacement}
+                                            >
+                                                {t('admin.createReplacementOrder')}
+                                            </button>
+                                        </div>
+                                    )}
+                                </Step>
+                            </ol>
                         </div>
                     </div>
                 </div>
             </div>
         </AdminLayout>
     );
+}
+
+type StepState = 'done' | 'current' | 'waiting' | 'cancelled';
+
+// One numbered row of the return's progress. Done steps show a tick and
+// their summary, the current step shows its form, later steps are greyed
+// and say which step they are waiting for.
+function Step({
+    n,
+    title,
+    state,
+    last = false,
+    children,
+}: {
+    n: number;
+    title: string;
+    state: StepState;
+    last?: boolean;
+    children?: ReactNode;
+}) {
+    const { t } = useTranslation();
+
+    const marker =
+        state === 'done'
+            ? 'bg-success text-white'
+            : state === 'current'
+              ? 'bg-primary text-white'
+              : 'bg-light text-muted border';
+
+    return (
+        <li className={`d-flex gap-3 ${last ? '' : 'pb-3 mb-3 border-bottom'}`}>
+            <span
+                className={`rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0 fw-semibold fs-13 ${marker}`}
+                style={{ width: 28, height: 28 }}
+                aria-hidden="true"
+            >
+                {state === 'done' ? <i className="bx bx-check" /> : n}
+            </span>
+            <div className="flex-grow-1" style={{ minWidth: 0 }}>
+                <div className={`fw-semibold ${state === 'waiting' || state === 'cancelled' ? 'text-muted' : ''}`}>
+                    {title}
+                </div>
+                {state === 'waiting' && (
+                    <p className="text-muted fs-13 mb-0">{t('admin.returnStepWaits', { step: n - 1 })}</p>
+                )}
+                {state !== 'waiting' && children}
+            </div>
+        </li>
+    );
+}
+
+function NoAccess() {
+    const { t } = useTranslation();
+
+    return <p className="text-muted fs-13 mb-0">{t('admin.returnStepNoAccess')}</p>;
 }

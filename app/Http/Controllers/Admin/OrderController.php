@@ -88,8 +88,10 @@ class OrderController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:orders.create', only: ['create', 'store', 'quote', 'productSearch']),
-            new Middleware('permission:orders.view', only: ['index', 'show', 'invoice', 'invoices', 'label', 'labels']),
+            new Middleware('permission:orders.create', only: ['create', 'store', 'quote', 'productSearch', 'customerSearch']),
+            new Middleware('permission:orders.view', only: ['index', 'show']),
+            new Middleware('permission:orders.print_invoice', only: ['invoice', 'invoices']),
+            new Middleware('permission:orders.print_label', only: ['label', 'labels']),
             new Middleware('permission:orders.export', only: ['export']),
             new Middleware('permission:orders.delete', only: ['destroy']),
         ];
@@ -268,6 +270,54 @@ class OrderController extends Controller implements HasMiddleware
     }
 
     /**
+     * Customer search for the order-create picker — the same move the
+     * product picker made. The page used to carry every customer and every
+     * saved address, and that list grows with every order: each walk-in or
+     * phone order files a guest customer. Now it asks for the few that
+     * match what the agent typed.
+     *
+     * Gated on `orders.create` for the same reason as productSearch().
+     */
+    public function customerSearch(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'q' => ['required', 'string', 'max:100'],
+        ]);
+
+        $term = '%'.trim($data['q']).'%';
+
+        $customers = Customer::query()
+            ->where(fn ($query) => $query
+                ->where('name', 'like', $term)
+                ->orWhere('phone', 'like', $term)
+                ->orWhere('email', 'like', $term))
+            ->orderBy('name')
+            ->limit(15)
+            // Addresses ride along so picking a customer fills the shipping
+            // card from what's already on file instead of retyping it.
+            ->with(['addresses' => fn ($query) => $query->orderByDesc('is_default')->latest('id')])
+            ->get(['id', 'name', 'email', 'phone']);
+
+        return response()->json([
+            'customers' => $customers->map(fn (Customer $customer) => [
+                'id' => $customer->id,
+                'name' => $customer->name,
+                'phone' => $customer->phone,
+                'addresses' => $customer->addresses->map(fn (Address $address) => [
+                    'id' => $address->id,
+                    'label' => $address->label,
+                    'governorate_id' => $address->governorate_id,
+                    'city_id' => $address->city_id,
+                    'district_id' => $address->district_id,
+                    'area_id' => $address->area_id,
+                    'address_line' => $address->address_line,
+                    'is_default' => (bool) $address->is_default,
+                ])->values()->all(),
+            ])->values(),
+        ]);
+    }
+
+    /**
      * Validate the order-book filter query string once, for both the
      * listing and the export — the download can never drift from the
      * table it claims to match.
@@ -325,8 +375,10 @@ class OrderController extends Controller implements HasMiddleware
      */
     public function show(Request $request, Order $order): Response
     {
+        $employee = $request->user('employee');
+
         abort_unless(
-            Order::query()->visibleTo($request->user('employee'))->whereKey($order->getKey())->exists(),
+            Order::query()->visibleTo($employee)->whereKey($order->getKey())->exists(),
             403,
         );
 
@@ -348,15 +400,18 @@ class OrderController extends Controller implements HasMiddleware
 
         return Inertia::render('Orders/Show', [
             'order' => $order,
-            // Where this order can be acted on, if anywhere. The detail
-            // view links to the owning department rather than growing its
-            // own copy of those buttons.
+            // Where this order can be acted on, if anywhere — and only when
+            // the viewer can open that department's screen. The detail view
+            // links to the owning department rather than growing its own
+            // copy of those buttons.
             'workflow' => [
-                'checking' => in_array($order->status, [
+                'checking' => $employee->can('checking.view') && in_array($order->status, [
                     OrderStatus::New, OrderStatus::Checking, OrderStatus::Postponed, OrderStatus::Backorder,
                 ], true),
-                'delivery' => $order->status === OrderStatus::Confirmed,
-                'accounting' => in_array($order->status, [
+                'delivery' => $employee->can('delivery.view') && in_array($order->status, [
+                    OrderStatus::Confirmed, OrderStatus::Assigned, OrderStatus::OutForDelivery,
+                ], true),
+                'accounting' => $employee->can('accounting.view') && in_array($order->status, [
                     OrderStatus::Assigned, OrderStatus::OutForDelivery,
                 ], true),
             ],
@@ -458,27 +513,8 @@ class OrderController extends Controller implements HasMiddleware
     public function create(): Response
     {
         return Inertia::render('Orders/Create', [
-            // Addresses ride along so picking a customer fills the shipping
-            // card from what's already on file instead of retyping it.
-            'customers' => Customer::query()
-                ->orderBy('name')
-                ->with(['addresses' => fn ($query) => $query->orderByDesc('is_default')->latest('id')])
-                ->get(['id', 'name', 'email', 'phone'])
-                ->map(fn (Customer $customer) => [
-                    'id' => $customer->id,
-                    'name' => $customer->name,
-                    'phone' => $customer->phone,
-                    'addresses' => $customer->addresses->map(fn (Address $address) => [
-                        'id' => $address->id,
-                        'label' => $address->label,
-                        'governorate_id' => $address->governorate_id,
-                        'city_id' => $address->city_id,
-                        'district_id' => $address->district_id,
-                        'area_id' => $address->area_id,
-                        'address_line' => $address->address_line,
-                        'is_default' => (bool) $address->is_default,
-                    ])->values()->all(),
-                ]),
+            // No customer list either — see customerSearch(). Same reason
+            // as the variants below.
             // No variant list: the whole catalogue used to be serialised
             // into this page so a flat dropdown could hold every SKU. The
             // picker now searches on demand (productSearch below), which

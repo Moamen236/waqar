@@ -330,24 +330,28 @@ export default function OrdersIndex({
                                         {t('admin.exportSelected')}
                                     </a>
                                 )}
-                                <a
-                                    href={route('admin.orders.invoices', selectionParams())}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="btn btn-sm btn-soft-secondary d-flex align-items-center"
-                                >
-                                    <i className="bx bx-printer me-1" />
-                                    {t('admin.printSelected')}
-                                </a>
-                                <a
-                                    href={route('admin.orders.labels', selectionParams())}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="btn btn-sm btn-soft-secondary d-flex align-items-center"
-                                >
-                                    <i className="bx bx-package me-1" />
-                                    {t('admin.printLabels')}
-                                </a>
+                                {can('orders.print_invoice') && (
+                                    <a
+                                        href={route('admin.orders.invoices', selectionParams())}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="btn btn-sm btn-soft-secondary d-flex align-items-center"
+                                    >
+                                        <i className="bx bx-printer me-1" />
+                                        {t('admin.printSelected')}
+                                    </a>
+                                )}
+                                {can('orders.print_label') && (
+                                    <a
+                                        href={route('admin.orders.labels', selectionParams())}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="btn btn-sm btn-soft-secondary d-flex align-items-center"
+                                    >
+                                        <i className="bx bx-package me-1" />
+                                        {t('admin.printLabels')}
+                                    </a>
+                                )}
                                 <button
                                     type="button"
                                     className="btn btn-sm btn-outline-secondary"

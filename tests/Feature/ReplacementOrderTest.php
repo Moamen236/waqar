@@ -6,6 +6,8 @@ use App\Actions\Orders\ConfirmDeliveryResultAction;
 use App\Actions\Orders\ConfirmOrderAction;
 use App\Actions\Returns\AcceptReturnShippingFeeAction;
 use App\Actions\Returns\ApproveReturnAction;
+use App\Actions\Returns\AssignReturnPickupAction;
+use App\Actions\Returns\ReceiveReturnAction;
 use App\Actions\Returns\RequestReturnAction;
 use App\Enums\CollectedMethod;
 use App\Enums\DeliveryAssignmentType;
@@ -61,12 +63,14 @@ function rpVariant(int $warehouseId, float $price, int $stock = 10): ProductVari
 }
 
 /**
- * A delivered order for one 100 EGP item, with an approved return filed
- * against it. Shipping is 50 (setUpGeoAndShipping's governorate rate).
+ * A delivered order for one 100 EGP item, with a return filed against it
+ * and walked up to step 5 — approved, collected and received — the only
+ * point a replacement may be sent. Shipping is 50 (setUpGeoAndShipping's
+ * governorate rate).
  *
  * @return array{0: OrderReturn, 1: Employee, 2: array<string, mixed>}
  */
-function rpApprovedReturn(): array
+function rpReceivedReturn(): array
 {
     $geo = setUpGeoAndShipping();
     $variant = rpVariant($geo['warehouse']->id, 100.0);
@@ -98,6 +102,10 @@ function rpApprovedReturn(): array
 
     app(AcceptReturnShippingFeeAction::class)->execute($return, $customer, 0.0);
     app(ApproveReturnAction::class)->execute($return->fresh(), $staff);
+    app(AssignReturnPickupAction::class)->execute(
+        $return->fresh(), $staff, DeliveryAssignmentType::Representative, DeliveryRepresentative::firstOrFail(),
+    );
+    app(ReceiveReturnAction::class)->execute($return->fresh(), $staff, $geo['warehouse']);
 
     return [$return->fresh(), $staff, $geo];
 }
@@ -107,7 +115,7 @@ beforeEach(function () {
 });
 
 it('charges only the shipping when the replacement costs the same', function () {
-    [$return, $staff, $geo] = rpApprovedReturn();
+    [$return, $staff, $geo] = rpReceivedReturn();
     $swap = rpVariant($geo['warehouse']->id, 100.0);
 
     $this->actingAs($staff, 'employee')->post(route('admin.returns.replace', $return), [
@@ -130,7 +138,7 @@ it('charges only the shipping when the replacement costs the same', function () 
 });
 
 it('charges the difference when the customer trades up', function () {
-    [$return, $staff, $geo] = rpApprovedReturn();
+    [$return, $staff, $geo] = rpReceivedReturn();
     $dearer = rpVariant($geo['warehouse']->id, 200.0);
 
     $this->actingAs($staff, 'employee')->post(route('admin.returns.replace', $return), [
@@ -147,7 +155,7 @@ it('charges the difference when the customer trades up', function () {
 });
 
 it('never goes negative when the customer trades down, and refunds no difference', function () {
-    [$return, $staff, $geo] = rpApprovedReturn();
+    [$return, $staff, $geo] = rpReceivedReturn();
     $cheaper = rpVariant($geo['warehouse']->id, 80.0);
 
     $this->actingAs($staff, 'employee')->post(route('admin.returns.replace', $return), [
@@ -163,7 +171,7 @@ it('never goes negative when the customer trades down, and refunds no difference
 });
 
 it('writes no treasury row when a same-price replacement is delivered', function () {
-    [$return, $staff, $geo] = rpApprovedReturn();
+    [$return, $staff, $geo] = rpReceivedReturn();
     $swap = rpVariant($geo['warehouse']->id, 100.0);
     $treasury = Treasury::firstOrFail();
     $before = TreasuryTransaction::count();
@@ -193,7 +201,7 @@ it('writes no treasury row when a same-price replacement is delivered', function
 });
 
 it('reserves stock for the outgoing item and completes the return without a refund', function () {
-    [$return, $staff, $geo] = rpApprovedReturn();
+    [$return, $staff, $geo] = rpReceivedReturn();
     $swap = rpVariant($geo['warehouse']->id, 100.0, stock: 5);
 
     // Completed has been in the enum since Phase 1 with no writer.
@@ -243,4 +251,20 @@ it('refuses to replace a return that has not been approved', function () {
     ])->assertSessionHas('error');
 
     expect(Order::whereNotNull('replaces_order_id')->count())->toBe(0);
+});
+
+it('finds the replacement by product name, with its colours and sizes, for whoever can replace', function () {
+    [, $staff, $geo] = rpReceivedReturn();
+    rpVariant($geo['warehouse']->id, 120.0);
+
+    $this->actingAs($staff, 'employee')
+        ->getJson(route('admin.returns.product-search', ['q' => 'Widget']))
+        ->assertOk()
+        ->assertJsonPath('products.0.name', 'Widget')
+        ->assertJsonStructure(['products' => [['id', 'name', 'colors', 'sizes', 'variants' => [['id', 'sku', 'price', 'options']]]]]);
+
+    // Customer Service files returns but does not send replacements.
+    $this->actingAs(rpEmployee('Customer Service'), 'employee')
+        ->getJson(route('admin.returns.product-search', ['q' => 'Widget']))
+        ->assertForbidden();
 });

@@ -80,7 +80,8 @@ export default function DeliveryIndex({
 }) {
     const { t, price, dateTime } = useTranslation();
     const { can } = usePermissions();
-    const canAssign = can('orders.assign');
+    const canAssign = can('delivery.assign');
+    const canMove = can('delivery.move');
 
     const f: BoardFilters = {
         status: asText(filters.status),
@@ -526,24 +527,25 @@ export default function DeliveryIndex({
                                             </span>
                                         </td>
                                         <td className="text-end">
-                                            {canAssign &&
-                                                (isConfirmed ? (
-                                                    <Link
-                                                        href={route('admin.delivery.assign.form', order.id)}
-                                                        className="btn btn-soft-primary btn-sm"
-                                                    >
-                                                        {t('admin.assign')}
-                                                    </Link>
-                                                ) : (
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-sm btn-soft-primary d-inline-flex align-items-center gap-1"
-                                                        onClick={() => openMove(order)}
-                                                    >
-                                                        <i className="bx bx-transfer" />
-                                                        {t('admin.move')}
-                                                    </button>
-                                                ))}
+                                            {isConfirmed
+                                                ? canAssign && (
+                                                      <Link
+                                                          href={route('admin.delivery.assign.form', order.id)}
+                                                          className="btn btn-soft-primary btn-sm"
+                                                      >
+                                                          {t('admin.assign')}
+                                                      </Link>
+                                                  )
+                                                : canMove && (
+                                                      <button
+                                                          type="button"
+                                                          className="btn btn-sm btn-soft-primary d-inline-flex align-items-center gap-1"
+                                                          onClick={() => openMove(order)}
+                                                      >
+                                                          <i className="bx bx-transfer" />
+                                                          {t('admin.move')}
+                                                      </button>
+                                                  )}
                                         </td>
                                     </tr>
                                 );

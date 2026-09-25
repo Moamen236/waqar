@@ -37,9 +37,13 @@ class CheckingController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:orders.view', only: ['index', 'show']),
+            new Middleware('permission:checking.view', only: ['index', 'show']),
             new Middleware('permission:checking.export', only: ['export']),
-            new Middleware('permission:orders.status.update', only: ['confirm', 'postpone', 'cancel', 'backorder', 'resume']),
+            new Middleware('permission:checking.confirm', only: ['confirm']),
+            new Middleware('permission:checking.postpone', only: ['postpone']),
+            new Middleware('permission:checking.cancel', only: ['cancel']),
+            // Resume only ever undoes a backorder, so it rides with it.
+            new Middleware('permission:checking.backorder', only: ['backorder', 'resume']),
         ];
     }
 

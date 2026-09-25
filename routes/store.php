@@ -83,13 +83,21 @@ Route::prefix('api/shipping')->name('api.shipping.')->group(function () {
 // Customer auth — email + password only, no social/OTP login (Section 13)
 Route::middleware('guest:customer')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
-    Route::post('/login', [LoginController::class, 'store'])->name('login.store');
+    Route::post('/login', [LoginController::class, 'store'])
+        ->middleware('throttle:login')
+        ->name('login.store');
     Route::get('/register', [RegisterController::class, 'create'])->name('register');
-    Route::post('/register', [RegisterController::class, 'store'])->name('register.store');
+    Route::post('/register', [RegisterController::class, 'store'])
+        ->middleware('throttle:login')
+        ->name('register.store');
     Route::get('/forgot-password', [PasswordResetController::class, 'request'])->name('password.request');
-    Route::post('/forgot-password', [PasswordResetController::class, 'email'])->name('password.email');
+    Route::post('/forgot-password', [PasswordResetController::class, 'email'])
+        ->middleware('throttle:login')
+        ->name('password.email');
     Route::get('/reset-password/{token}', [PasswordResetController::class, 'reset'])->name('password.reset');
-    Route::post('/reset-password', [PasswordResetController::class, 'update'])->name('password.update');
+    Route::post('/reset-password', [PasswordResetController::class, 'update'])
+        ->middleware('throttle:login')
+        ->name('password.update');
 });
 
 Route::post('/logout', [LoginController::class, 'destroy'])

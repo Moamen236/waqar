@@ -34,7 +34,7 @@ class CategoryController extends Controller implements HasMiddleware
     public function index(): Response
     {
         return Inertia::render('Categories/Index', [
-            'categories' => Category::query()->with('parent:id,name')->orderBy('sort_order')->paginate(30),
+            'categories' => Category::query()->with('parent:id,name')->orderBy('sort_order')->paginate(30)->withQueryString(),
         ]);
     }
 

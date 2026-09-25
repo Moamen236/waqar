@@ -88,13 +88,13 @@ class ProductController extends Controller implements HasMiddleware
     /**
      * The same rows index() renders — same `q` search — as an .xlsx
      * download. cost_price rides along only for an employee who already
-     * holds products.update, the same gate show() applies to that column.
+     * holds products.cost_price.view, the same gate show() applies to that column.
      */
     public function export(Request $request): BinaryFileResponse
     {
         $export = new ProductsExport(
             trim((string) $request->string('q')),
-            (bool) $request->user('employee')?->can('products.update'),
+            (bool) $request->user('employee')?->can('products.cost_price.view'),
         );
 
         return $export->download('products-'.now()->format('Y-m-d_His').'.xlsx');
@@ -191,7 +191,7 @@ class ProductController extends Controller implements HasMiddleware
                 'short_description' => $product->short_description,
                 'price' => $product->price,
                 'sale_price' => $product->sale_price,
-                'cost_price' => $request->user('employee')->can('products.update') ? $product->cost_price : null,
+                'cost_price' => $request->user('employee')->can('products.cost_price.view') ? $product->cost_price : null,
                 'status' => $product->status,
                 'is_featured' => $product->is_featured,
                 'is_new' => $product->is_new,
@@ -273,9 +273,14 @@ class ProductController extends Controller implements HasMiddleware
         ];
     }
 
-    public function edit(Product $product): Response
+    public function edit(Request $request, Product $product): Response
     {
         $product->load(['categories:id,name', 'collections:id,name', 'variants.attributeValues.attribute']);
+
+        if (! $request->user('employee')->can('products.cost_price.view')) {
+            $product->makeHidden('cost_price');
+            $product->variants->each->makeHidden('cost_price');
+        }
 
         return Inertia::render('Products/Form', [
             'product' => [
@@ -440,6 +445,16 @@ class ProductController extends Controller implements HasMiddleware
         // to use dangerouslySetInnerHTML today. See RichTextSanitizer.
         $data['description'] = $this->sanitizer->cleanTranslations($data['description'] ?? null);
         $data['short_description'] = $this->sanitizer->cleanTranslations($data['short_description'] ?? null);
+
+        // An editor who cannot see cost price cannot set it either — the
+        // form hides the field, and anything posted anyway is dropped, so
+        // the stored value is left untouched rather than blanked.
+        if (! $request->user('employee')->can('products.cost_price.view')) {
+            unset($data['cost_price']);
+            foreach ($data['variants'] ?? [] as $index => $variant) {
+                unset($data['variants'][$index]['cost_price']);
+            }
+        }
 
         return array_filter(
             $data,

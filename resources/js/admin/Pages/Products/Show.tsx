@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import EmptyState, { EmptyRow } from '../../Components/EmptyState';
+import StarRating from '../../Components/StarRating';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
 import { usePermissions } from '../../Hooks/usePermissions';
@@ -187,15 +188,7 @@ export default function ProductShow({
                             </p>
 
                             <div className="d-flex gap-2 align-items-center flex-wrap">
-                                <ul className="d-flex text-warning m-0 fs-20 list-unstyled">
-                                    {[1, 2, 3, 4, 5].map((star) => (
-                                        <li key={star}>
-                                            <i
-                                                className={`bx ${star <= Math.round(reviewSummary.average) ? 'bxs-star' : 'bx-star'}`}
-                                            />
-                                        </li>
-                                    ))}
-                                </ul>
+                                <StarRating rating={reviewSummary.average} size="fs-20" />
                                 <span className="text-muted fs-14">
                                     {t('admin.reviewsCount', { count: reviewSummary.count })}
                                 </span>
@@ -408,8 +401,16 @@ export default function ProductShow({
 
                 <div className="col-lg-6">
                     <div className="card">
-                        <div className="card-header">
-                            <h4 className="card-title">{t('admin.customerReviews')}</h4>
+                        <div className="card-header d-flex justify-content-between align-items-center gap-2">
+                            <h4 className="card-title mb-0">{t('admin.customerReviews')}</h4>
+                            {can('reviews.moderate') && reviews.length > 0 && (
+                                <Link
+                                    href={route('admin.reviews.index', { product_id: product.id, status: 'all' })}
+                                    className="btn btn-sm btn-soft-primary"
+                                >
+                                    {t('admin.moderateReviews')}
+                                </Link>
+                            )}
                         </div>
 
                         {reviews.length === 0 ? (
@@ -424,17 +425,18 @@ export default function ProductShow({
                                         <div className="flex-grow-1">
                                             <div className="d-flex justify-content-between align-items-center gap-2 flex-wrap">
                                                 <h5 className="mb-0">{review.customer ?? '—'}</h5>
-                                                <StatusBadge status={review.status} />
+                                                {can('reviews.moderate') ? (
+                                                    <Link
+                                                        href={route('admin.reviews.show', review.id)}
+                                                        title={t('admin.moderateReviews')}
+                                                    >
+                                                        <StatusBadge status={review.status} />
+                                                    </Link>
+                                                ) : (
+                                                    <StatusBadge status={review.status} />
+                                                )}
                                             </div>
-                                            <ul className="d-flex text-warning m-0 fs-14 list-unstyled">
-                                                {[1, 2, 3, 4, 5].map((star) => (
-                                                    <li key={star}>
-                                                        <i
-                                                            className={`bx ${star <= review.rating ? 'bxs-star' : 'bx-star'}`}
-                                                        />
-                                                    </li>
-                                                ))}
-                                            </ul>
+                                            <StarRating rating={review.rating} />
                                             {review.title && <p className="fw-medium mb-0 mt-1">{review.title}</p>}
                                             {review.comment && <p className="text-muted mb-0">{review.comment}</p>}
                                             <span className="text-muted fs-13" dir="ltr">

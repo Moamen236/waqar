@@ -7,6 +7,7 @@ import PaymentInstalments, { type Instalment } from '../../Components/PaymentIns
 import ShippingAddressCard from '../../Components/ShippingAddressCard';
 import StatusBadge from '../../Components/StatusBadge';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { usePermissions } from '../../Hooks/usePermissions';
 import { confirmAction } from '../../lib/confirm';
 import type { GeoName } from '../../types';
 import { useTranslation } from '../../lib/useTranslation';
@@ -103,7 +104,14 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
         Object.fromEntries(order.items.map((item) => [item.id, item.quantity])),
     );
 
-    const canAct = ['Assigned', 'Out for Delivery'].includes(order.status);
+    // Each outcome is its own grant: Delivered deducts stock, Returned
+    // releases it, collecting moves cash.
+    const { can } = usePermissions();
+    const canDelivered = can('accounting.confirm_delivered');
+    const canReturned = can('accounting.confirm_returned');
+    const canCollect = can('accounting.collect');
+    const canHandover = can('accounting.confirm_handover');
+    const canAct = ['Assigned', 'Out for Delivery'].includes(order.status) && (canDelivered || canReturned);
     // Still in the building: offer the handover as the obvious next step.
     // The delivery outcomes stay available underneath it, because handover
     // is a record rather than a gate — a courier who skipped the desk must
@@ -223,14 +231,16 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
             title={t('admin.accountingForOrder', { number: order.order_number })}
             breadcrumbs={[{ label: t('admin.accountingDeliveryConfirmation'), href: route('admin.accounting.index') }]}
             actions={
-                <Link
-                    href={route('admin.orders.invoice', order.id)}
-                    target="_blank"
-                    className="btn btn-sm btn-soft-primary d-flex align-items-center gap-1"
-                >
-                    <i className="bx bx-printer" />
-                    {t('admin.invoice')}
-                </Link>
+                can('orders.print_invoice') && (
+                    <Link
+                        href={route('admin.orders.invoice', order.id)}
+                        target="_blank"
+                        className="btn btn-sm btn-soft-primary d-flex align-items-center gap-1"
+                    >
+                        <i className="bx bx-printer" />
+                        {t('admin.invoice')}
+                    </Link>
+                )
             }
         >
             <Head title={t('admin.orderNumber', { number: order.order_number })} />
@@ -358,18 +368,26 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                                     <PaymentInstalments instalments={payment?.transactions ?? []} />
                                 </div>
 
-                                <TreasuryFields
-                                    treasuries={treasuries}
-                                    treasuryId={treasuryId}
-                                    setTreasuryId={setTreasuryId}
-                                    collectedMethod={collectedMethod}
-                                    setCollectedMethod={setCollectedMethod}
-                                    collectedAmount={balanceAmount}
-                                    setCollectedAmount={setBalanceAmount}
-                                />
-                                <button type="button" className="btn btn-primary w-100 mt-2" onClick={collectBalance}>
-                                    {t('admin.recordCollection')}
-                                </button>
+                                {canCollect && (
+                                    <>
+                                        <TreasuryFields
+                                            treasuries={treasuries}
+                                            treasuryId={treasuryId}
+                                            setTreasuryId={setTreasuryId}
+                                            collectedMethod={collectedMethod}
+                                            setCollectedMethod={setCollectedMethod}
+                                            collectedAmount={balanceAmount}
+                                            setCollectedAmount={setBalanceAmount}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary w-100 mt-2"
+                                            onClick={collectBalance}
+                                        >
+                                            {t('admin.recordCollection')}
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}
@@ -399,7 +417,7 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                                 </div>
                             )}
 
-                            {awaitingHandover && (
+                            {awaitingHandover && canHandover && (
                                 <div className="border rounded p-3 mb-3">
                                     <div className="fw-semibold">{t('admin.confirmHandover')}</div>
                                     <p className="text-muted fs-13 mb-2">{t('admin.confirmHandoverHint')}</p>
@@ -419,136 +437,147 @@ export default function AccountingShow({ order, treasuries }: { order: OrderDeta
                                 </div>
                             )}
                             {!canAct ? (
-                                <p className="text-muted mb-0">{t('admin.orderNotOutForDelivery')}</p>
+                                !['Assigned', 'Out for Delivery'].includes(order.status) && (
+                                    <p className="text-muted mb-0">{t('admin.orderNotOutForDelivery')}</p>
+                                )
                             ) : (
-                                <Tabs defaultActiveKey="delivered" className="nav-tabs-custom mb-3">
-                                    <Tab eventKey="delivered" title={t('admin.delivered')}>
-                                        {/* The one place the split has to be legible: the
+                                <Tabs
+                                    defaultActiveKey={canDelivered ? 'delivered' : 'returned'}
+                                    className="nav-tabs-custom mb-3"
+                                >
+                                    {canDelivered && (
+                                        <Tab eventKey="delivered" title={t('admin.delivered')}>
+                                            {/* The one place the split has to be legible: the
                                             courier collected the gross and kept the shipping,
                                             so only the net should reach the drawer. */}
-                                        <div className="bg-light-subtle border rounded p-2 mb-3 fs-13">
-                                            <div className="d-flex justify-content-between text-muted">
-                                                <span>{t('admin.customerPaysCourier')}</span>
-                                                <span dir="ltr">{price(Number(order.total))}</span>
+                                            <div className="bg-light-subtle border rounded p-2 mb-3 fs-13">
+                                                <div className="d-flex justify-content-between text-muted">
+                                                    <span>{t('admin.customerPaysCourier')}</span>
+                                                    <span dir="ltr">{price(Number(order.total))}</span>
+                                                </div>
+                                                <div className="d-flex justify-content-between text-muted">
+                                                    <span>{t('admin.courierKeepsShipping')}</span>
+                                                    <span dir="ltr">−{price(shipping)}</span>
+                                                </div>
+                                                <hr className="my-1" />
+                                                <div className="d-flex justify-content-between fw-semibold">
+                                                    <span>{t('admin.dueToTreasury')}</span>
+                                                    <span dir="ltr">{price(netDue)}</span>
+                                                </div>
                                             </div>
-                                            <div className="d-flex justify-content-between text-muted">
-                                                <span>{t('admin.courierKeepsShipping')}</span>
-                                                <span dir="ltr">−{price(shipping)}</span>
-                                            </div>
-                                            <hr className="my-1" />
-                                            <div className="d-flex justify-content-between fw-semibold">
-                                                <span>{t('admin.dueToTreasury')}</span>
-                                                <span dir="ltr">{price(netDue)}</span>
-                                            </div>
-                                        </div>
-                                        <TreasuryFields
-                                            treasuries={treasuries}
-                                            treasuryId={treasuryId}
-                                            setTreasuryId={setTreasuryId}
-                                            collectedMethod={collectedMethod}
-                                            setCollectedMethod={setCollectedMethod}
-                                            collectedAmount={collectedAmount}
-                                            setCollectedAmount={setCollectedAmount}
-                                        />
-                                        <button
-                                            type="button"
-                                            className="btn btn-success w-100 mt-2"
-                                            onClick={confirmDelivered}
-                                        >
-                                            {t('admin.confirmDelivered')}
-                                        </button>
-                                    </Tab>
-                                    <Tab eventKey="returned" title={t('admin.returned')}>
-                                        <p className="text-muted fs-13">{t('admin.fullyRefusedExplainer')}</p>
-                                        <button
-                                            type="button"
-                                            className="btn btn-danger w-100"
-                                            onClick={confirmReturned}
-                                        >
-                                            {t('admin.confirmReturned')}
-                                        </button>
-                                    </Tab>
-                                    <Tab eventKey="partial" title={t('admin.partiallyReturned')}>
-                                        <p className="text-muted fs-13">{t('admin.setHowManyOfEachItem')}</p>
-                                        {order.items.map((item) => (
-                                            <div key={item.id} className="mb-2">
-                                                <label className="form-label fs-13 mb-1">
-                                                    {item.product_name_snapshot} (of {item.quantity})
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    className="form-control"
-                                                    min={0}
-                                                    max={item.quantity}
-                                                    value={keptQuantities[item.id]}
-                                                    onChange={(e) =>
-                                                        setKeptQuantities({
-                                                            ...keptQuantities,
-                                                            [item.id]: Number(e.target.value),
-                                                        })
-                                                    }
-                                                />
-                                            </div>
-                                        ))}
-                                        <table className="table table-sm mt-3 mb-2">
-                                            <tbody>
-                                                <PreviewRow
-                                                    label={t('admin.keptItems')}
-                                                    value={price(round2(keptValue))}
-                                                />
-                                                <PreviewRow
-                                                    label={t('admin.returnedItems')}
-                                                    value={`-${price(round2(returnedValue))}`}
-                                                    muted
-                                                />
-                                                {Number(order.discount_amount) > 0 && (
+                                            <TreasuryFields
+                                                treasuries={treasuries}
+                                                treasuryId={treasuryId}
+                                                setTreasuryId={setTreasuryId}
+                                                collectedMethod={collectedMethod}
+                                                setCollectedMethod={setCollectedMethod}
+                                                collectedAmount={collectedAmount}
+                                                setCollectedAmount={setCollectedAmount}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="btn btn-success w-100 mt-2"
+                                                onClick={confirmDelivered}
+                                            >
+                                                {t('admin.confirmDelivered')}
+                                            </button>
+                                        </Tab>
+                                    )}
+                                    {canReturned && (
+                                        <Tab eventKey="returned" title={t('admin.returned')}>
+                                            <p className="text-muted fs-13">{t('admin.fullyRefusedExplainer')}</p>
+                                            <button
+                                                type="button"
+                                                className="btn btn-danger w-100"
+                                                onClick={confirmReturned}
+                                            >
+                                                {t('admin.confirmReturned')}
+                                            </button>
+                                        </Tab>
+                                    )}
+                                    {canReturned && (
+                                        <Tab eventKey="partial" title={t('admin.partiallyReturned')}>
+                                            <p className="text-muted fs-13">{t('admin.setHowManyOfEachItem')}</p>
+                                            {order.items.map((item) => (
+                                                <div key={item.id} className="mb-2">
+                                                    <label className="form-label fs-13 mb-1">
+                                                        {item.product_name_snapshot} (of {item.quantity})
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        className="form-control"
+                                                        min={0}
+                                                        max={item.quantity}
+                                                        value={keptQuantities[item.id]}
+                                                        onChange={(e) =>
+                                                            setKeptQuantities({
+                                                                ...keptQuantities,
+                                                                [item.id]: Number(e.target.value),
+                                                            })
+                                                        }
+                                                    />
+                                                </div>
+                                            ))}
+                                            <table className="table table-sm mt-3 mb-2">
+                                                <tbody>
                                                     <PreviewRow
-                                                        label={t('admin.discountProRata')}
-                                                        value={`-${price(round2(discountShare))}`}
+                                                        label={t('admin.keptItems')}
+                                                        value={price(round2(keptValue))}
+                                                    />
+                                                    <PreviewRow
+                                                        label={t('admin.returnedItems')}
+                                                        value={`-${price(round2(returnedValue))}`}
                                                         muted
                                                     />
-                                                )}
-                                                <PreviewRow
-                                                    label={t('admin.deliveryCharge')}
-                                                    value={price(Number(order.shipping_amount))}
-                                                />
-                                            </tbody>
-                                            <tfoot className="border-top">
-                                                <tr>
-                                                    <td className="px-0 fw-semibold text-dark">
-                                                        {t('admin.suggestedCollection')}
-                                                    </td>
-                                                    <td className="text-end px-0 fw-semibold text-dark">
-                                                        <span dir="ltr">{price(suggestedTotal)}</span>
-                                                    </td>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
-                                        <button
-                                            type="button"
-                                            className="btn btn-sm btn-soft-secondary w-100 mb-3"
-                                            disabled={collectedAmount === String(suggestedTotal)}
-                                            onClick={() => setCollectedAmount(String(suggestedTotal))}
-                                        >
-                                            {t('admin.useThisAmount')}
-                                        </button>
-                                        <TreasuryFields
-                                            treasuries={treasuries}
-                                            treasuryId={treasuryId}
-                                            setTreasuryId={setTreasuryId}
-                                            collectedMethod={collectedMethod}
-                                            setCollectedMethod={setCollectedMethod}
-                                            collectedAmount={collectedAmount}
-                                            setCollectedAmount={setCollectedAmount}
-                                        />
-                                        <button
-                                            type="button"
-                                            className="btn btn-warning w-100 mt-2"
-                                            onClick={confirmPartial}
-                                        >
-                                            {t('admin.confirmPartiallyReturned')}
-                                        </button>
-                                    </Tab>
+                                                    {Number(order.discount_amount) > 0 && (
+                                                        <PreviewRow
+                                                            label={t('admin.discountProRata')}
+                                                            value={`-${price(round2(discountShare))}`}
+                                                            muted
+                                                        />
+                                                    )}
+                                                    <PreviewRow
+                                                        label={t('admin.deliveryCharge')}
+                                                        value={price(Number(order.shipping_amount))}
+                                                    />
+                                                </tbody>
+                                                <tfoot className="border-top">
+                                                    <tr>
+                                                        <td className="px-0 fw-semibold text-dark">
+                                                            {t('admin.suggestedCollection')}
+                                                        </td>
+                                                        <td className="text-end px-0 fw-semibold text-dark">
+                                                            <span dir="ltr">{price(suggestedTotal)}</span>
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                            <button
+                                                type="button"
+                                                className="btn btn-sm btn-soft-secondary w-100 mb-3"
+                                                disabled={collectedAmount === String(suggestedTotal)}
+                                                onClick={() => setCollectedAmount(String(suggestedTotal))}
+                                            >
+                                                {t('admin.useThisAmount')}
+                                            </button>
+                                            <TreasuryFields
+                                                treasuries={treasuries}
+                                                treasuryId={treasuryId}
+                                                setTreasuryId={setTreasuryId}
+                                                collectedMethod={collectedMethod}
+                                                setCollectedMethod={setCollectedMethod}
+                                                collectedAmount={collectedAmount}
+                                                setCollectedAmount={setCollectedAmount}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="btn btn-warning w-100 mt-2"
+                                                onClick={confirmPartial}
+                                            >
+                                                {t('admin.confirmPartiallyReturned')}
+                                            </button>
+                                        </Tab>
+                                    )}
                                 </Tabs>
                             )}
                         </div>

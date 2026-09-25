@@ -38,11 +38,15 @@ class AccountingController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:orders.view', only: ['index', 'show']),
+            new Middleware('permission:accounting.view', only: ['index', 'show']),
             // Handover rides on the same grant: whoever may settle the
             // cash may sign the goods out. Splitting it would only matter
             // if the two were done by different people, and they are not.
-            new Middleware('permission:orders.confirm_delivery', only: ['handover', 'delivered', 'returned', 'partiallyReturned', 'collect', 'settleBulk', 'collectFromCourier']),
+            new Middleware('permission:accounting.confirm_handover', only: ['handover']),
+            // Delivered is the one transition that deducts stock.
+            new Middleware('permission:accounting.confirm_delivered', only: ['delivered']),
+            new Middleware('permission:accounting.confirm_returned', only: ['returned', 'partiallyReturned']),
+            new Middleware('permission:accounting.collect', only: ['collect', 'settleBulk', 'collectFromCourier']),
         ];
     }
 

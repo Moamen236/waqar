@@ -18,11 +18,15 @@ use App\Observers\ReviewObserver;
 use App\Observers\ShippingCompanyStatementObserver;
 use App\Observers\TreasuryObserver;
 use App\Observers\TreasuryTransactionObserver;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 use Spatie\Activitylog\Facades\CauserResolver;
 use Spatie\Permission\Events\PermissionAttachedEvent;
 use Spatie\Permission\Events\PermissionDetachedEvent;
@@ -44,9 +48,18 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if(env('APP_ENV') === 'production'){
+        if (env('APP_ENV') === 'production') {
             URL::forceScheme('https');
         }
+
+        // The credential endpoints are unauthenticated and cheap to hammer,
+        // and nothing in the web middleware group limits them — so they carry
+        // their own throttle:login limit (see routes/admin.php and
+        // routes/store.php). Keyed on the submitted email *and* the IP rather
+        // than the IP alone: an IP-only key lets one attacker on a shared
+        // office address lock every employee behind it out of the admin.
+        RateLimiter::for('login', fn (Request $request) => Limit::perMinute(5)
+            ->by(Str::lower((string) $request->input('email')).'|'.$request->ip()));
         // Super Admin bypasses every permission check outright (spec
         // Section 15: "Full system access") rather than needing every
         // permission explicitly assigned — Spatie's own recommended

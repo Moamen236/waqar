@@ -70,8 +70,10 @@ export default function RepresentativeShow({
     representative: Representative;
     areas: CoverageArea[];
     geoTree: GeoTree;
-    stats: Stats;
-    orders: PaginatedData<ProfileOrder>;
+    // Null without delivery.view — the courier's order history is Delivery
+    // Board data, not something delivery.representatives.view hands out.
+    stats: Stats | null;
+    orders: PaginatedData<ProfileOrder> | null;
 }) {
     const { t, price, dateTime } = useTranslation();
     const { can } = usePermissions();
@@ -134,32 +136,39 @@ export default function RepresentativeShow({
         >
             <Head title={`${t('admin.representativeProfile')}: ${representative.name}`} />
 
-            <div className="row g-3 mb-3">
-                <div className="col-md-6 col-xl-3">
-                    <StatCard label={t('admin.totalOrders')} value={stats.total_orders} icon="bx-package" />
+            {stats && (
+                <div className="row g-3 mb-3">
+                    <div className="col-md-6 col-xl-3">
+                        <StatCard label={t('admin.totalOrders')} value={stats.total_orders} icon="bx-package" />
+                    </div>
+                    <div className="col-md-6 col-xl-3">
+                        <StatCard
+                            label={t('admin.onTheRoad')}
+                            value={stats.active_orders}
+                            icon="bx-truck"
+                            variant="info"
+                        />
+                    </div>
+                    <div className="col-md-6 col-xl-3">
+                        <StatCard
+                            label={t('admin.deliveredOrders')}
+                            value={stats.delivered_orders}
+                            icon="bx-check-circle"
+                            variant="success"
+                            caption={`${t('admin.partiallyReturned')}: ${stats.partially_returned_orders} · ${t('admin.returned')}: ${stats.returned_orders}`}
+                        />
+                    </div>
+                    <div className="col-md-6 col-xl-3">
+                        <StatCard
+                            label={t('admin.outstandingBalance')}
+                            value={price(stats.outstanding_balance)}
+                            icon="bx-wallet"
+                            variant={stats.outstanding_balance > 0 ? 'danger' : 'success'}
+                            caption={`${t('admin.outstanding')}: ${stats.outstanding_orders} · ${t('admin.collected')}: ${price(stats.collected_total)}`}
+                        />
+                    </div>
                 </div>
-                <div className="col-md-6 col-xl-3">
-                    <StatCard label={t('admin.onTheRoad')} value={stats.active_orders} icon="bx-truck" variant="info" />
-                </div>
-                <div className="col-md-6 col-xl-3">
-                    <StatCard
-                        label={t('admin.deliveredOrders')}
-                        value={stats.delivered_orders}
-                        icon="bx-check-circle"
-                        variant="success"
-                        caption={`${t('admin.partiallyReturned')}: ${stats.partially_returned_orders} · ${t('admin.returned')}: ${stats.returned_orders}`}
-                    />
-                </div>
-                <div className="col-md-6 col-xl-3">
-                    <StatCard
-                        label={t('admin.outstandingBalance')}
-                        value={price(stats.outstanding_balance)}
-                        icon="bx-wallet"
-                        variant={stats.outstanding_balance > 0 ? 'danger' : 'success'}
-                        caption={`${t('admin.outstanding')}: ${stats.outstanding_orders} · ${t('admin.collected')}: ${price(stats.collected_total)}`}
-                    />
-                </div>
-            </div>
+            )}
 
             <div className="row g-3 mb-3">
                 <div className="col-xl-4">
@@ -221,82 +230,90 @@ export default function RepresentativeShow({
                 </div>
             </div>
 
-            <div className="card">
-                <div className="card-header">
-                    <h4 className="card-title">{t('admin.allOrders')}</h4>
-                </div>
-                <div className="table-responsive">
-                    <table className="table align-middle mb-0 table-hover table-centered">
-                        <thead className="bg-light-subtle">
-                            <tr>
-                                <th>{t('admin.order')}</th>
-                                <th>{t('admin.customer')}</th>
-                                <th>{t('admin.location')}</th>
-                                <th>{t('admin.status')}</th>
-                                <th>{t('admin.payment')}</th>
-                                <th>{t('admin.netDue')}</th>
-                                <th>{t('admin.collected')}</th>
-                                <th>{t('admin.stillOwed')}</th>
-                                <th>{t('admin.createdAt')}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {orders.data.map((order) => (
-                                <tr key={order.id} className={order.still_owed > 0 ? 'table-warning' : undefined}>
-                                    <td>
-                                        <Link href={route('admin.orders.show', order.id)} className="fw-medium">
-                                            <span dir="ltr">#{order.order_number}</span>
-                                        </Link>
-                                    </td>
-                                    <td>
-                                        {order.customer?.name ?? '—'}
-                                        {order.customer && (
-                                            <div className="text-muted fs-12" dir="ltr">
-                                                {order.customer.phone}
-                                            </div>
-                                        )}
-                                    </td>
-                                    <td className="text-muted fs-13">{locationOf(order)}</td>
-                                    <td>
-                                        <StatusBadge status={order.status} />
-                                    </td>
-                                    <td>
-                                        <StatusBadge status={order.payment_status} />
-                                    </td>
-                                    <td>
-                                        <span dir="ltr" className="text-nowrap">
-                                            {price(order.net_due)}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span dir="ltr" className="text-nowrap text-muted">
-                                            {price(order.collected_amount)}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        {order.still_owed > 0 ? (
-                                            <span dir="ltr" className="text-nowrap fw-semibold text-danger">
-                                                {price(order.still_owed)}
-                                            </span>
-                                        ) : (
-                                            <span className="text-muted">—</span>
-                                        )}
-                                    </td>
-                                    <td>
-                                        <span dir="ltr" className="text-nowrap text-muted fs-13">
-                                            {dateTime(order.created_at)}
-                                        </span>
-                                    </td>
+            {orders && (
+                <div className="card">
+                    <div className="card-header">
+                        <h4 className="card-title">{t('admin.allOrders')}</h4>
+                    </div>
+                    <div className="table-responsive">
+                        <table className="table align-middle mb-0 table-hover table-centered">
+                            <thead className="bg-light-subtle">
+                                <tr>
+                                    <th>{t('admin.order')}</th>
+                                    <th>{t('admin.customer')}</th>
+                                    <th>{t('admin.location')}</th>
+                                    <th>{t('admin.status')}</th>
+                                    <th>{t('admin.payment')}</th>
+                                    <th>{t('admin.netDue')}</th>
+                                    <th>{t('admin.collected')}</th>
+                                    <th>{t('admin.stillOwed')}</th>
+                                    <th>{t('admin.createdAt')}</th>
                                 </tr>
-                            ))}
-                            {orders.data.length === 0 && (
-                                <EmptyRow colSpan={9} message={t('admin.noOrdersForRepresentative')} />
-                            )}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {orders.data.map((order) => (
+                                    <tr key={order.id} className={order.still_owed > 0 ? 'table-warning' : undefined}>
+                                        <td>
+                                            {can('orders.view') ? (
+                                                <Link href={route('admin.orders.show', order.id)} className="fw-medium">
+                                                    <span dir="ltr">#{order.order_number}</span>
+                                                </Link>
+                                            ) : (
+                                                <span dir="ltr" className="fw-medium">
+                                                    #{order.order_number}
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td>
+                                            {order.customer?.name ?? '—'}
+                                            {order.customer && (
+                                                <div className="text-muted fs-12" dir="ltr">
+                                                    {order.customer.phone}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="text-muted fs-13">{locationOf(order)}</td>
+                                        <td>
+                                            <StatusBadge status={order.status} />
+                                        </td>
+                                        <td>
+                                            <StatusBadge status={order.payment_status} />
+                                        </td>
+                                        <td>
+                                            <span dir="ltr" className="text-nowrap">
+                                                {price(order.net_due)}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span dir="ltr" className="text-nowrap text-muted">
+                                                {price(order.collected_amount)}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {order.still_owed > 0 ? (
+                                                <span dir="ltr" className="text-nowrap fw-semibold text-danger">
+                                                    {price(order.still_owed)}
+                                                </span>
+                                            ) : (
+                                                <span className="text-muted">—</span>
+                                            )}
+                                        </td>
+                                        <td>
+                                            <span dir="ltr" className="text-nowrap text-muted fs-13">
+                                                {dateTime(order.created_at)}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {orders.data.length === 0 && (
+                                    <EmptyRow colSpan={9} message={t('admin.noOrdersForRepresentative')} />
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                    <PaginationFooter data={orders} />
                 </div>
-                <PaginationFooter data={orders} />
-            </div>
+            )}
         </AdminLayout>
     );
 }

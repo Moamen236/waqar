@@ -32,7 +32,7 @@ class CollectionController extends Controller implements HasMiddleware
     public function index(): Response
     {
         return Inertia::render('Collections/Index', [
-            'collections' => Collection::query()->withCount('products')->orderBy('sort_order')->paginate(20),
+            'collections' => Collection::query()->withCount('products')->orderBy('sort_order')->paginate(20)->withQueryString(),
         ]);
     }
 

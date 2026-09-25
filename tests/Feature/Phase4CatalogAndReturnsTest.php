@@ -28,6 +28,7 @@ use App\Models\WarehouseInventory;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\ReturnReasonSeeder;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Support\Facades\Route;
 use Spatie\Permission\Models\Role;
 
 // Follow-up to Phase 4: Products/Categories admin CRUD and a dedicated
@@ -408,7 +409,7 @@ it('scopes the returns screens to the agent who placed the order, and opens them
     expect(OrderReturn::visibleTo($warehouseManager)->count())->toBe(2);
 });
 
-it('walks a post-delivery return through the full admin workflow — approve, receive (restocks), refund', function () {
+it('walks a post-delivery return through its five steps in order — fee, call, courier, receive, refund', function () {
     $geo = p4cGeo();
     $warehouse = Warehouse::create(['name' => 'Main', 'address' => 'Cairo', 'phone' => '01012345678']);
     ShippingRate::create(['geo_type' => 'governorate', 'geo_id' => $geo['governorate']->id, 'price' => 0]);
@@ -459,28 +460,60 @@ it('walks a post-delivery return through the full admin workflow — approve, re
     expect($return->status->value)->toBe('requested')
         ->and($return->stage->value)->toBe('post_delivery');
 
-    // Consent is required before approval, post-delivery (Question 6).
-    $this->actingAs($warehouseManager, 'employee')
-        ->post(route('admin.returns.approve', $return))
-        ->assertStatus(500); // RuntimeException surfaces as a 500 — no consent recorded yet.
+    // There is no approve-without-the-call route any more: the call's
+    // Confirm is the only approval.
+    expect(Route::has('admin.returns.approve'))->toBeFalse();
 
-    $this->actingAs($csAgent, 'employee')
+    // Step 2 before step 1: consent is required before approval,
+    // post-delivery (Question 6), so Confirm is refused.
+    $this->actingAs($checker, 'employee')
+        ->post(route('admin.returns.check', $return), ['outcome' => 'confirm'])
+        ->assertSessionHas('error');
+    expect($return->fresh()->status->value)->toBe('requested');
+
+    // Step 1 — the caller records the fee the customer agreed to on the call.
+    $this->actingAs($checker, 'employee')
         ->post(route('admin.returns.accept-shipping-fee', $return), ['return_shipping_fee' => 10])
         ->assertRedirect();
     expect($return->fresh()->customer_accepted_return_shipping_fee_at)->not->toBeNull();
 
-    $this->actingAs($warehouseManager, 'employee')
-        ->post(route('admin.returns.approve', $return))
+    // Step 2 — the call's Confirm approves it.
+    $this->actingAs($checker, 'employee')
+        ->post(route('admin.returns.check', $return), ['outcome' => 'confirm', 'notes' => 'Wrong size'])
         ->assertRedirect();
     expect($return->fresh()->status->value)->toBe('approved');
 
+    // Step 4 before step 3: nothing is received until a courier was sent.
+    $this->actingAs($warehouseManager, 'employee')
+        ->post(route('admin.returns.receive', $return))
+        ->assertSessionHas('error');
+    expect($return->fresh()->status->value)->toBe('approved');
+
+    // Step 5 before step 4: no replacement while the goods are still out.
+    $this->actingAs($warehouseManager, 'employee')
+        ->post(route('admin.returns.replace', $return), ['items' => [['product_variant_id' => $variant->id, 'quantity' => 1]]])
+        ->assertSessionHas('error');
+    expect($return->fresh()->status->value)->toBe('approved');
+
+    // Step 3 — send a courier.
+    $this->actingAs($warehouseManager, 'employee')
+        ->post(route('admin.returns.assign-pickup', $return), ['assignment_type' => 'representative', 'assignee_id' => $rep->id])
+        ->assertRedirect();
+    expect($return->fresh()->delivery_representative_id)->toBe($rep->id);
+
     $otherWarehouse = Warehouse::create(['name' => 'Branch', 'address' => 'Alex', 'phone' => '2']);
 
+    // Step 4 — receive.
     $this->actingAs($warehouseManager, 'employee')
         // A supplied warehouse is ignored — received items always
         // restock into the main warehouse.
         ->post(route('admin.returns.receive', $return), ['warehouse_id' => $otherWarehouse->id])
         ->assertRedirect();
+
+    // The goods are here now — there is nobody left to send for them.
+    $this->actingAs($warehouseManager, 'employee')
+        ->post(route('admin.returns.assign-pickup', $return), ['assignment_type' => 'representative', 'assignee_id' => $rep->id])
+        ->assertSessionHas('error');
     $return->refresh();
     expect($return->status->value)->toBe('inspected')
         ->and(WarehouseInventory::where('warehouse_id', $warehouse->id)->where('product_variant_id', $variant->id)->first()->quantity)->toBe(5) // restocked into main
@@ -542,8 +575,12 @@ it('refunds a return in cash against the cash treasury', function () {
         ->post(route('admin.returns.accept-shipping-fee', $return), ['return_shipping_fee' => 0])
         ->assertRedirect();
 
+    $this->actingAs($checker, 'employee')
+        ->post(route('admin.returns.check', $return), ['outcome' => 'confirm'])
+        ->assertRedirect();
+
     $this->actingAs($warehouseManager, 'employee')
-        ->post(route('admin.returns.approve', $return))
+        ->post(route('admin.returns.assign-pickup', $return), ['assignment_type' => 'representative', 'assignee_id' => $rep->id])
         ->assertRedirect();
 
     $this->actingAs($warehouseManager, 'employee')

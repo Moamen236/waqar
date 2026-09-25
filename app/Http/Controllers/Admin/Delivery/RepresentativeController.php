@@ -41,7 +41,7 @@ class RepresentativeController extends Controller implements HasMiddleware
     public function index(): Response
     {
         return Inertia::render('Delivery/Representatives/Index', [
-            'representatives' => DeliveryRepresentative::query()->withCount('areas')->latest('id')->paginate(20),
+            'representatives' => DeliveryRepresentative::query()->withCount('areas')->latest('id')->paginate(20)->withQueryString(),
         ]);
     }
 
@@ -62,6 +62,19 @@ class RepresentativeController extends Controller implements HasMiddleware
     public function show(Request $request, DeliveryRepresentative $representative): Response
     {
         $employee = $request->user('employee');
+
+        $profile = [
+            'representative' => $representative->loadCount('areas'),
+            'areas' => $representative->areas()->latest('id')->get(),
+            'geoTree' => GeoTree::tree(),
+        ];
+
+        // The courier's order history and cash position are Delivery Board
+        // data: delivery.representatives.view alone shows the profile and
+        // coverage, not the orders.
+        if (! $employee->can('delivery.view')) {
+            return Inertia::render('Delivery/Representatives/Show', [...$profile, 'stats' => null, 'orders' => null]);
+        }
 
         $base = Order::query()
             ->visibleTo($employee)
@@ -115,9 +128,7 @@ class RepresentativeController extends Controller implements HasMiddleware
             });
 
         return Inertia::render('Delivery/Representatives/Show', [
-            'representative' => $representative->loadCount('areas'),
-            'areas' => $representative->areas()->latest('id')->get(),
-            'geoTree' => GeoTree::tree(),
+            ...$profile,
             'stats' => [
                 'total_orders' => $totalOrders,
                 'active_orders' => $activeOrders,

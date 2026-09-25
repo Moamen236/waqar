@@ -29,8 +29,9 @@ sheet only has to load in the same cascade layer to win.
 
 Deliberately NOT flipped (these are direction-agnostic and flipping them
 breaks the layout):
-  * `left: 50%` / `right: 50%` — centering idioms, paired with a translate
-    that would have to flip in lockstep.
+  * `left: 50%` / `right: 50%` — centering idioms — and the `translate(-50%)`
+    they're paired with. Both halves stay as they are; flipping just one
+    moves the element off-center.
   * anything inside `@font-face`.
   * `background-position` and shorthand `border-radius`, which the theme only
     uses symmetrically.
@@ -70,6 +71,7 @@ PROP_SWAPS = [
 VALUE_SWAP_PROPS = ("text-align", "float", "clear")
 
 CENTERING = re.compile(r"^\s*(50%|1/2)\s*$")
+CENTERING_TRANSLATE = re.compile(r"translateX?\(\s*-?50%")
 
 
 def swap_properties(declaration: str) -> str | None:
@@ -100,6 +102,12 @@ def swap_properties(declaration: str) -> str | None:
     if prop in ("transform", "-webkit-transform") and (
         "translateX(" in value or "translate(" in value
     ):
+        # The other half of the centering idiom: `left: 50%` is left alone
+        # above, so its `translate(-50%, …)` must be too. Flipping only the
+        # translate pushed centered modals (size guide, search, video) a
+        # full half-width off-center in Arabic.
+        if CENTERING_TRANSLATE.search(value):
+            return None
         mirrored = negate_translate(value)
         return prop + ": " + mirrored if mirrored != value else None
 

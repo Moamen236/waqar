@@ -56,7 +56,13 @@ export default function GeoIndex({
     const { t } = useTranslation();
     const { can } = usePermissions();
     const [editing, setEditing] = useState<GeoRow | null>(null);
-    const writable = can('geo.manage');
+    const canCreate = can('geo.create');
+    const canUpdate = can('geo.update');
+    const canDelete = can('geo.delete');
+    // The side form is the add form, and becomes the edit form once a row
+    // is picked — so it shows for whichever of the two this employee holds.
+    const showForm = editing !== null ? canUpdate : canCreate;
+    const hasRowActions = canUpdate || canDelete;
 
     const form = useForm({
         name: { ar: '', en: '' },
@@ -159,7 +165,7 @@ export default function GeoIndex({
             </ul>
 
             <div className="row">
-                {writable && (
+                {showForm && (
                     <div className="col-xl-4">
                         <div className="card">
                             <div className="card-header">
@@ -293,7 +299,7 @@ export default function GeoIndex({
                     </div>
                 )}
 
-                <div className={writable ? 'col-xl-8' : 'col-xl-12'}>
+                <div className={showForm ? 'col-xl-8' : 'col-xl-12'}>
                     <div className="card">
                         <div className="card-header d-flex justify-content-between align-items-center gap-2">
                             <h4 className="card-title flex-grow-1">{t(`admin.geo_${level}`)}</h4>
@@ -324,7 +330,7 @@ export default function GeoIndex({
                                         <th>{t('admin.name')}</th>
                                         <th>{parentLabel}</th>
                                         <th>{t('admin.status')}</th>
-                                        {writable && <th>{t('admin.action')}</th>}
+                                        {hasRowActions && <th>{t('admin.action')}</th>}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -337,23 +343,27 @@ export default function GeoIndex({
                                             <td>
                                                 <StatusBadge status={row.is_active ? 'active' : 'inactive'} />
                                             </td>
-                                            {writable && (
+                                            {hasRowActions && (
                                                 <td>
                                                     <div className="d-flex gap-2">
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-soft-primary btn-sm"
-                                                            onClick={() => startEdit(row)}
-                                                        >
-                                                            <i className="bx bx-edit-alt align-middle fs-18" />
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            className="btn btn-soft-danger btn-sm"
-                                                            onClick={() => remove(row)}
-                                                        >
-                                                            <i className="bx bx-trash align-middle fs-18" />
-                                                        </button>
+                                                        {canUpdate && (
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-soft-primary btn-sm"
+                                                                onClick={() => startEdit(row)}
+                                                            >
+                                                                <i className="bx bx-edit-alt align-middle fs-18" />
+                                                            </button>
+                                                        )}
+                                                        {canDelete && (
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-soft-danger btn-sm"
+                                                                onClick={() => remove(row)}
+                                                            >
+                                                                <i className="bx bx-trash align-middle fs-18" />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             )}
@@ -361,7 +371,7 @@ export default function GeoIndex({
                                     ))}
                                     {rows.data.length === 0 && (
                                         <tr>
-                                            <td colSpan={writable ? 4 : 3} className="text-center text-muted py-4">
+                                            <td colSpan={hasRowActions ? 4 : 3} className="text-center text-muted py-4">
                                                 {t('admin.nothingHereYet')}
                                             </td>
                                         </tr>

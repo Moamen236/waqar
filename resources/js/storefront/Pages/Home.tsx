@@ -92,7 +92,7 @@ export default function Home({
 
     return (
         <StorefrontLayout headerStyle="transparent">
-            <Head title={t('nav.home')} />
+            <Head title={t('meta.homeTitle')} />
 
             {/* Hero. The photo keeps the model on its right with open cream
              * space on the left; in RTL it's mirrored so the copy sits on the

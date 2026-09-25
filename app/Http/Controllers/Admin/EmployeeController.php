@@ -38,7 +38,8 @@ class EmployeeController extends Controller implements HasMiddleware
             ->visibleTo($request->user('employee'))
             ->with('roles:id,name')
             ->latest('id')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         return Inertia::render('Employees/Index', ['employees' => $employees]);
     }

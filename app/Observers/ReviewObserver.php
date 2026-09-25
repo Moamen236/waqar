@@ -9,11 +9,8 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * A review lands pending and waits for someone to moderate it (Section
- * 23's "New Review"). Vice Chairman owns the catalog surface.
- *
- * No link: `reviews.moderate` is seeded but no moderation screen exists
- * yet, and pointing the bell at a 404 is worse than a row that only
- * informs. Add the route here when that screen ships.
+ * 23's "New Review"). Vice Chairman owns the catalog surface. The bell
+ * opens the review itself on the moderation screen.
  */
 class ReviewObserver
 {
@@ -32,6 +29,8 @@ class ReviewObserver
                 'product' => (string) $review->product?->name,
                 'rating' => $review->rating,
             ],
+            'admin.reviews.show',
+            ['review' => $review->id],
         ));
     }
 }

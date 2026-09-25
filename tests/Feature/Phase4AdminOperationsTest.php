@@ -213,11 +213,11 @@ it('lets a Super Admin edit a role permission matrix via /admin/roles', function
     $checkingRole = Role::where('name', 'Checking')->where('guard_name', 'employee')->firstOrFail();
 
     $this->actingAs($superAdmin, 'employee')
-        ->put(route('admin.roles.update', $checkingRole), ['permissions' => ['orders.view', 'orders.status.update', 'orders.assign']])
+        ->put(route('admin.roles.update', $checkingRole), ['permissions' => ['orders.view', 'checking.view', 'checking.confirm']])
         ->assertRedirect(route('admin.roles.index'));
 
     expect($checkingRole->fresh()->permissions->pluck('name')->all())
-        ->toEqualCanonicalizing(['orders.view', 'orders.status.update', 'orders.assign']);
+        ->toEqualCanonicalizing(['orders.view', 'checking.view', 'checking.confirm']);
 });
 
 it('never lets a non-Super-Admin employee assign the Super Admin role, even with employees.create granted', function () {
@@ -414,7 +414,7 @@ it('rejects an order that names neither an existing customer nor a new one', fun
     expect(Order::count())->toBe(0);
 });
 
-it('hands the order screen each customer with their saved addresses attached', function () {
+it('finds customers for the order screen by search, with their saved addresses attached', function () {
     $geo = p4Geo();
     Warehouse::create(['name' => 'Main Warehouse', 'address' => 'Cairo', 'phone' => '01012345678']);
     $customer = p4Customer();
@@ -429,10 +429,30 @@ it('hands the order screen each customer with their saved addresses attached', f
     ]);
     [$agent] = p4Employee('Customer Service');
 
+    // The page itself no longer carries a customer list at all.
     $this->actingAs($agent, 'employee')->get(route('admin.orders.create'))
-        ->assertInertia(fn ($page) => $page
-            ->where('customers.0.addresses.0.address_line', '3 Saved St')
-            ->where('customers.0.addresses.0.is_default', true));
+        ->assertInertia(fn ($page) => $page->missing('customers')->etc());
+
+    $this->actingAs($agent, 'employee')
+        ->getJson(route('admin.orders.customer-search', ['q' => $customer->phone]))
+        ->assertOk()
+        ->assertJsonPath('customers.0.id', $customer->id)
+        ->assertJsonPath('customers.0.addresses.0.address_line', '3 Saved St')
+        ->assertJsonPath('customers.0.addresses.0.is_default', true);
+
+    // Bounded: a broad term returns a page of matches, not the table.
+    foreach (range(1, 20) as $i) {
+        Customer::create(['name' => "Match {$i}", 'phone' => '0100000'.str_pad((string) $i, 4, '0', STR_PAD_LEFT), 'password' => 'x']);
+    }
+    $this->actingAs($agent, 'employee')
+        ->getJson(route('admin.orders.customer-search', ['q' => 'Match']))
+        ->assertJsonCount(15, 'customers');
+
+    // Same gate as the rest of order creation.
+    [$checker] = p4Employee('Checking');
+    $this->actingAs($checker, 'employee')
+        ->getJson(route('admin.orders.customer-search', ['q' => 'Match']))
+        ->assertForbidden();
 });
 
 it('quotes the order screen its subtotal, shipping, discount and total from the same services the Action uses', function () {
@@ -657,7 +677,7 @@ it('refuses to bulk-assign an order the employee cannot see', function () {
     $order = Order::firstOrFail();
     $this->actingAs($checker, 'employee')->post(route('admin.checking.confirm', $order))->assertRedirect();
 
-    $otherAgent->givePermissionTo('orders.assign');
+    $otherAgent->givePermissionTo('delivery.assign');
     $rep = DeliveryRepresentative::create(['name' => 'Ahmed', 'phone' => '01012345678']);
 
     $this->actingAs($otherAgent, 'employee')->post(route('admin.delivery.assign.bulk'), [
@@ -1746,7 +1766,7 @@ it('refuses to settle an order the employee cannot see', function () {
     // A Customer Service agent sees only orders they created. Posting
     // another agent's order id must not settle it.
     [$otherAgent] = p4Employee('Customer Service');
-    $otherAgent->givePermissionTo('orders.confirm_delivery');
+    $otherAgent->givePermissionTo('accounting.collect');
 
     $this->actingAs($otherAgent, 'employee')->post(route('admin.accounting.settle.bulk'), [
         'order_ids' => [$first->id],

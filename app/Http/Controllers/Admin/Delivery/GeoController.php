@@ -83,7 +83,9 @@ class GeoController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('permission:geo.view', only: ['index']),
-            new Middleware('permission:geo.manage', only: ['store', 'update', 'destroy']),
+            new Middleware('permission:geo.create', only: ['store']),
+            new Middleware('permission:geo.update', only: ['update']),
+            new Middleware('permission:geo.delete', only: ['destroy']),
         ];
     }
 

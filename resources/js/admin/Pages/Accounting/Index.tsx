@@ -70,8 +70,11 @@ export default function AccountingIndex({
 }) {
     const { t, price } = useTranslation();
     const { can } = usePermissions();
-    const showInvoice = can('orders.view');
-    const canConfirm = can('orders.confirm_delivery');
+    const showInvoice = can('orders.print_invoice');
+    // Every checkbox on these queues feeds a collect/settle action; confirming
+    // a handover is its own grant.
+    const canCollect = can('accounting.collect');
+    const canHandover = can('accounting.confirm_handover');
 
     const [selected, setSelected] = useState<number[]>([]);
     const [activeTab, setActiveTab] = useState<Tab>('handover');
@@ -159,7 +162,7 @@ export default function AccountingIndex({
     // The selection bar on the two collect-only queues. The delivery queue
     // keeps its own, which also offers the full-amount settle.
     const pickedOwed = Math.round(picked.reduce((sum, order) => sum + Number(order.still_owed), 0) * 100) / 100;
-    const collectBar = canConfirm && picked.length > 0 && (
+    const collectBar = canCollect && picked.length > 0 && (
         <div className="bg-light-subtle border-top border-bottom p-3 d-flex flex-wrap align-items-center gap-2">
             <div className="flex-grow-1">
                 <div className="fw-semibold">
@@ -265,7 +268,7 @@ export default function AccountingIndex({
                                 <table className="table align-middle mb-0 table-hover table-centered">
                                     <thead className="bg-light-subtle">
                                         <tr>
-                                            {canConfirm && <th style={{ width: 40 }} />}
+                                            {canCollect && <th style={{ width: 40 }} />}
                                             <th>{t('admin.order')}</th>
                                             <th>{t('admin.customer')}</th>
                                             <th>{t('admin.assignedTo')}</th>
@@ -277,7 +280,7 @@ export default function AccountingIndex({
                                     <tbody>
                                         {awaitingHandover.data.map((order) => (
                                             <tr key={order.id}>
-                                                {canConfirm && (
+                                                {canCollect && (
                                                     <td>
                                                         <input
                                                             type="checkbox"
@@ -311,7 +314,7 @@ export default function AccountingIndex({
                                                 </td>
                                                 <td>
                                                     <div className="d-flex gap-1">
-                                                        {canConfirm && (
+                                                        {canHandover && (
                                                             <button
                                                                 type="button"
                                                                 className="btn btn-soft-primary btn-sm"
@@ -333,7 +336,7 @@ export default function AccountingIndex({
                                         {awaitingHandover.data.length === 0 && (
                                             <tr>
                                                 <td
-                                                    colSpan={canConfirm ? 7 : 6}
+                                                    colSpan={canCollect ? 7 : 6}
                                                     className="text-center text-muted py-4"
                                                 >
                                                     {t('admin.nothingAwaitingHandover')}
@@ -423,7 +426,7 @@ export default function AccountingIndex({
                                 <table className="table align-middle mb-0 table-hover table-centered">
                                     <thead className="bg-light-subtle">
                                         <tr>
-                                            {canConfirm && (
+                                            {canCollect && (
                                                 <th style={{ width: 40 }}>
                                                     <input
                                                         type="checkbox"
@@ -450,7 +453,7 @@ export default function AccountingIndex({
                                     <tbody>
                                         {orders.data.map((order) => (
                                             <tr key={order.id}>
-                                                {canConfirm && (
+                                                {canCollect && (
                                                     <td>
                                                         <input
                                                             type="checkbox"
@@ -504,7 +507,7 @@ export default function AccountingIndex({
                                         {orders.data.length === 0 && (
                                             <tr>
                                                 <td
-                                                    colSpan={canConfirm ? 7 : 6}
+                                                    colSpan={canCollect ? 7 : 6}
                                                     className="text-center text-muted py-4"
                                                 >
                                                     {t('admin.nothingAwaitingADeliveryResult')}
@@ -605,7 +608,7 @@ export default function AccountingIndex({
                                 <table className="table align-middle mb-0 table-hover table-centered">
                                     <thead className="bg-light-subtle">
                                         <tr>
-                                            {canConfirm && <th style={{ width: 40 }} />}
+                                            {canCollect && <th style={{ width: 40 }} />}
                                             <th>{t('admin.order')}</th>
                                             <th>{t('admin.customer')}</th>
                                             <th>{t('admin.assignedTo')}</th>
@@ -628,7 +631,7 @@ export default function AccountingIndex({
 
                                             return (
                                                 <tr key={order.id}>
-                                                    {canConfirm && (
+                                                    {canCollect && (
                                                         <td>
                                                             <input
                                                                 type="checkbox"
@@ -701,7 +704,7 @@ export default function AccountingIndex({
                                         {outstanding.data.length === 0 && (
                                             <tr>
                                                 <td
-                                                    colSpan={canConfirm ? 9 : 8}
+                                                    colSpan={canCollect ? 9 : 8}
                                                     className="text-center text-muted py-4"
                                                 >
                                                     {t('admin.nothingAwaitingBalance')}

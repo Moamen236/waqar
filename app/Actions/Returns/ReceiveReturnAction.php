@@ -26,6 +26,12 @@ class ReceiveReturnAction
             throw new RuntimeException(__('Only an approved return can be received.'));
         }
 
+        // Somebody has to have been sent for the goods before they can be
+        // booked in — the courier is who a missing parcel is traced to.
+        if ($return->delivery_assignment_type === null) {
+            throw new RuntimeException(__('Send a courier to collect this return before marking it received.'));
+        }
+
         return DB::transaction(function () use ($return, $warehouseEmployee, $warehouse) {
             foreach ($return->items()->with('productVariant.product')->get() as $item) {
                 if (! $item->productVariant->product->inventory_tracking_enabled) {

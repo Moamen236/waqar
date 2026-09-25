@@ -7,6 +7,7 @@ use App\Actions\Orders\ConfirmDeliveryResultAction;
 use App\Actions\Orders\ConfirmOrderAction;
 use App\Actions\Returns\AcceptReturnShippingFeeAction;
 use App\Actions\Returns\ApproveReturnAction;
+use App\Actions\Returns\AssignReturnPickupAction;
 use App\Actions\Returns\ReceiveReturnAction;
 use App\Actions\Returns\RefundReturnAction;
 use App\Actions\Returns\RequestReturnAction;
@@ -361,7 +362,7 @@ it('gives Store Orders the storefront order book and nothing it could edit', fun
     expect($employee->can('orders.view'))->toBeTrue()
         // Read-only: no order creation, no customer edits, no returns.
         ->and($employee->can('orders.create'))->toBeFalse()
-        ->and($employee->can('orders.status.update'))->toBeFalse()
+        ->and($employee->can('checking.cancel'))->toBeFalse()
         ->and($employee->can('customers.update'))->toBeFalse()
         ->and($employee->can('returns.create'))->toBeFalse()
         ->and($employee->can('orders.export'))->toBeFalse();
@@ -397,6 +398,7 @@ it('runs the full return → refund workflow: restocks on receipt, deducts the a
     );
     app(AcceptReturnShippingFeeAction::class)->execute($return, $customer, 10);
     app(ApproveReturnAction::class)->execute($return->fresh(), $checker);
+    app(AssignReturnPickupAction::class)->execute($return->fresh(), $manager, DeliveryAssignmentType::Representative, $rep);
     app(ReceiveReturnAction::class)->execute($return->fresh(), $warehouseClerk, $geo['warehouse']);
 
     $stockAfterRestock = WarehouseInventory::where('product_variant_id', $variant->id)->first();

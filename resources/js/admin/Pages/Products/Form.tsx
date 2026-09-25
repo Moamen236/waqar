@@ -10,6 +10,7 @@ import FieldError from '../../Components/Form/FieldError';
 import FormField from '../../Components/Form/FormField';
 import ValidationSummary from '../../Components/Form/ValidationSummary';
 import AdminLayout from '../../Layouts/AdminLayout';
+import { usePermissions } from '../../Hooks/usePermissions';
 import { confirmAction } from '../../lib/confirm';
 import { invalidClass, invalidProps, pickError, useClearServerErrorsOnChange } from '../../lib/formErrors';
 import { useTranslation } from '../../lib/useTranslation';
@@ -138,6 +139,7 @@ export default function ProductForm({
     sizeAttributeIds?: number[];
 }) {
     const { t, price: money, isRtl } = useTranslation();
+    const { can } = usePermissions();
     const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
     const [newImages, setNewImages] = useState<File[]>([]);
     // Parallel to newImages by index: which colour each not-yet-saved photo
@@ -804,20 +806,22 @@ export default function ProductForm({
                                             />
                                         </FormField>
                                     </div>
-                                    <div className="col-lg-4">
-                                        <FormField
-                                            name="cost_price"
-                                            label={t('admin.costPriceInternalOnly')}
-                                            error={serverErrors.cost_price}
-                                        >
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                className="form-control"
-                                                {...register('cost_price')}
-                                            />
-                                        </FormField>
-                                    </div>
+                                    {can('products.cost_price.view') && (
+                                        <div className="col-lg-4">
+                                            <FormField
+                                                name="cost_price"
+                                                label={t('admin.costPriceInternalOnly')}
+                                                error={serverErrors.cost_price}
+                                            >
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    className="form-control"
+                                                    {...register('cost_price')}
+                                                />
+                                            </FormField>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <h5 className="fs-14 mb-1">{t('admin.variants')}</h5>

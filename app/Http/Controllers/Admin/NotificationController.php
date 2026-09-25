@@ -49,6 +49,7 @@ class NotificationController extends Controller
         $notifications = $request->user('employee')
             ->notifications()
             ->paginate(30)
+            ->withQueryString()
             ->through(fn (DatabaseNotification $notification) => self::row($notification));
 
         return Inertia::render('Notifications/Index', [
