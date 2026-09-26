@@ -459,3 +459,9 @@ h6,
 .is-invalid .form-check-label {
     color: var(--bs-form-invalid-color);
 }
+
+/* Report group landing page (Reports/Index): the report title reads as the
+   link, underlined on hover, while the description stays plain. */
+.report-group-link:hover .report-group-title {
+    text-decoration: underline;
+}

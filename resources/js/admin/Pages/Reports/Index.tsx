@@ -9,6 +9,129 @@ interface ReportCard {
 }
 
 /**
+ * Each group opens as a landing page — a large icon, the group's name and
+ * what it is for, then its reports two to a row, each with its own icon.
+ * Group icons match the sidebar; a report missing from its map falls back
+ * to a plain file icon, so a newly registered report still renders.
+ */
+const GROUP_PAGES: Record<string, { icon: string; reports: Record<string, string> }> = {
+    executive: {
+        icon: 'bx-trending-up',
+        reports: {},
+    },
+    sales: {
+        icon: 'bx-line-chart',
+        reports: {
+            'sales.summary': 'bx-line-chart',
+            'sales.by-product': 'bx-purchase-tag',
+            'sales.by-category': 'bx-category',
+            'sales.by-geography': 'bx-map',
+            'sales.customers': 'bx-group',
+            'sales.discounts': 'bxs-coupon',
+            'sales.margin': 'bx-trending-up',
+        },
+    },
+    inventory: {
+        icon: 'bx-package',
+        reports: {
+            'inventory.stock-on-hand': 'bx-box',
+            'inventory.low-stock': 'bx-error',
+            'inventory.movements': 'bx-transfer',
+            'inventory.reservations': 'bx-lock-alt',
+            'inventory.shrinkage': 'bx-trending-down',
+            'inventory.turnover': 'bx-refresh',
+        },
+    },
+    returns: {
+        icon: 'bx-undo',
+        reports: {
+            'returns.summary': 'bx-bar-chart-alt-2',
+            'returns.reasons': 'bx-message-square-detail',
+            'returns.by-product': 'bx-package',
+            'returns.cycle-time': 'bx-time-five',
+            'returns.refunds': 'bx-money',
+        },
+    },
+    finance: {
+        icon: 'bx-wallet',
+        reports: {
+            'finance.profit-loss': 'bx-line-chart',
+            'finance.collections': 'bx-money',
+            'finance.receivables': 'bx-hourglass',
+            'finance.treasury': 'bx-wallet',
+            'finance.transfers': 'bx-transfer-alt',
+            'finance.reconciliation': 'bx-check-double',
+            'finance.expenses': 'bx-credit-card',
+        },
+    },
+    employees: {
+        icon: 'bx-user-check',
+        reports: {
+            'employees.customer-service': 'bx-headphone',
+            'employees.checking': 'bx-check-square',
+            'employees.delivery': 'bxs-truck',
+            'employees.warehouse': 'bx-store',
+            'employees.accounting': 'bx-calculator',
+        },
+    },
+    audit: {
+        icon: 'bx-search-alt',
+        reports: {
+            'audit.trail': 'bx-history',
+            'audit.entity-history': 'bx-file-find',
+            'audit.access': 'bx-shield-quarter',
+        },
+    },
+    orders: {
+        icon: 'bx-receipt',
+        reports: {
+            'orders.summary': 'bx-bar-chart-alt-2',
+            'orders.pipeline': 'bx-filter-alt',
+            'orders.lifecycle': 'bx-time-five',
+            'orders.delivery-performance': 'bxs-truck',
+            'orders.cancellations': 'bx-x-circle',
+            'orders.source-comparison': 'bx-git-compare',
+        },
+    },
+};
+
+function GroupPage({ groupKey, reports }: { groupKey: string; reports: ReportCard[] }) {
+    const { t } = useTranslation();
+    const page = GROUP_PAGES[groupKey];
+
+    return (
+        <div className="card">
+            <div className="card-body p-4 p-lg-5">
+                <div className="mx-auto" style={{ maxWidth: 880 }}>
+                    <i className={`bx ${page.icon} text-dark d-block mb-2`} style={{ fontSize: 72, lineHeight: 1 }} />
+                    <h1 className="fw-bold mb-2">{t(`reports.group.${groupKey}`)}</h1>
+                    <p className="text-muted fs-15 mb-5">{t(`reports.groupIntro.${groupKey}`)}</p>
+
+                    {/* justify-content-center: full rows fill both columns,
+                        an odd last report sits centred under them. */}
+                    <div className="row justify-content-center g-4 g-lg-5">
+                        {reports.map((report) => (
+                            <div className="col-md-6" key={report.key}>
+                                <Link
+                                    href={route('admin.reports.show', report.key)}
+                                    className="d-block text-decoration-none report-group-link"
+                                >
+                                    <h5 className="d-flex align-items-center gap-2 fw-semibold text-dark mb-2">
+                                        <i className={`bx ${page.reports[report.key] ?? 'bx-file'} fs-20`} />
+                                        <span className="report-group-title">{t(report.title)}</span>
+                                    </h5>
+                                    <p className="text-muted mb-0">{t(report.description)}</p>
+                                </Link>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/**
  * The report catalogue.
  *
  * Groups arrive already filtered to what this employee may open — the
@@ -48,6 +171,8 @@ export default function ReportsIndex({ groups, group }: { groups: Record<string,
                         )}
                     </div>
                 </div>
+            ) : group && GROUP_PAGES[group] && groups[group] ? (
+                <GroupPage groupKey={group} reports={groups[group]} />
             ) : (
                 entries.map(([groupKey, reports]) => (
                     <div className="mb-3" key={groupKey}>
